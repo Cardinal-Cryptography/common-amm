@@ -15,6 +15,7 @@ use openbrush::{
     },
 };
 
+/// Transfers `value` amount of `token` to an account controlled by `to` address.
 #[inline]
 pub fn safe_transfer(token: AccountId, to: AccountId, value: Balance) -> Result<(), PSP22Error> {
     PSP22Ref::transfer(&token, to, value, Vec::new())
@@ -25,6 +26,7 @@ pub fn safe_transfer_native(to: AccountId, value: Balance) -> Result<(), Transfe
         .map_err(|_| TransferHelperError::TransferFailed)
 }
 
+/// Transfers `value` amount of `token` tokens `from` account `to` address.
 #[inline]
 pub fn safe_transfer_from(
     token: AccountId,

@@ -41,6 +41,8 @@ pub fn sort_tokens(
     Ok((token_0, token_1))
 }
 
+/// Returns address of a `Pair` contract instance (if exists) for
+/// `(token_a, token_b)` pair registered in `factory` Factory instance.
 #[inline]
 pub fn pair_for_on_chain(
     factory: &AccountId,

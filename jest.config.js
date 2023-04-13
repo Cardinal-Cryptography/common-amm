@@ -5,4 +5,5 @@ module.exports = {
   testTimeout: 20000,
   globalSetup: './tests/globalSetup.ts',
   globalTeardown: './tests/globalTeardown.ts',
+  runner: 'jest-serial-runner',
 };

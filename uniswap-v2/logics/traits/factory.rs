@@ -5,6 +5,9 @@ use openbrush::traits::AccountId;
 #[openbrush::wrapper]
 pub type FactoryRef = dyn Factory;
 
+/// Factory trait for tracking all pairs within the UniswapV2 DEX.
+/// Creates new, unique instances of `Pair` smart contract per token pairs.
+/// Contains the logic to turn on the protocol charge.
 #[openbrush::trait_definition]
 pub trait Factory {
     #[ink(message)]

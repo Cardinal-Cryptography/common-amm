@@ -24,7 +24,7 @@ node_modules/
 .next/
 
 target/
-/types/
+# /types/
 
 .DS_Store
 
