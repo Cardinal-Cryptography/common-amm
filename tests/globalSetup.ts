@@ -10,21 +10,39 @@ import Token from '../types/contracts/psp22_token';
 import Wnative from '../types/contracts/wnative_contract';
 import Router from '../types/contracts/router_contract';
 import { KeyringPair } from '@polkadot/keyring/types';
+import { _signAndSend } from '@727-ventures/typechain-types';
 import BN from 'bn.js';
+
+export const getTestFixture = (() => {
+  let setupApiPromise: Promise<TestFixture>;
+  return () => {
+    if (!setupApiPromise) {
+      setupApiPromise = setupApi();
+    }
+
+    return setupApiPromise;
+  };
+})();
 
 // Create a new instance of contract
 const wsProvider = new WsProvider('ws://127.0.0.1:9944');
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
-export default async function setupApi(): Promise<void> {
+
+async function setupApi() {
   const api = await ApiPromise.create({ provider: wsProvider });
   const alice = keyring.addFromUri('//Alice');
   const bob = keyring.addFromUri('//Bob');
-  await api.tx.balances.transfer(bob.address, 1_000_000_000_000).signAndSend(alice);
-  globalThis.setup = await setupContracts(api, alice, bob);
+  let tx = await api.tx.balances.transfer(bob.address, 1_000_000_000_000);
+  // We're using alternative to wait for the correct txn status.
+  await _signAndSend(api.registry, tx, alice, (event: any) => event);
+  return setupContracts(api, alice, bob);
 }
 
-interface TestFixture {
+export interface TestFixture {
+  api: ApiPromise;
+  deployer: KeyringPair;
+  wallet: KeyringPair;
   token0: Token;
   token1: Token;
   wnative: Wnative;
@@ -32,7 +50,11 @@ interface TestFixture {
   factory: Factory;
 }
 
-async function setupContracts(api: ApiPromise, deployer: KeyringPair, wallet: KeyringPair): Promise<TestFixture> {
+async function setupContracts(
+  api: ApiPromise,
+  deployer: KeyringPair,
+  wallet: KeyringPair,
+): Promise<TestFixture> {
   let pairFactory = new Pair_factory(api, deployer);
   let pair = new Pair((await pairFactory.new()).address, deployer, api);
   let pairHash = pair.abi.info.source.wasmHash.toHex();
@@ -45,15 +67,21 @@ async function setupContracts(api: ApiPromise, deployer: KeyringPair, wallet: Ke
   let [token0, token1] = await setupPsp22(api, deployer);
   let [wnative, router] = await setupRouter(api, deployer, factory);
   return {
+    api,
+    deployer,
+    wallet,
     token0,
     token1,
     wnative,
     router,
     factory,
-  }
+  };
 }
 
-async function setupPsp22(api: ApiPromise, deployer: KeyringPair): Promise<Token[]> {
+async function setupPsp22(
+  api: ApiPromise,
+  deployer: KeyringPair,
+): Promise<Token[]> {
   let tokenFactory = new Token_factory(api, deployer);
   let totalSupply = new BN(10000000);
 
@@ -79,17 +107,25 @@ async function setupPsp22(api: ApiPromise, deployer: KeyringPair): Promise<Token
       : [tokenAaddress, tokenBaddress];
   let token0 = new Token(token0Address, deployer, api);
   let token1 = new Token(token1Address, deployer, api);
-  return [token0, token1]
+  return [token0, token1];
 }
 
-async function setupRouter(api: ApiPromise, deployer: KeyringPair, factory: Factory): Promise<[Wnative, Router]> {
+async function setupRouter(
+  api: ApiPromise,
+  deployer: KeyringPair,
+  factory: Factory,
+): Promise<[Wnative, Router]> {
   let wnativeFactory = new Wnative_factory(api, deployer);
-  let wnative = new Wnative((await wnativeFactory.new()).address, deployer, api);
+  let wnative = new Wnative(
+    (await wnativeFactory.new()).address,
+    deployer,
+    api,
+  );
   let routerFactory = new Router_factory(api, deployer);
   let router = new Router(
     (await routerFactory.new(factory.address, wnative.address)).address,
     deployer,
     api,
   );
-  return [wnative, router]
+  return [wnative, router];
 }

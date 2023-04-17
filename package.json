@@ -35,7 +35,6 @@
     "@polkadot/api-contract": "^9.10.3"
   },
   "devDependencies": {
-    "dotenv": "^16.0.3",
-    "jest-serial-runner": "^1.2.1"
+    "dotenv": "^16.0.3"
   }
 }
