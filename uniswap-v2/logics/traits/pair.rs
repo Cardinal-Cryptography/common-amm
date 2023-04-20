@@ -21,6 +21,10 @@ pub type PairRef = dyn Pair;
 
 #[openbrush::trait_definition]
 pub trait Pair {
+    /// Returns amounts of tokens this pair holds at `Timestamp`.
+    /// 
+    /// NOTE: This does not include the tokens that were transferred to the contract
+    /// as part of the _current_ transaction.
     #[ink(message)]
     fn get_reserves(&self) -> (Balance, Balance, Timestamp);
 
