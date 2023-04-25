@@ -29,43 +29,17 @@ export default class Methods {
 	}
 
 	/**
-	* pairContractCodeHash
-	*
-	*/
-	"pairContractCodeHash" (
-		__options ? : GasLimit,
-	){
-		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::pairContractCodeHash", (events: EventRecord) => {
-			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
-		}, [], __options);
-	}
-
-	/**
-	* setFeeToSetter
-	*
-	* @param { ArgumentTypes.AccountId } feeToSetter,
-	*/
-	"setFeeToSetter" (
-		feeToSetter: ArgumentTypes.AccountId,
-		__options ? : GasLimit,
-	){
-		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::setFeeToSetter", (events: EventRecord) => {
-			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
-		}, [feeToSetter], __options);
-	}
-
-	/**
-	* createPair
+	* getPair
 	*
 	* @param { ArgumentTypes.AccountId } tokenA,
 	* @param { ArgumentTypes.AccountId } tokenB,
 	*/
-	"createPair" (
+	"getPair" (
 		tokenA: ArgumentTypes.AccountId,
 		tokenB: ArgumentTypes.AccountId,
 		__options ? : GasLimit,
 	){
-		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::createPair", (events: EventRecord) => {
+		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::getPair", (events: EventRecord) => {
 			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
 		}, [tokenA, tokenB], __options);
 	}
@@ -85,25 +59,13 @@ export default class Methods {
 	}
 
 	/**
-	* feeToSetter
+	* pairContractCodeHash
 	*
 	*/
-	"feeToSetter" (
+	"pairContractCodeHash" (
 		__options ? : GasLimit,
 	){
-		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::feeToSetter", (events: EventRecord) => {
-			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
-		}, [], __options);
-	}
-
-	/**
-	* allPairsLength
-	*
-	*/
-	"allPairsLength" (
-		__options ? : GasLimit,
-	){
-		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::allPairsLength", (events: EventRecord) => {
+		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::pairContractCodeHash", (events: EventRecord) => {
 			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
 		}, [], __options);
 	}
@@ -123,19 +85,29 @@ export default class Methods {
 	}
 
 	/**
-	* getPair
+	* setFeeToSetter
 	*
-	* @param { ArgumentTypes.AccountId } tokenA,
-	* @param { ArgumentTypes.AccountId } tokenB,
+	* @param { ArgumentTypes.AccountId } feeToSetter,
 	*/
-	"getPair" (
-		tokenA: ArgumentTypes.AccountId,
-		tokenB: ArgumentTypes.AccountId,
+	"setFeeToSetter" (
+		feeToSetter: ArgumentTypes.AccountId,
 		__options ? : GasLimit,
 	){
-		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::getPair", (events: EventRecord) => {
+		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::setFeeToSetter", (events: EventRecord) => {
 			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
-		}, [tokenA, tokenB], __options);
+		}, [feeToSetter], __options);
+	}
+
+	/**
+	* allPairsLength
+	*
+	*/
+	"allPairsLength" (
+		__options ? : GasLimit,
+	){
+		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::allPairsLength", (events: EventRecord) => {
+			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
+		}, [], __options);
 	}
 
 	/**
@@ -146,6 +118,34 @@ export default class Methods {
 		__options ? : GasLimit,
 	){
 		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::feeTo", (events: EventRecord) => {
+			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
+		}, [], __options);
+	}
+
+	/**
+	* createPair
+	*
+	* @param { ArgumentTypes.AccountId } tokenA,
+	* @param { ArgumentTypes.AccountId } tokenB,
+	*/
+	"createPair" (
+		tokenA: ArgumentTypes.AccountId,
+		tokenB: ArgumentTypes.AccountId,
+		__options ? : GasLimit,
+	){
+		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::createPair", (events: EventRecord) => {
+			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
+		}, [tokenA, tokenB], __options);
+	}
+
+	/**
+	* feeToSetter
+	*
+	*/
+	"feeToSetter" (
+		__options ? : GasLimit,
+	){
+		return txSignAndSend( this.__apiPromise, this.__nativeContract, this.__keyringPair, "factory::feeToSetter", (events: EventRecord) => {
 			return decodeEvents(events, this.__nativeContract, EVENT_DATA_TYPE_DESCRIPTIONS);
 		}, [], __options);
 	}
