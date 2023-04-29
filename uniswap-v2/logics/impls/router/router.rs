@@ -324,8 +324,9 @@ impl<T: Storage<data::Data>> Router for T {
             amounts[0],
         )?;
         self._swap(&amounts, &path, Self::env().account_id())?;
-        unwrap(&wnative, amounts[amounts.len() - 1])?;
-        safe_transfer_native(to, amounts[amounts.len() - 1])?;
+        let native_out = amounts[amounts.len() - 1];
+        unwrap(&wnative, native_out)?;
+        safe_transfer_native(to, native_out)?;
         Ok(amounts)
     }
 
@@ -343,8 +344,9 @@ impl<T: Storage<data::Data>> Router for T {
         let wnative = self.data().wnative;
         ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
         let amounts = get_amounts_out(&factory, amount_in, &path)?;
+        let native_out = amounts[amounts.len() - 1];
         ensure!(
-            amounts[amounts.len() - 1] >= amount_out_min,
+            native_out >= amount_out_min,
             RouterError::InsufficientOutputAmount
         );
         safe_transfer_from(
@@ -354,8 +356,8 @@ impl<T: Storage<data::Data>> Router for T {
             amounts[0],
         )?;
         self._swap(&amounts, &path, Self::env().account_id())?;
-        unwrap(&wnative, amounts[amounts.len() - 1])?;
-        safe_transfer_native(to, amounts[amounts.len() - 1])?;
+        unwrap(&wnative, native_out)?;
+        safe_transfer_native(to, native_out)?;
         Ok(amounts)
     }
 
@@ -383,6 +385,8 @@ impl<T: Storage<data::Data>> Router for T {
             pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
             amounts[0],
         )?;
+        // TODO: Is usage of `to` correct here? It means all intermediate tokens transfers
+        // will be sent to the recipient passed as the arg to this function.
         self._swap(&amounts, &path, to)?;
         if received_value > amounts[0] {
             safe_transfer_native(Self::env().caller(), received_value - amounts[0])?

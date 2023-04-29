@@ -162,7 +162,11 @@ impl<
             self.data::<data::Data>().k_last = casted_mul(reserves.0, reserves.1).into();
         }
 
-        self._emit_mint_event(Self::env().caller(), amount_0_transferred, amount_1_transferred);
+        self._emit_mint_event(
+            Self::env().caller(),
+            amount_0_transferred,
+            amount_1_transferred,
+        );
 
         Ok(liquidity)
     }
@@ -285,6 +289,9 @@ impl<
             PairError::InsufficientInputAmount
         );
 
+        // Verify that trade maintained the constant product invariant k.
+        // Adjusted for fees, 3.2.1 section of the whitepaper.
+        // TODO: Hardcoded fees.
         let balance_0_adjusted = balance_0
             .checked_mul(1000)
             .ok_or(PairError::MulOverFlow7)?
