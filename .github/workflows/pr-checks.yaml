@@ -41,8 +41,7 @@ jobs:
     - name: Install cargo contract
       if: ${{ steps.check-cargo-contract.outcome == 'failure' }}
       run: |
-        cargo install cargo-dylint dylint-link
-        cargo install --force --locked cargo-contract
+        cargo install --version 2.1.0 --force --locked cargo-contract
 
     - name: Compile contracts
       run: |
@@ -54,4 +53,5 @@ jobs:
 
     - name: e2e test
       run: |
-        echo "TODO"
+        make up
+        make test
