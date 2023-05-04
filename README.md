@@ -26,13 +26,7 @@ cargo contract build
 cargo test
 ```
 ##### 💫 Deploy
-First start your local node.  
+First start your local node. You can do that by running `make up` in the root directory of the project.
 
 ##### 💫 Run integration test
-First start your local node.
-
-```sh
-yarn
-yarn compile
-yarn test:typechain
-```
+Execute `make test` in the root directory of the project.
