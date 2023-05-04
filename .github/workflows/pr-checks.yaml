@@ -42,11 +42,6 @@ jobs:
       run: |
         cargo install --version 2.1.0 --force --locked cargo-contract
 
-    - name: Compile contracts
-      run: |
-        yarn
-        yarn compile
-
     - name: integration test
       run: cargo test
 
