@@ -41,6 +41,8 @@ pub fn sort_tokens(
     Ok((token_0, token_1))
 }
 
+/// Returns address of a `Pair` contract instance (if exists) for
+/// `(token_a, token_b)` pair registered in `factory` Factory instance.
 #[inline]
 pub fn pair_for_on_chain(
     factory: &AccountId,
@@ -50,6 +52,7 @@ pub fn pair_for_on_chain(
     FactoryRef::get_pair(factory, token_a, token_b)
 }
 
+/// Returns balances of token reserves for particular `Factory` instance.
 pub fn get_reserves(
     factory: &AccountId,
     token_a: AccountId,
@@ -66,6 +69,9 @@ pub fn get_reserves(
     }
 }
 
+/// Returns how much of `token_B` tokens should be added
+/// to the pool to maintain the constant product `k = reserve_a * reserve_b`,
+/// given `amount_a` of `token_A`.
 pub fn quote(
     amount_a: Balance,
     reserve_a: Balance,
@@ -86,6 +92,9 @@ pub fn quote(
     Ok(amount_b)
 }
 
+/// Returns amount of `B` tokens received
+/// for `amount_in` of `A` tokens that maintains
+/// the constant product of `k = reserve_in * reserve_out`.
 pub fn get_amount_out(
     amount_in: Balance,
     reserve_in: Balance,
@@ -97,6 +106,8 @@ pub fn get_amount_out(
         HelperError::InsufficientLiquidity
     );
 
+    // TODO: Hardcoded fee!?!?
+    // Adjusts for fees paid in the `token_in`.
     let amount_in_with_fee = casted_mul(amount_in, 997);
 
     let numerator = amount_in_with_fee
@@ -116,6 +127,9 @@ pub fn get_amount_out(
     Ok(amount_out)
 }
 
+/// Returns amount of `A` tokens user has to supply
+/// to get exactly `amount_out` of `B` token while maintaining
+/// the constant product of `k = reserve_in * reserve_out`.
 pub fn get_amount_in(
     amount_out: Balance,
     reserve_in: Balance,
@@ -149,6 +163,12 @@ pub fn get_amount_in(
     Ok(amount_in)
 }
 
+/// Computes swap token amounts over the given path of token pairs.
+/// 
+/// At each step, a swap for pair `(path[i], path[i+1])` is calculated, 
+/// using tokens from the previous trade.
+/// 
+/// Returns list of swap outcomes along the path.
 pub fn get_amounts_out(
     factory: &AccountId,
     amount_in: Balance,
@@ -166,6 +186,9 @@ pub fn get_amounts_out(
     Ok(amounts)
 }
 
+/// Computes the amounts of tokens that have to be supplied
+/// at each step of the exchange `path`, to get exactly `amount_out`
+/// tokens at the end of the swaps.
 pub fn get_amounts_in(
     factory: &AccountId,
     amount_out: Balance,

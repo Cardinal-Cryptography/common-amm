@@ -1,10 +1,16 @@
 name: PR checks
+
 on:
   push:
   workflow_dispatch:
+
 env:
   NODE_JS_VER: 18.x
-  SWANKY_NODE_VER: v1.2.0
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -41,22 +47,12 @@ jobs:
     - name: Install cargo contract
       if: ${{ steps.check-cargo-contract.outcome == 'failure' }}
       run: |
-        cargo install cargo-dylint dylint-link
-        cargo install --force --locked cargo-contract
-
-    - name: Compile contracts
-      run: |
-        yarn
-        yarn compile
+        cargo install --version 2.1.0 --force --locked cargo-contract
 
     - name: integration test
       run: cargo test
 
     - name: e2e test
       run: |
-        sudo wget https://github.com/AstarNetwork/swanky-node/releases/download/${{ env.SWANKY_NODE_VER }}/swanky-node-${{ env.SWANKY_NODE_VER }}-ubuntu-x86_64.tar.gz
-        sudo tar -zxvf swanky-node-v1.2.0-ubuntu-x86_64.tar.gz
-        sudo chmod +x swanky-node
-        ./swanky-node -lerror,runtime::contracts=debug &
-        sleep 10
-        yarn test:typechain
+        make up
+        make test

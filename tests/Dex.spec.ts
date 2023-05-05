@@ -1,21 +1,17 @@
 import { expect } from '@jest/globals';
 import { encodeAddress } from '@polkadot/keyring';
 import BN from 'bn.js';
-import Factory_factory from '../types/constructors/factory_contract';
-import Pair_factory from '../types/constructors/pair_contract';
-import Token_factory from '../types/constructors/psp22_token';
-import Wnative_factory from '../types/constructors/wnative_contract';
-import Router_factory from '../types/constructors/router_contract';
 import Factory from '../types/contracts/factory_contract';
 import Pair from '../types/contracts/pair_contract';
 import Token from '../types/contracts/psp22_token';
 import Wnative from '../types/contracts/wnative_contract';
 import Router from '../types/contracts/router_contract';
-import { AccountId, Hash } from 'types-arguments/factory_contract';
+import { AccountId } from 'types-arguments/factory_contract';
 import { ApiPromise } from '@polkadot/api';
 import { KeyringPair } from '@polkadot/keyring/types';
-import { emit, revertedWith } from './testHelpers';
+import { assert_emitted, revertedWith } from './testHelpers';
 import type { WeightV2 } from '@polkadot/types/interfaces';
+import { getTestFixture } from './globalSetup';
 
 const zeroAddress = encodeAddress(
   '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -27,13 +23,6 @@ describe('Dex spec', () => {
   let deployer: KeyringPair;
   let wallet: KeyringPair;
 
-  let pairFactory: Pair_factory;
-  let factoryFactory: Factory_factory;
-  let routerFactory: Router_factory;
-  let tokenFactory: Token_factory;
-  let wnativeFactory: Wnative_factory;
-
-  let pairHash: Hash;
   let factory: Factory;
   let router: Router;
   let [token0, token1]: Token[] = [];
@@ -41,75 +30,28 @@ describe('Dex spec', () => {
 
   let gasRequired: WeightV2;
 
-  async function setup(): Promise<void> {
-    ({ api, alice: deployer, bob: wallet } = globalThis.setup);
-    pairFactory = new Pair_factory(api, deployer);
-    const pair = new Pair((await pairFactory.new()).address, deployer, api);
-    pairHash = pair.abi.info.source.wasmHash.toHex();
-    factoryFactory = new Factory_factory(api, deployer);
-    factory = new Factory(
-      (await factoryFactory.new(wallet.address, pairHash)).address,
-      deployer,
-      api,
-    );
-  }
+  beforeAll(async () => {
+    ({ api, deployer, wallet, token0, token1, wnative, router, factory } =
+      await getTestFixture());
+  }, 100_000);
 
-  async function setupPsp22(): Promise<void> {
-    tokenFactory = new Token_factory(api, deployer);
-    const totalSupply = new BN(10000000);
-
-    const tokenAaddress = (
-      await tokenFactory.new(
-        totalSupply,
-        'TOKEN_A' as unknown as string[],
-        'TKNA' as unknown as string[],
-        18,
-      )
-    ).address;
-    const tokenBaddress = (
-      await tokenFactory.new(
-        totalSupply,
-        'TOKEN_B' as unknown as string[],
-        'TKNB' as unknown as string[],
-        18,
-      )
-    ).address;
-    const [token0Address, token1Address] =
-      tokenAaddress > tokenBaddress
-        ? [tokenBaddress, tokenAaddress]
-        : [tokenAaddress, tokenBaddress];
-    token0 = new Token(token0Address, deployer, api);
-    token1 = new Token(token1Address, deployer, api);
-  }
-
-  async function setupRouter(): Promise<void> {
-    wnativeFactory = new Wnative_factory(api, deployer);
-    wnative = new Wnative((await wnativeFactory.new()).address, deployer, api);
-    routerFactory = new Router_factory(api, deployer);
-    router = new Router(
-      (await routerFactory.new(factory.address, wnative.address)).address,
-      deployer,
-      api,
-    );
-  }
+  afterAll(async () => {
+    await api.disconnect();
+  });
 
   it('feeTo, feeToSetter, allPairsLength', async () => {
-    await setup();
     expect((await factory.query.feeTo()).value.ok).toBe(zeroAddress);
     expect((await factory.query.feeToSetter()).value.ok).toBe(wallet.address);
     expect((await factory.query.allPairsLength()).value.ok).toBe(0);
   });
 
   it('set fee', async () => {
-    await setupPsp22();
     expect((await factory.query.feeTo()).value.ok).toBe(zeroAddress);
     revertedWith(
       await factory.query.setFeeTo(token0.address),
       'callerIsNotFeeSetter',
     );
-    ({ gasRequired } = await factory
-      .withSigner(wallet)
-      .query.setFeeTo(token0.address));
+    ({ gasRequired } = await factory.query.setFeeTo(token0.address));
     await factory
       .withSigner(wallet)
       .tx.setFeeTo(token0.address, { gasLimit: gasRequired });
@@ -122,12 +64,10 @@ describe('Dex spec', () => {
       await factory.query.setFeeToSetter(token0.address),
       'callerIsNotFeeSetter',
     );
-    ({ gasRequired } = await factory
-      .withSigner(wallet)
-      .query.setFeeToSetter(token0.address));
-    await factory
-      .withSigner(wallet)
-      .tx.setFeeToSetter(token0.address, { gasLimit: gasRequired });
+    ({ gasRequired } = await factory.query.setFeeToSetter(token0.address));
+    await factory.withSigner(wallet).tx.setFeeToSetter(token0.address, {
+      gasLimit: gasRequired,
+    });
     expect((await factory.query.feeToSetter()).value.ok).toBe(token0.address);
   });
 
@@ -143,7 +83,7 @@ describe('Dex spec', () => {
     const result = await factory.tx.createPair(token0.address, token1.address, {
       gasLimit: gasRequired,
     });
-    emit(result, 'PairCreated', {
+    assert_emitted(result, 'PairCreated', {
       token0: token0.address,
       token1: token1.address,
       pair: expectedAddress,
@@ -174,7 +114,7 @@ describe('Dex spec', () => {
     const result = await pair.tx.mint(wallet.address, {
       gasLimit: gasRequired,
     });
-    emit(result, 'Mint', {
+    assert_emitted(result, 'Mint', {
       sender: deployer.address,
       amount0: liqudity,
       amount1: liqudity,
@@ -201,7 +141,7 @@ describe('Dex spec', () => {
     const result = await pair.tx.swap(0, 900, wallet.address, {
       gasLimit: gasRequired,
     });
-    emit(result, 'Swap', {
+    assert_emitted(result, 'Swap', {
       sender: deployer.address,
       amount0In: token1Amount,
       amount1In: 0,
@@ -219,21 +159,17 @@ describe('Dex spec', () => {
       .value.ok.rawNumber;
     const beforeToken2Balance = (await token1.query.balanceOf(wallet.address))
       .value.ok.rawNumber;
-    ({ gasRequired } = await pair
-      .withSigner(wallet)
-      .query.transfer(pair.address, 2000, []));
+    ({ gasRequired } = await pair.query.transfer(pair.address, 2000, []));
     await pair
       .withSigner(wallet)
       .tx.transfer(pair.address, 2000, [], { gasLimit: gasRequired });
-    ({ gasRequired } = await pair
-      .withSigner(wallet)
-      .query.burn(wallet.address));
+    ({ gasRequired } = await pair.query.burn(wallet.address));
     const result = await pair
       .withSigner(wallet)
       .tx.burn(wallet.address, { gasLimit: gasRequired });
     const lockedToken1Balance = 2204;
     const lockedToken2Balance = 1820;
-    emit(result, 'Burn', {
+    assert_emitted(result, 'Burn', {
       sender: wallet.address,
       amount0: lockedToken1Balance,
       amount1: lockedToken2Balance,
@@ -252,12 +188,12 @@ describe('Dex spec', () => {
   });
 
   it('can add liqudity via router', async () => {
-    await setupRouter();
     const deadline = '111111111111111111';
     ({ gasRequired } = await token0.query.approve(router.address, 10000));
     await token0.tx.approve(router.address, 10000, {
       gasLimit: gasRequired,
     });
+    const pairsBefore = (await factory.query.allPairsLength()).value.ok;
     ({ gasRequired } = await router.query.addLiquidityNative(
       token0.address,
       10000,
@@ -281,7 +217,10 @@ describe('Dex spec', () => {
         value: 10000,
       },
     );
-    expect((await factory.query.allPairsLength()).value.ok).toBe(2);
+    // Adding liquidity for non-existing pair creates it.
+    expect((await factory.query.allPairsLength()).value.ok).toBe(
+      pairsBefore + 1,
+    );
   });
 
   it('can swapExactNativeForTokens via router', async () => {
@@ -422,13 +361,9 @@ describe('Dex spec', () => {
     await token0.tx.approve(router.address, 10000, {
       gasLimit: gasRequired,
     });
-    const lpToken = new Pair(
-      (
-        await factory.query.getPair(wnative.address, token0.address)
-      ).value.ok.toString(),
-      deployer,
-      api,
-    );
+
+    let pair = await factory.query.getPair(wnative.address, token0.address);
+    const lpToken = new Pair(pair.value.ok.toString(), deployer, api);
     await lpToken.tx.approve(router.address, 10000, {
       gasLimit: gasRequired,
     });

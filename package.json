@@ -1,10 +1,10 @@
 {
-  "name": "astar-examples",
+  "name": "uniswap-v2",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@727-ventures/typechain-compiler": "0.5.10",
-    "@727-ventures/typechain-types": "0.0.21",
+    "@727-ventures/typechain-compiler": "1.0.0-beta.2",
+    "@727-ventures/typechain-types": "1.0.0-beta.1",
     "@types/jest": "^29.2.3",
     "@typescript-eslint/eslint-plugin": "^4.8.2",
     "@typescript-eslint/parser": "^4.8.2",

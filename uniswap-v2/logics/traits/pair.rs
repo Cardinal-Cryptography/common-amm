@@ -21,18 +21,39 @@ pub type PairRef = dyn Pair;
 
 #[openbrush::trait_definition]
 pub trait Pair {
+    /// Returns amounts of tokens this pair holds at `Timestamp`.
+    /// 
+    /// NOTE: This does not include the tokens that were transferred to the contract
+    /// as part of the _current_ transaction.
     #[ink(message)]
     fn get_reserves(&self) -> (Balance, Balance, Timestamp);
 
+    /// Returns cumulative prive of the first token.
+    /// 
+    /// NOTE: Cumulative price is the sum of token price, 
+    /// recorded at the end of the block (in the last transaction), 
+    /// since the beginning of the token pair.
     #[ink(message)]
     fn price_0_cumulative_last(&self) -> WrappedU256;
 
+    /// Returns cumulative prive of the second token.
+    /// 
+    /// NOTE: Cumulative price is the sum of token price, 
+    /// recorded at the end of the block (in the last transaction), 
+    /// since the beginning of the token pair.
     #[ink(message)]
     fn price_1_cumulative_last(&self) -> WrappedU256;
 
+    /// Initializes the pair with given token IDs.
+    /// 
+    /// NOTE: Why do we need it at all? Why not put in the constructor?
+    /// Potentialy dangerous in case of a hack where initial caller/owner
+    /// of the contract can re-initialize with a different pair.
     #[ink(message)]
     fn initialize(&mut self, token_0: AccountId, token_1: AccountId) -> Result<(), PairError>;
 
+    /// Mints liquidity tokens `to` account.
+    /// The amount minted is equivalent to the excess of contract's balance and reserves.
     #[ink(message)]
     fn mint(&mut self, to: AccountId) -> Result<Balance, PairError>;
 
@@ -53,9 +74,11 @@ pub trait Pair {
     #[ink(message)]
     fn sync(&mut self) -> Result<(), PairError>;
 
+    /// Returns address of the first token.
     #[ink(message)]
     fn get_token_0(&self) -> AccountId;
 
+    /// Returns address of the second token.
     #[ink(message)]
     fn get_token_1(&self) -> AccountId;
 }

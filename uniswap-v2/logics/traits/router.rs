@@ -23,12 +23,20 @@ pub type RouterRef = dyn Router;
 
 #[openbrush::trait_definition]
 pub trait Router {
+    /// Returns address of the `Factory` contract for this `Router` instance.
     #[ink(message)]
     fn factory(&self) -> AccountId;
 
+    /// Returns address of the `WrappedNative` contract for this `Router` instance.
     #[ink(message)]
     fn wnative(&self) -> AccountId;
 
+    /// Adds liquidity to `(token_a, token_b)` pair.
+    ///
+    /// Will add at least `*_min` amount of tokens and up to `*_desired`
+    /// while still maintaining the constant `k` product of the pair.
+    ///
+    /// If succesful, liquidity tokens will be minted for `to` account.
     #[ink(message)]
     fn add_liquidity(
         &mut self,
@@ -42,6 +50,12 @@ pub trait Router {
         deadline: u64,
     ) -> Result<(Balance, Balance, Balance), RouterError>;
 
+    /// Removes `liquidity` amount of tokens from `(token_a, token_b)`
+    /// pair and transfers tokens `to` account.
+    ///
+    /// Fails if any of the balances is lower than respective `*_min` amount.
+    ///
+    /// Returns withdrawn balances of both tokens.
     #[ink(message)]
     fn remove_liquidity(
         &mut self,
@@ -54,6 +68,12 @@ pub trait Router {
         deadline: u64,
     ) -> Result<(Balance, Balance), RouterError>;
 
+    /// Adds liquidity to `(token, native token)` pair.
+    ///
+    /// Will add at least `*_min` amount of tokens and up to `*_desired`
+    /// while still maintaining the constant `k` product of the pair.
+    ///
+    /// If succesful, liquidity tokens will be minted for `to` account.
     #[ink(message, payable)]
     fn add_liquidity_native(
         &mut self,
@@ -65,6 +85,12 @@ pub trait Router {
         deadline: u64,
     ) -> Result<(Balance, Balance, Balance), RouterError>;
 
+    /// Removes `liquidity` amount of tokens from `(token, wrapped_native)`
+    /// pair and transfers tokens `to` account.
+    ///
+    /// Fails if any of the balances is lower than respective `*_min` amount.
+    ///
+    /// Returns withdrawn balances of both tokens.
     #[ink(message)]
     fn remove_liquidity_native(
         &mut self,
@@ -76,6 +102,10 @@ pub trait Router {
         deadline: u64,
     ) -> Result<(Balance, Balance), RouterError>;
 
+    /// Exchanges tokens along `path` tokens.
+    /// Starts with `amount_in` and pair under `(path[0], path[1])` address.
+    /// Fails if output amount is less than `amount_out_min`.
+    /// Transfers tokens to account under `to` address.
     #[ink(message)]
     fn swap_exact_tokens_for_tokens(
         &mut self,
@@ -86,6 +116,12 @@ pub trait Router {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError>;
 
+    /// Exchanges tokens along `path` token pairs
+    /// so that at the end caller receives `amount_out`
+    /// worth of tokens and pays no more than `amount_in_max`
+    /// of the starting token. Fails if any of these conditions
+    /// is not satisfied.
+    /// Transfers tokens to account under `to` address.
     #[ink(message)]
     fn swap_tokens_for_exact_tokens(
         &mut self,
@@ -96,6 +132,12 @@ pub trait Router {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError>;
 
+    /// Exchanges exact amount of native token,
+    /// along the `path` token pairs, and expects
+    /// to receive at least `amount_out_min` of tokens
+    /// at the end of execution. Fails if the output
+    /// amount is less than `amount_out_min`.
+    /// Transfers tokens to account under `to` address.
     #[ink(message, payable)]
     fn swap_exact_native_for_tokens(
         &mut self,
@@ -105,6 +147,12 @@ pub trait Router {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError>;
 
+    /// Exchanges tokens along `path` token pairs
+    /// so that at the end caller receives `amount_out`
+    /// worth of native tokens and pays no more than `amount_in_max`
+    /// of the starting token. Fails if any of these conditions
+    /// is not satisfied.
+    /// Transfers tokens to account under `to` address.
     #[ink(message)]
     fn swap_tokens_for_exact_native(
         &mut self,
@@ -115,6 +163,12 @@ pub trait Router {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError>;
 
+    /// Exchanges exact amount of token,
+    /// along the `path` token pairs, and expects
+    /// to receive at least `amount_out_min` of native tokens
+    /// at the end of execution. Fails if the output
+    /// amount is less than `amount_out_min`.
+    /// Transfers tokens to account under `to` address.
     #[ink(message)]
     fn swap_exact_tokens_for_native(
         &mut self,
@@ -125,6 +179,12 @@ pub trait Router {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError>;
 
+    /// Exchanges tokens along `path` token pairs
+    /// so that at the end caller receives `amount_out`
+    /// worth of tokens and pays no more than `amount_in_max`
+    /// of the native token. Fails if any of these conditions
+    /// is not satisfied.
+    /// Transfers tokens to account under `to` address.
     #[ink(message, payable)]
     fn swap_native_for_exact_tokens(
         &mut self,
@@ -134,6 +194,9 @@ pub trait Router {
         deadline: u64,
     ) -> Result<Vec<Balance>, RouterError>;
 
+    /// Returns amount of `B` tokens that have to be supplied
+    /// , with the `amount_a` amount of tokens `A, to maintain
+    /// constant `k` product of `(A, B)` token pair.
     #[ink(message)]
     fn quote(
         &self,
@@ -142,18 +205,24 @@ pub trait Router {
         reserve_b: Balance,
     ) -> Result<Balance, RouterError>;
 
+    /// Returns amount of `B` tokens received
+    /// for `amount_in` of `A` tokens that maintains
+    /// the constant product of `reserve_in / reserve_out`.
     #[ink(message)]
     fn get_amount_out(
         &self,
-        amount_in: Balance,
+        amount_in: Balance, // TODO: rename `*_in` and `*_out` for consistency.
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError>;
 
+    /// Returns amount of `A` tokens user has to supply
+    /// to get exactly `amount_out` of `B` token while maintaining
+    /// pool's constant product.
     #[ink(message)]
     fn get_amount_in(
         &self,
-        amount_out: Balance,
+        amount_out: Balance, // TODO: rename `*_in` and `*_out` for consistency.
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError>;
@@ -183,7 +252,7 @@ pub enum RouterError {
     TransferHelperError(TransferHelperError),
     LangError(LangError),
     TransferError,
-    PairNotFound,
+    PairNotFound, //TODO: We _could_ include (AccountId, AccountId) in the error to signal which pair we failed to find.
     InsufficientAmount,
     InsufficientAAmount,
     InsufficientOutputAmount,

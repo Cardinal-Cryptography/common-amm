@@ -37,9 +37,18 @@ use sp_arithmetic::{
     FixedU128,
 };
 
+/// Minimum liquidity threshold that is subtracted
+/// from the minted liquidity and sent to the `ZERO_ADDRESS`.
+/// Prevents price manipulation and saturation.
+/// See UniswapV2 whitepaper for more details.
+/// NOTE: This value is taken from UniswapV2 whitepaper and is correct
+/// only for liquidity tokens with precision = 18.
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
 
 pub trait Internal {
+    /// If turned on, controlled via `fee_to` parameter, mints protocol fee
+    /// and transfer to `fee_to` address.
+    /// SHOULD be called before any new tokens are minted or burnt so that no fees are lost.
     fn _mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError>;
 
     fn _update(
@@ -109,10 +118,10 @@ impl<
         let contract = Self::env().account_id();
         let balance_0 = PSP22Ref::balance_of(&self.data::<data::Data>().token_0, contract);
         let balance_1 = PSP22Ref::balance_of(&self.data::<data::Data>().token_1, contract);
-        let amount_0 = balance_0
+        let amount_0_transferred = balance_0
             .checked_sub(reserves.0)
             .ok_or(PairError::SubUnderFlow1)?;
-        let amount_1 = balance_1
+        let amount_1_transferred = balance_1
             .checked_sub(reserves.1)
             .ok_or(PairError::SubUnderFlow2)?;
 
@@ -121,8 +130,8 @@ impl<
 
         let liquidity;
         if total_supply == 0 {
-            let liq = amount_0
-                .checked_mul(amount_1)
+            let liq = amount_0_transferred
+                .checked_mul(amount_1_transferred)
                 .ok_or(PairError::MulOverFlow1)?;
             liquidity = liq
                 .integer_sqrt()
@@ -130,12 +139,12 @@ impl<
                 .ok_or(PairError::SubUnderFlow3)?;
             self._mint_to(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
         } else {
-            let liquidity_1 = amount_0
+            let liquidity_1 = amount_0_transferred
                 .checked_mul(total_supply)
                 .ok_or(PairError::MulOverFlow2)?
                 .checked_div(reserves.0)
                 .ok_or(PairError::DivByZero1)?;
-            let liquidity_2 = amount_1
+            let liquidity_2 = amount_1_transferred
                 .checked_mul(total_supply)
                 .ok_or(PairError::MulOverFlow3)?
                 .checked_div(reserves.1)
@@ -153,7 +162,7 @@ impl<
             self.data::<data::Data>().k_last = casted_mul(reserves.0, reserves.1).into();
         }
 
-        self._emit_mint_event(Self::env().caller(), amount_0, amount_1);
+        self._emit_mint_event(Self::env().caller(), amount_0_transferred, amount_1_transferred);
 
         Ok(liquidity)
     }

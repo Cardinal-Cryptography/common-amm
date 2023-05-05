@@ -29,7 +29,6 @@ use ink::{
     prelude::vec::Vec,
 };
 use openbrush::{
-    contracts::traits::psp22::PSP22Ref,
     modifier_definition,
     modifiers,
     traits::{
@@ -58,7 +57,7 @@ pub trait Internal {
     fn _swap(
         &self,
         amounts: &Vec<Balance>,
-        path: Vec<AccountId>,
+        path: &Vec<AccountId>,
         to: AccountId,
     ) -> Result<(), RouterError>;
 }
@@ -117,8 +116,8 @@ impl<T: Storage<data::Data>> Router for T {
     ) -> Result<(Balance, Balance, Balance), RouterError> {
         let wnative = self.data().wnative;
         let received_value = Self::env().transferred_value();
-        let caller = Self::env().caller();
-        let (amount, amount_native) = self._add_liquidity(
+
+        let (amount_a, amount_native) = self._add_liquidity(
             token,
             wnative,
             amount_token_desired,
@@ -126,18 +125,22 @@ impl<T: Storage<data::Data>> Router for T {
             amount_token_min,
             amount_native_min,
         )?;
+
         let pair_contract = pair_for_on_chain(&self.data().factory, token, wnative)
             .ok_or(RouterError::PairNotFound)?;
 
-        safe_transfer_from(token, caller, pair_contract, amount)?;
+        let caller = Self::env().caller();
+        safe_transfer_from(token, caller, pair_contract, amount_a)?;
         wrap(&wnative, amount_native)?;
-        PSP22Ref::transfer(&wnative, pair_contract, amount_native, Vec::<u8>::new())?;
+        safe_transfer(wnative, pair_contract, amount_native)?;
+
         let liquidity = PairRef::mint(&pair_contract, to)?;
 
         if received_value > amount_native {
             safe_transfer_native(caller, received_value - amount_native)?
         }
-        Ok((amount, amount_native, liquidity))
+
+        Ok((amount_a, amount_native, liquidity))
     }
 
     #[modifiers(ensure(deadline))]
@@ -239,7 +242,7 @@ impl<T: Storage<data::Data>> Router for T {
             pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
             amounts[0],
         )?;
-        self._swap(&amounts, path, to)?;
+        self._swap(&amounts, &path, to)?;
         Ok(amounts)
     }
 
@@ -264,7 +267,7 @@ impl<T: Storage<data::Data>> Router for T {
             pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
             amounts[0],
         )?;
-        self._swap(&amounts, path, to)?;
+        self._swap(&amounts, &path, to)?;
         Ok(amounts)
     }
 
@@ -292,7 +295,7 @@ impl<T: Storage<data::Data>> Router for T {
             pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
             amounts[0],
         )?;
-        self._swap(&amounts, path, to)?;
+        self._swap(&amounts, &path, to)?;
         Ok(amounts)
     }
 
@@ -320,7 +323,7 @@ impl<T: Storage<data::Data>> Router for T {
             pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
             amounts[0],
         )?;
-        self._swap(&amounts, path, Self::env().account_id())?;
+        self._swap(&amounts, &path, Self::env().account_id())?;
         unwrap(&wnative, amounts[amounts.len() - 1])?;
         safe_transfer_native(to, amounts[amounts.len() - 1])?;
         Ok(amounts)
@@ -350,7 +353,7 @@ impl<T: Storage<data::Data>> Router for T {
             pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
             amounts[0],
         )?;
-        self._swap(&amounts, path, Self::env().account_id())?;
+        self._swap(&amounts, &path, Self::env().account_id())?;
         unwrap(&wnative, amounts[amounts.len() - 1])?;
         safe_transfer_native(to, amounts[amounts.len() - 1])?;
         Ok(amounts)
@@ -380,7 +383,7 @@ impl<T: Storage<data::Data>> Router for T {
             pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
             amounts[0],
         )?;
-        self._swap(&amounts, path, to)?;
+        self._swap(&amounts, &path, to)?;
         if received_value > amounts[0] {
             safe_transfer_native(Self::env().caller(), received_value - amounts[0])?
         }
@@ -402,6 +405,9 @@ impl<T: Storage<data::Data>> Router for T {
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError> {
+        // TODO: Instead of passing in `Balance`s we should pass in token addresses
+        // and let the contract pull reserves before calling helper `get_amount_out`.
+        // That way users don't have to read reserves first and can offload the computation to contract.
         Ok(get_amount_out(amount_in, reserve_in, reserve_out)?)
     }
 
@@ -411,6 +417,9 @@ impl<T: Storage<data::Data>> Router for T {
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError> {
+        // TODO: Instead of passing in `Balance`s we should pass in token addresses
+        // and let the contract pull reserves before calling helper `get_amount_out`.
+        // That way users don't have to read reserves first and can offload the computation to contract.
         Ok(get_amount_in(amount_out, reserve_in, reserve_out)?)
     }
 
@@ -472,7 +481,7 @@ impl<T: Storage<data::Data>> Internal for T {
     fn _swap(
         &self,
         amounts: &Vec<Balance>,
-        path: Vec<AccountId>,
+        path: &Vec<AccountId>,
         _to: AccountId,
     ) -> Result<(), RouterError> {
         let factory = self.data().factory;

@@ -5,17 +5,27 @@ use openbrush::traits::AccountId;
 #[openbrush::wrapper]
 pub type FactoryRef = dyn Factory;
 
+/// Factory trait for tracking all pairs within the UniswapV2 DEX.
+/// Creates new, unique instances of `Pair` smart contract per token pairs.
+/// Contains the logic to turn on the protocol charge.
 #[openbrush::trait_definition]
 pub trait Factory {
+    /// Returns address of the pair contract identified by `pid` id.
     #[ink(message)]
     fn all_pairs(&self, pid: u64) -> Option<AccountId>;
 
+    /// Returns number of token pairs created by the factory contract.
     #[ink(message)]
     fn all_pairs_length(&self) -> u64;
 
+    /// Returns code hash of the `Pair` contract this factory instance uses.
     #[ink(message)]
     fn pair_contract_code_hash(&self) -> Hash;
 
+    /// Creates instance of `Pair` contract for `(token_a, token_b)` pair.
+    /// Returns address of the contract instnace if successful.
+    /// Fails if `Pair` instance of the token pair already exists,
+    /// or the token pair is illegal.
     #[ink(message)]
     fn create_pair(
         &mut self,
@@ -23,22 +33,28 @@ pub trait Factory {
         token_b: AccountId,
     ) -> Result<AccountId, FactoryError>;
 
+    /// Sets the address for receiving protocol's share of trading fees.
     #[ink(message)]
     fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), FactoryError>;
 
+    /// Sets the address eligible for calling `set_foo_to` method.
     #[ink(message)]
     fn set_fee_to_setter(&mut self, fee_to_setter: AccountId) -> Result<(), FactoryError>;
 
+    /// Returns recipient address of the trading fees.
     #[ink(message)]
     fn fee_to(&self) -> AccountId;
 
+    /// Returns account allowed to call `set_fee_to_setter`.
     #[ink(message)]
     fn fee_to_setter(&self) -> AccountId;
 
+    /// Returns addres of `Pair` contract instance (if any) for `(token_a, token_b)` pair.
     #[ink(message)]
     fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId>;
 }
 
+/// Errors that can be returned from calling `Factory`'s methods.
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum FactoryError {
