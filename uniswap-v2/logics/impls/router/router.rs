@@ -371,23 +371,24 @@ impl<T: Storage<data::Data>> Router for T {
     ) -> Result<Vec<Balance>, RouterError> {
         let factory = self.data().factory;
         let wnative = self.data().wnative;
-        let received_value = Self::env().transferred_value();
+        let received_native = Self::env().transferred_value();
 
         ensure!(path[0] == wnative, RouterError::InvalidPath);
         let amounts = get_amounts_in(&factory, amount_out, &path)?;
+        let native_in = amounts[0];
         ensure!(
-            amounts[0] <= received_value,
+            native_in <= received_native,
             RouterError::ExcessiveInputAmount
         );
-        wrap(&wnative, amounts[0])?;
+        wrap(&wnative, native_in)?;
         safe_transfer(
             wnative,
             pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
-            amounts[0],
+            native_in,
         )?;
         self._swap(&amounts, &path, to)?;
-        if received_value > amounts[0] {
-            safe_transfer_native(Self::env().caller(), received_value - amounts[0])?
+        if received_native > native_in {
+            safe_transfer_native(Self::env().caller(), received_native - native_in)?
         }
         Ok(amounts)
     }
