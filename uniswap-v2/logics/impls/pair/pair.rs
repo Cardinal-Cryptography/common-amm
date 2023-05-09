@@ -416,6 +416,7 @@ impl<T: Storage<data::Data> + Storage<psp22::Data>> Internal for T {
         let fee_on = !fee_to.is_zero();
         let k_last: U256 = self.data::<data::Data>().k_last.into();
         if fee_on {
+            // Section 2.4 Protocol fee in the whitepaper.
             if !k_last.is_zero() {
                 let root_k: Balance = casted_mul(reserve_0, reserve_1)
                     .integer_sqrt()
