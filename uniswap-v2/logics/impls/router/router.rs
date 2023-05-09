@@ -385,8 +385,6 @@ impl<T: Storage<data::Data>> Router for T {
             pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
             amounts[0],
         )?;
-        // TODO: Is usage of `to` correct here? It means all intermediate tokens transfers
-        // will be sent to the recipient passed as the arg to this function.
         self._swap(&amounts, &path, to)?;
         if received_value > amounts[0] {
             safe_transfer_native(Self::env().caller(), received_value - amounts[0])?
@@ -498,6 +496,8 @@ impl<T: Storage<data::Data>> Internal for T {
             } else {
                 (amount_out, 0)
             };
+            // If last pair in the path, transfer tokens to the `_to` recipient.
+            // Otherwise, transfer to the next Pair contract instance.
             let to = if i < path.len() - 2 {
                 pair_for_on_chain(&factory, output, path[i + 2]).ok_or(RouterError::PairNotFound)?
             } else {
