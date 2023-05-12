@@ -4,5 +4,6 @@ members = [
 ]
 
 exclude = [
+    "e2e-tests",
     "uniswap-v2/logics",
 ]

@@ -31,4 +31,4 @@ build-node-arm64:
 
 .PHONY: build-node-x86_64
 build-node-x86_64:
-	@docker buildx build --pull --platform linux/amd64 -t aleph-onenode-chain-arm64 --load docker
+	@docker buildx build --pull --platform linux/amd64 -t aleph-onenode-chain-x86_64 --load docker
