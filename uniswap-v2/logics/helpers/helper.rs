@@ -106,7 +106,6 @@ pub fn get_amount_out(
         HelperError::InsufficientLiquidity
     );
 
-    // TODO: Hardcoded fee!?!?
     // Adjusts for fees paid in the `token_in`.
     let amount_in_with_fee = casted_mul(amount_in, 997);
 
