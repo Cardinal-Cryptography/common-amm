@@ -408,9 +408,6 @@ impl<T: Storage<data::Data>> Router for T {
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError> {
-        // TODO: Instead of passing in `Balance`s we should pass in token addresses
-        // and let the contract pull reserves before calling helper `get_amount_out`.
-        // That way users don't have to read reserves first and can offload the computation to contract.
         Ok(get_amount_out(amount_in, reserve_in, reserve_out)?)
     }
 
@@ -420,9 +417,6 @@ impl<T: Storage<data::Data>> Router for T {
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError> {
-        // TODO: Instead of passing in `Balance`s we should pass in token addresses
-        // and let the contract pull reserves before calling helper `get_amount_out`.
-        // That way users don't have to read reserves first and can offload the computation to contract.
         Ok(get_amount_in(amount_out, reserve_in, reserve_out)?)
     }
 
