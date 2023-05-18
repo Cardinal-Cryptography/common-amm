@@ -15,7 +15,6 @@ pub use crate::{
 };
 use openbrush::{
     contracts::{
-        ownable::*,
         psp22::*,
         reentrancy_guard::*,
         traits::psp22::PSP22Ref,
@@ -79,13 +78,7 @@ pub trait Internal {
     fn _emit_sync_event(&self, reserve_0: Balance, reserve_1: Balance);
 }
 
-impl<
-        T: Storage<data::Data>
-            + Storage<ownable::Data>
-            + Storage<psp22::Data>
-            + Storage<reentrancy_guard::Data>,
-    > Pair for T
-{
+impl<T: Storage<data::Data> + Storage<psp22::Data> + Storage<reentrancy_guard::Data>> Pair for T {
     default fn get_reserves(&self) -> (Balance, Balance, Timestamp) {
         (
             self.data::<data::Data>().reserve_0,

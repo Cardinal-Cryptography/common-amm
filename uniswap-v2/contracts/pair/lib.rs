@@ -12,7 +12,6 @@ pub mod pair {
     };
     use openbrush::{
         contracts::{
-            ownable::*,
             psp22::*,
             reentrancy_guard,
         },
@@ -83,8 +82,6 @@ pub mod pair {
     pub struct PairContract {
         #[storage_field]
         psp22: psp22::Data,
-        #[storage_field]
-        ownable: ownable::Data,
         #[storage_field]
         guard: reentrancy_guard::Data,
         #[storage_field]
@@ -187,8 +184,6 @@ pub mod pair {
             });
         }
     }
-
-    impl Ownable for PairContract {}
 
     impl pair::Internal for PairContract {
         fn _emit_mint_event(&self, sender: AccountId, amount_0: Balance, amount_1: Balance) {
