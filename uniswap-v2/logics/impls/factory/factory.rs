@@ -60,7 +60,7 @@ where
 
         let salt = Self::env().hash_encoded::<Blake2x256, _>(&token_pair);
         let pair_contract = self._instantiate_pair(salt.as_ref())?;
-        //TODO: Why can't we include token pairs in the `_instantiate_pair`?
+        // TODO: Why can't we include token pairs in the `_instantiate_pair`?
         PairRef::initialize(&pair_contract, token_pair.0, token_pair.1)?;
 
         self.data::<data::Data>()

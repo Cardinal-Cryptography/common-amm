@@ -162,7 +162,11 @@ impl<
             self.data::<data::Data>().k_last = casted_mul(reserves.0, reserves.1).into();
         }
 
-        self._emit_mint_event(Self::env().caller(), amount_0_transferred, amount_1_transferred);
+        self._emit_mint_event(
+            Self::env().caller(),
+            amount_0_transferred,
+            amount_1_transferred,
+        );
 
         Ok(liquidity)
     }

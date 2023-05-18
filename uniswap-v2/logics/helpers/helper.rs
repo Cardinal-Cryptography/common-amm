@@ -164,10 +164,10 @@ pub fn get_amount_in(
 }
 
 /// Computes swap token amounts over the given path of token pairs.
-/// 
-/// At each step, a swap for pair `(path[i], path[i+1])` is calculated, 
+///
+/// At each step, a swap for pair `(path[i], path[i+1])` is calculated,
 /// using tokens from the previous trade.
-/// 
+///
 /// Returns list of swap outcomes along the path.
 pub fn get_amounts_out(
     factory: &AccountId,
