@@ -101,17 +101,6 @@ impl<
         self.data::<data::Data>().price_1_cumulative_last
     }
 
-    #[modifiers(only_owner)]
-    default fn initialize(
-        &mut self,
-        token_0: AccountId,
-        token_1: AccountId,
-    ) -> Result<(), PairError> {
-        self.data::<data::Data>().token_0 = token_0;
-        self.data::<data::Data>().token_1 = token_1;
-        Ok(())
-    }
-
     #[modifiers(non_reentrant)]
     default fn mint(&mut self, to: AccountId) -> Result<Balance, PairError> {
         let reserves = self.get_reserves();

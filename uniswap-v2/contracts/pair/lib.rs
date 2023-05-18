@@ -245,10 +245,11 @@ pub mod pair {
 
     impl PairContract {
         #[ink(constructor)]
-        pub fn new() -> Self {
+        pub fn new(token_a: AccountId, token_b: AccountId) -> Self {
             let mut instance = Self::default();
             let caller = instance.env().caller();
-            instance._init_with_owner(caller);
+            instance.pair.token_0 = token_a;
+            instance.pair.token_1 = token_b;
             instance.pair.factory = caller;
             instance
         }
@@ -259,10 +260,11 @@ pub mod pair {
 
         #[ink::test]
         fn initialize_works() {
-            let mut pair = PairContract::new();
             let token_0 = AccountId::from([0x03; 32]);
             let token_1 = AccountId::from([0x04; 32]);
-            assert_eq!(pair.initialize(token_0, token_1), Ok(()));
+            let pair = PairContract::new(token_0, token_1);
+            assert_eq!(pair.get_token_0(), token_0);
+            assert_eq!(pair.get_token_1(), token_1);
         }
     }
 }

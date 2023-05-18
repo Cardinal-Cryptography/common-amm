@@ -44,14 +44,6 @@ pub trait Pair {
     #[ink(message)]
     fn price_1_cumulative_last(&self) -> WrappedU256;
 
-    /// Initializes the pair with given token IDs.
-    ///
-    /// NOTE: Why do we need it at all? Why not put in the constructor?
-    /// Potentialy dangerous in case of a hack where initial caller/owner
-    /// of the contract can re-initialize with a different pair.
-    #[ink(message)]
-    fn initialize(&mut self, token_0: AccountId, token_1: AccountId) -> Result<(), PairError>;
-
     /// Mints liquidity tokens `to` account.
     /// The amount minted is equivalent to the excess of contract's balance and reserves.
     #[ink(message)]
