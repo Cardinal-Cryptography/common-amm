@@ -32,3 +32,24 @@ build-node-arm64:
 .PHONY: build-node-x86_64
 build-node-x86_64:
 	@docker buildx build --pull --platform linux/amd64 -t aleph-onenode-chain-x86_64 --load docker
+
+CONTRACTS = ./uniswap-v2/contracts
+LOGIC = ./uniswap-v2/logics
+
+.PHONY: check-all
+check-all: # Runs cargo checks on all contracts
+	@cargo check --all-targets --all-features --all
+	@cargo clippy --all-features -- --no-deps -D warnings
+	@for d in $(shell find $(CONTRACTS) -mindepth 1 -maxdepth 1 -type d); do \
+		cargo contract check --manifest-path $$d/Cargo.toml ; \
+	done
+
+.PHONY: build-all
+build-all: # Builds all contracts
+	@for d in $(shell find $(CONTRACTS) -mindepth 1 -maxdepth 1 -type d); do \
+		cargo contract build --manifest-path $$d/Cargo.toml --release ; \
+	done
+
+.PHONY: format
+format: # Formats contract files
+	@cargo fmt --all
