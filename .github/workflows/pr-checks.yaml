@@ -1,7 +1,7 @@
 name: PR checks
 
 on:
-  push:
+  pull_request:
 
 env:
   NODE_JS_VER: 18.x
