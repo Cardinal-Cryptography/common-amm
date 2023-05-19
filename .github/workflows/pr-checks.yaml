@@ -32,9 +32,19 @@ jobs:
         key: ${{ runner.os }}-rust-${{ hashFiles('rust-toolchain.toml') }}
         restore-keys: |
           ${{ runner.os }}-rust
+
+    - name: Check if cargo-contract exists
+      id: check-cargo-contract
+      continue-on-error: true
+      run: cargo contract --version
+
+    - name: Install cargo contract
+      if: ${{ steps.check-cargo-contract.outcome == 'failure' }}
+      run: |
+        cargo install --version 2.1.0 --force --locked cargo-contract
+
     - name: Rust checks
       run: make check-all
 
     - name: Build contracts
       run: make build-all
-  
