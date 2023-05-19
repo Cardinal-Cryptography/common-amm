@@ -34,7 +34,6 @@ build-node-x86_64:
 	@docker buildx build --pull --platform linux/amd64 -t aleph-onenode-chain-x86_64 --load docker
 
 CONTRACTS = ./uniswap-v2/contracts
-LOGIC = ./uniswap-v2/logics
 
 .PHONY: check-all
 check-all: # Runs cargo checks on all contracts
