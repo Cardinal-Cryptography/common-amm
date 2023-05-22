@@ -19,6 +19,8 @@ mod zero_address {
     use curve25519_dalek::ristretto::RistrettoPoint;
     use sha2::Sha512;
 
+    use super::ZERO_ADDRESS_MSG;
+
     #[test]
     fn test_zero_address() {
         let P = RistrettoPoint::hash_from_bytes::<Sha512>(ZERO_ADDRESS_MSG.as_bytes());
