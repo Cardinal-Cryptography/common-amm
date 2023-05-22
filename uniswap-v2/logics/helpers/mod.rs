@@ -5,7 +5,7 @@ pub mod transfer_helper;
 /// Zero address for which the private key is unknown.
 /// This is used for the feeTo and feeToSetter addresses in the factory contract a
 /// and for sending MINIMUM_LIQUIDITY when minting tokens in Pair contract.
-/// Result of sha512 hashing the ZERO_ADDERSS_MSG to RistrettoPoint.
+/// Result of sha512 hashing the ZERO_ADDERSS_MSG to curve (curve25519).
 pub const ZERO_ADDRESS: [u8; 32] = [
     58, 108, 115, 140, 64, 55, 232, 71, 183, 215, 14, 149, 138, 148, 201, 178, 212, 197, 99, 60,
     250, 175, 203, 88, 227, 37, 36, 127, 63, 212, 16, 72,
