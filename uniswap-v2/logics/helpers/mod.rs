@@ -12,7 +12,7 @@ pub const ZERO_ADDRESS: [u8; 32] = [
 ];
 
 #[allow(unused)]
-const ZERO_ADDRESS_MSG : &str = "This is Aleph Zero DEX's zero address.";
+const ZERO_ADDRESS_MSG: &str = "This is Aleph Zero DEX's zero address.";
 
 #[cfg(test)]
 mod zero_address {
