@@ -39,6 +39,7 @@ CONTRACTS = ./uniswap-v2/contracts
 check-all: # Runs cargo checks on all contracts
 	@cargo check --all-targets --all-features --all
 	@cargo clippy --all-features -- --no-deps -D warnings
+	@cargo fmt --all --check
 	@for d in $(shell find $(CONTRACTS) -mindepth 1 -maxdepth 1 -type d); do \
 		cargo contract check --manifest-path $$d/Cargo.toml ; \
 	done
