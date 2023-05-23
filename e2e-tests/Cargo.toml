@@ -6,10 +6,11 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.71"
 async-trait = "0.1.68"
+env_logger = "0.10.0"
 log = "0.4.17"
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 tokio = "1.28.1"
 
 aleph_client = "3.0.0"
 ink_primitives = "4.0.1"
-ink-wrapper-types = "0.3.0"
+ink-wrapper-types = "0.4.0"

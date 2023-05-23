@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log;
+use log::info;
 
 use aleph_client::{
     pallets::balances::BalanceUserApi,
@@ -18,16 +18,19 @@ use crate::{
     wnative_contract,
 };
 
-const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:9944";
+pub const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:9944";
 const SUDO_SEED: &str = "//Alice";
 const NON_SUDO_SEED: &str = "//0";
 const INITIAL_TRANSFER: Balance = 1_000_000_000_000;
+pub const ZERO_ADDRESS: [u8; 32] = [255; 32];
 const PSP22_TOTAL_SUPPLY: Balance = 10_000_000;
 const TOKEN_A_NAME: &str = "TOKEN_A";
 const TOKEN_B_NAME: &str = "TOKEN_B";
 const TOKEN_A_SYMBOL: &str = "TKNA";
 const TOKEN_B_SYMBOL: &str = "TKNB";
 const DECIMALS: u8 = 18;
+
+pub const EXPECTED_INITIAL_ALL_PAIRS_LENGTH: u64 = 0;
 
 pub fn inkify_account_id(account_id: &AccountId) -> ink_primitives::AccountId {
     let inner: [u8; 32] = *account_id.as_ref();
@@ -41,28 +44,26 @@ fn setup_keypairs(sudo_seed: &str, non_sudo_seed: &str) -> (KeyPair, KeyPair) {
     (sudo, non_sudo)
 }
 
-async fn setup_pair_contract(connection: &SignedConnection) -> Result<pair_contract::Instance> {
-    let salt = 1u8.to_le_bytes();
-    pair_contract::Instance::new(connection, salt.into()).await
-}
-
 async fn setup_factory_contract(
     connection: &SignedConnection,
-    sudo_ink_account_id: ink_primitives::AccountId,
+    non_sudo_ink_account_id: ink_primitives::AccountId,
+    pair_code_hash: ink_primitives::Hash,
 ) -> Result<factory_contract::Instance> {
+    factory_contract::upload(connection).await?;
     let salt = 1u8.to_le_bytes();
-    // TODO: can we get this from `ink-wrapper`?
-    let pair_code_hash = [
-        20, 50, 227, 100, 237, 15, 226, 122, 184, 218, 36, 232, 170, 107, 225, 198, 177, 36, 234,
-        235, 240, 142, 147, 208, 48, 183, 103, 78, 186, 81, 202, 141,
-    ];
     factory_contract::Instance::new(
         connection,
         salt.into(),
-        sudo_ink_account_id,
-        pair_code_hash.into(),
+        non_sudo_ink_account_id,
+        pair_code_hash,
     )
     .await
+}
+
+/// Instances of the `Pair` contract are to be created indirectly via the `Factory` contract.
+async fn upload_code_pair_contract(connection: &SignedConnection) -> Result<()> {
+    pair_contract::upload(connection).await?;
+    Ok(())
 }
 
 async fn setup_psp22_token(
@@ -72,6 +73,7 @@ async fn setup_psp22_token(
     symbol: Option<String>,
     decimals: u8,
 ) -> Result<psp22_token::Instance> {
+    psp22_token::upload(connection).await?;
     let salt = 1u8.to_le_bytes();
     psp22_token::Instance::new(
         connection,
@@ -87,6 +89,7 @@ async fn setup_psp22_token(
 async fn setup_wnative_contract(
     connection: &SignedConnection,
 ) -> Result<wnative_contract::Instance> {
+    wnative_contract::upload(connection).await?;
     let salt = 1u8.to_le_bytes();
     wnative_contract::Instance::new(connection, salt.into()).await
 }
@@ -96,13 +99,13 @@ async fn setup_router_contract(
     factory: ink_primitives::AccountId,
     wnative: ink_primitives::AccountId,
 ) -> Result<router_contract::Instance> {
+    router_contract::upload(connection).await?;
     let salt = 1u8.to_le_bytes();
     router_contract::Instance::new(connection, salt.into(), factory, wnative).await
 }
 
 pub struct Contracts {
     pub factory_contract: factory_contract::Instance,
-    pub pair_contract: pair_contract::Instance,
     pub token_a: psp22_token::Instance,
     pub token_b: psp22_token::Instance,
     pub router_contract: router_contract::Instance,
@@ -111,7 +114,8 @@ pub struct Contracts {
 
 async fn setup_contracts(
     connection: &SignedConnection,
-    sudo_ink_account_id: ink_primitives::AccountId,
+    non_sudo_ink_account_id: ink_primitives::AccountId,
+    pair_code_hash: ink_primitives::Hash,
     total_supply: Balance,
     token_a_name: Option<String>,
     token_a_symbol: Option<String>,
@@ -119,8 +123,9 @@ async fn setup_contracts(
     token_b_symbol: Option<String>,
     decimals: u8,
 ) -> Result<Contracts> {
-    let pair_contract = setup_pair_contract(connection).await?;
-    let factory_contract = setup_factory_contract(connection, sudo_ink_account_id).await?;
+    upload_code_pair_contract(connection).await?;
+    let factory_contract =
+        setup_factory_contract(connection, non_sudo_ink_account_id, pair_code_hash).await?;
     let token_a = setup_psp22_token(
         connection,
         total_supply,
@@ -143,7 +148,6 @@ async fn setup_contracts(
 
     Ok(Contracts {
         factory_contract,
-        pair_contract,
         token_a,
         token_b,
         router_contract,
@@ -152,7 +156,8 @@ async fn setup_contracts(
 }
 
 pub struct TestFixture {
-    pub connection: SignedConnection,
+    pub sudo_connection: SignedConnection,
+    pub non_sudo_connection: SignedConnection,
     pub sudo: KeyPair,
     pub non_sudo: KeyPair,
     pub contracts: Contracts,
@@ -160,12 +165,12 @@ pub struct TestFixture {
 
 pub async fn setup_test() -> Result<TestFixture> {
     let (sudo, non_sudo) = setup_keypairs(SUDO_SEED, NON_SUDO_SEED);
-    let connection = SignedConnection::new(DEFAULT_NODE_ADDRESS, sudo.clone()).await;
+    let sudo_connection = SignedConnection::new(DEFAULT_NODE_ADDRESS, sudo.clone()).await;
+    let non_sudo_connection = SignedConnection::new(DEFAULT_NODE_ADDRESS, non_sudo.clone()).await;
 
-    let sudo_account_id = sudo.account_id();
     let non_sudo_account_id = non_sudo.account_id();
 
-    connection
+    sudo_connection
         .transfer(
             non_sudo_account_id.clone(),
             INITIAL_TRANSFER,
@@ -173,11 +178,12 @@ pub async fn setup_test() -> Result<TestFixture> {
         )
         .await?;
 
-    let sudo_ink_account_id = inkify_account_id(sudo_account_id);
+    let non_sudo_ink_account_id = inkify_account_id(non_sudo_account_id);
 
     let contracts = setup_contracts(
-        &connection,
-        sudo_ink_account_id,
+        &sudo_connection,
+        non_sudo_ink_account_id,
+        pair_contract::CODE_HASH.into(),
         PSP22_TOTAL_SUPPLY,
         Some(TOKEN_A_NAME.to_string()),
         Some(TOKEN_A_SYMBOL.to_string()),
@@ -187,9 +193,40 @@ pub async fn setup_test() -> Result<TestFixture> {
     )
     .await?;
     Ok(TestFixture {
-        connection,
+        sudo_connection,
+        non_sudo_connection,
         sudo,
         non_sudo,
         contracts,
     })
+}
+
+use crate::test::{
+    fee::{
+        fee,
+        set_fee,
+        set_fee_setter,
+    },
+    tokens::{
+        create_pair,
+        mint_pair,
+        swap_tokens,
+    },
+};
+
+#[tokio::test]
+async fn e2e_tests() -> Result<()> {
+    let _ = env_logger::builder().is_test(true).try_init();
+
+    let test_fixture = setup_test().await?;
+
+    fee(&test_fixture).await?;
+    set_fee(&test_fixture).await?;
+    set_fee_setter(&test_fixture).await?;
+
+    create_pair(&test_fixture).await?;
+    mint_pair(&test_fixture).await?;
+    swap_tokens(&test_fixture).await?;
+
+    Ok(())
 }

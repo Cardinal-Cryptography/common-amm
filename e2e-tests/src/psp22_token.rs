@@ -55,6 +55,55 @@ impl ink_wrapper_types::EventSource for Instance {
 }
 
 #[async_trait::async_trait]
+pub trait PSP22Metadata {
+    async fn token_symbol<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E>;
+    async fn token_name<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E>;
+    async fn token_decimals<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<u8, ink_wrapper_types::InkLangError>, E>;
+}
+
+#[async_trait::async_trait]
+impl PSP22Metadata for Instance {
+    ///  Returns the token symbol.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn token_symbol<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![52, 32, 91, 229];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Returns the token name.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn token_name<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![61, 38, 27, 212];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Returns the token decimals.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn token_decimals<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<u8, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![114, 113, 183, 130];
+        conn.read(self.account_id, data).await
+    }
+}
+
+#[async_trait::async_trait]
 pub trait PSP22 {
     async fn allowance<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
@@ -306,53 +355,22 @@ impl PSP22 for Instance {
     }
 }
 
-#[async_trait::async_trait]
-pub trait PSP22Metadata {
-    async fn token_symbol<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E>;
-    async fn token_name<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E>;
-    async fn token_decimals<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<u8, ink_wrapper_types::InkLangError>, E>;
-}
+#[allow(dead_code)]
+pub async fn upload<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+    conn: &C,
+) -> Result<TxInfo, E> {
+    let wasm = include_bytes!("../../target/ink/psp22_token/psp22_token.wasm");
+    let tx_info = conn
+        .upload(
+            (*wasm).into(),
+            vec![
+                88, 35, 214, 153, 129, 33, 99, 28, 180, 252, 43, 221, 82, 85, 168, 170, 254, 95,
+                78, 183, 3, 39, 221, 54, 254, 188, 129, 42, 249, 84, 6, 212,
+            ],
+        )
+        .await?;
 
-#[async_trait::async_trait]
-impl PSP22Metadata for Instance {
-    ///  Returns the token symbol.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn token_symbol<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![52, 32, 91, 229];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Returns the token name.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn token_name<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![61, 38, 27, 212];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Returns the token decimals.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn token_decimals<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<u8, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![114, 113, 183, 130];
-        conn.read(self.account_id, data).await
-    }
+    Ok(tx_info)
 }
 
 impl Instance {

@@ -2,6 +2,12 @@ use scale::Encode as _;
 
 // This file was auto-generated with ink-wrapper (https://crates.io/crates/ink-wrapper).
 
+#[allow(dead_code)]
+pub const CODE_HASH: [u8; 32] = [
+    10, 154, 141, 16, 193, 200, 83, 40, 64, 47, 35, 160, 16, 35, 144, 111, 175, 119, 48, 203, 170,
+    197, 164, 245, 105, 99, 175, 15, 57, 215, 207, 116,
+];
+
 #[derive(Debug, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
 pub struct WrappedU256(pub U256);
 
@@ -154,292 +160,6 @@ impl ink_wrapper_types::EventSource for Instance {
 }
 
 #[async_trait::async_trait]
-pub trait Ownable {
-    async fn renounce_ownership<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<TxInfo, E>;
-    async fn owner<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
-    async fn transfer_ownership<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        new_owner: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E>;
-}
-
-#[async_trait::async_trait]
-impl Ownable for Instance {
-    ///  Leaves the contract without owner. It will not be possible to call
-    ///  owner's functions anymore. Can only be called by the current owner.
-    ///
-    ///  NOTE: Renouncing ownership will leave the contract without an owner,
-    ///  thereby removing any functionality that is only available to the owner.
-    ///
-    ///  On success a `OwnershipTransferred` event is emitted.
-    ///
-    ///  # Errors
-    ///
-    ///  Panics with `CallerIsNotOwner` error if caller is not owner
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn renounce_ownership<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<TxInfo, E> {
-        let data = vec![94, 34, 135, 83];
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Returns the address of the current owner.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn owner<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![79, 164, 60, 140];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Transfers ownership of the contract to a `new_owner`.
-    ///  Can only be called by the current owner.
-    ///
-    ///  On success a `OwnershipTransferred` event is emitted.
-    ///
-    ///  # Errors
-    ///
-    ///  Panics with `CallerIsNotOwner` error if caller is not owner.
-    ///
-    ///  Panics with `NewOwnerIsZero` error if new owner's address is zero.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn transfer_ownership<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        new_owner: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![17, 244, 62, 253];
-            new_owner.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-}
-
-#[async_trait::async_trait]
-pub trait Pair {
-    async fn get_reserves<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<(u128, u128, u64), ink_wrapper_types::InkLangError>, E>;
-    async fn get_token_1<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
-    async fn initialize<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        token_0: ink_primitives::AccountId,
-        token_1: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E>;
-    async fn burn<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E>;
-    async fn skim<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E>;
-    async fn price_1_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E>;
-    async fn sync<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<TxInfo, E>;
-    async fn mint<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E>;
-    async fn get_token_0<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
-    async fn price_0_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E>;
-    async fn swap<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        amount_0_out: u128,
-        amount_1_out: u128,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E>;
-}
-
-#[async_trait::async_trait]
-impl Pair for Instance {
-    ///  Returns amounts of tokens this pair holds at `Timestamp`.
-    ///  
-    ///  NOTE: This does not include the tokens that were transferred to the contract
-    ///  as part of the _current_ transaction.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn get_reserves<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<(u128, u128, u64), ink_wrapper_types::InkLangError>, E> {
-        let data = vec![90, 33, 227, 252];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Returns address of the second token.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn get_token_1<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![165, 176, 97, 111];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Initializes the pair with given token IDs.
-    ///  
-    ///  NOTE: Why do we need it at all? Why not put in the constructor?
-    ///  Potentialy dangerous in case of a hack where initial caller/owner
-    ///  of the contract can re-initialize with a different pair.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn initialize<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        token_0: ink_primitives::AccountId,
-        token_1: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![211, 114, 2, 28];
-            token_0.encode_to(&mut data);
-            token_1.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn burn<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![2, 33, 197, 36];
-            to.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn skim<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![81, 195, 39, 129];
-            to.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Returns cumulative prive of the second token.
-    ///  
-    ///  NOTE: Cumulative price is the sum of token price,
-    ///  recorded at the end of the block (in the last transaction),
-    ///  since the beginning of the token pair.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn price_1_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![29, 211, 141, 82];
-        conn.read(self.account_id, data).await
-    }
-
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn sync<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<TxInfo, E> {
-        let data = vec![121, 38, 29, 147];
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Mints liquidity tokens `to` account.
-    ///  The amount minted is equivalent to the excess of contract's balance and reserves.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn mint<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![78, 170, 247, 34];
-            to.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Returns address of the first token.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn get_token_0<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![122, 235, 152, 168];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Returns cumulative prive of the first token.
-    ///  
-    ///  NOTE: Cumulative price is the sum of token price,
-    ///  recorded at the end of the block (in the last transaction),
-    ///  since the beginning of the token pair.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn price_0_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![244, 217, 153, 81];
-        conn.read(self.account_id, data).await
-    }
-
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn swap<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        amount_0_out: u128,
-        amount_1_out: u128,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![196, 182, 14, 216];
-            amount_0_out.encode_to(&mut data);
-            amount_1_out.encode_to(&mut data);
-            to.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-}
-
-#[async_trait::async_trait]
 pub trait PSP22 {
     async fn total_supply<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
@@ -449,6 +169,24 @@ pub trait PSP22 {
         &self,
         conn: &C,
         owner: ink_primitives::AccountId,
+    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
+    async fn increase_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        spender: ink_primitives::AccountId,
+        delta_value: u128,
+    ) -> Result<TxInfo, E>;
+    async fn decrease_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        spender: ink_primitives::AccountId,
+        delta_value: u128,
+    ) -> Result<TxInfo, E>;
+    async fn allowance<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        owner: ink_primitives::AccountId,
+        spender: ink_primitives::AccountId,
     ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
     async fn transfer<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
         &self,
@@ -470,24 +208,6 @@ pub trait PSP22 {
         conn: &C,
         spender: ink_primitives::AccountId,
         value: u128,
-    ) -> Result<TxInfo, E>;
-    async fn decrease_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        spender: ink_primitives::AccountId,
-        delta_value: u128,
-    ) -> Result<TxInfo, E>;
-    async fn allowance<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        owner: ink_primitives::AccountId,
-        spender: ink_primitives::AccountId,
-    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
-    async fn increase_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        spender: ink_primitives::AccountId,
-        delta_value: u128,
     ) -> Result<TxInfo, E>;
 }
 
@@ -515,6 +235,78 @@ impl PSP22 for Instance {
         let data = {
             let mut data = vec![101, 104, 56, 47];
             owner.encode_to(&mut data);
+            data
+        };
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Atomically increases the allowance granted to `spender` by the caller.
+    ///
+    ///  An `Approval` event is emitted.
+    ///
+    ///  # Errors
+    ///
+    ///  Returns `ZeroSenderAddress` error if sender's address is zero.
+    ///
+    ///  Returns `ZeroRecipientAddress` error if recipient's address is zero.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn increase_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        spender: ink_primitives::AccountId,
+        delta_value: u128,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![150, 214, 181, 122];
+            spender.encode_to(&mut data);
+            delta_value.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Atomically decreases the allowance granted to `spender` by the caller.
+    ///
+    ///  An `Approval` event is emitted.
+    ///
+    ///  # Errors
+    ///
+    ///  Returns `InsufficientAllowance` error if there are not enough tokens allowed
+    ///  by owner for `spender`.
+    ///
+    ///  Returns `ZeroSenderAddress` error if sender's address is zero.
+    ///
+    ///  Returns `ZeroRecipientAddress` error if recipient's address is zero.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn decrease_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        spender: ink_primitives::AccountId,
+        delta_value: u128,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![254, 203, 87, 213];
+            spender.encode_to(&mut data);
+            delta_value.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Returns the amount which `spender` is still allowed to withdraw from `owner`.
+    ///
+    ///  Returns `0` if no allowance has been set `0`.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn allowance<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        owner: ink_primitives::AccountId,
+        spender: ink_primitives::AccountId,
+    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E> {
+        let data = {
+            let mut data = vec![77, 71, 217, 33];
+            owner.encode_to(&mut data);
+            spender.encode_to(&mut data);
             data
         };
         conn.read(self.account_id, data).await
@@ -598,78 +390,302 @@ impl PSP22 for Instance {
         };
         conn.exec(self.account_id, data).await
     }
+}
 
-    ///  Atomically decreases the allowance granted to `spender` by the caller.
-    ///
-    ///  An `Approval` event is emitted.
-    ///
-    ///  # Errors
-    ///
-    ///  Returns `InsufficientAllowance` error if there are not enough tokens allowed
-    ///  by owner for `spender`.
-    ///
-    ///  Returns `ZeroSenderAddress` error if sender's address is zero.
-    ///
-    ///  Returns `ZeroRecipientAddress` error if recipient's address is zero.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn decrease_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+#[async_trait::async_trait]
+pub trait Ownable {
+    async fn owner<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
         conn: &C,
-        spender: ink_primitives::AccountId,
-        delta_value: u128,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![254, 203, 87, 213];
-            spender.encode_to(&mut data);
-            delta_value.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Returns the amount which `spender` is still allowed to withdraw from `owner`.
-    ///
-    ///  Returns `0` if no allowance has been set `0`.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn allowance<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
+    async fn transfer_ownership<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
         &self,
         conn: &C,
-        owner: ink_primitives::AccountId,
-        spender: ink_primitives::AccountId,
-    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E> {
-        let data = {
-            let mut data = vec![77, 71, 217, 33];
-            owner.encode_to(&mut data);
-            spender.encode_to(&mut data);
-            data
-        };
+        new_owner: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E>;
+    async fn renounce_ownership<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<TxInfo, E>;
+}
+
+#[async_trait::async_trait]
+impl Ownable for Instance {
+    ///  Returns the address of the current owner.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn owner<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![79, 164, 60, 140];
         conn.read(self.account_id, data).await
     }
 
-    ///  Atomically increases the allowance granted to `spender` by the caller.
+    ///  Transfers ownership of the contract to a `new_owner`.
+    ///  Can only be called by the current owner.
     ///
-    ///  An `Approval` event is emitted.
+    ///  On success a `OwnershipTransferred` event is emitted.
     ///
     ///  # Errors
     ///
-    ///  Returns `ZeroSenderAddress` error if sender's address is zero.
+    ///  Panics with `CallerIsNotOwner` error if caller is not owner.
     ///
-    ///  Returns `ZeroRecipientAddress` error if recipient's address is zero.
+    ///  Panics with `NewOwnerIsZero` error if new owner's address is zero.
     #[allow(dead_code, clippy::too_many_arguments)]
-    async fn increase_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+    async fn transfer_ownership<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
         &self,
         conn: &C,
-        spender: ink_primitives::AccountId,
-        delta_value: u128,
+        new_owner: ink_primitives::AccountId,
     ) -> Result<TxInfo, E> {
         let data = {
-            let mut data = vec![150, 214, 181, 122];
-            spender.encode_to(&mut data);
-            delta_value.encode_to(&mut data);
+            let mut data = vec![17, 244, 62, 253];
+            new_owner.encode_to(&mut data);
             data
         };
         conn.exec(self.account_id, data).await
     }
+
+    ///  Leaves the contract without owner. It will not be possible to call
+    ///  owner's functions anymore. Can only be called by the current owner.
+    ///
+    ///  NOTE: Renouncing ownership will leave the contract without an owner,
+    ///  thereby removing any functionality that is only available to the owner.
+    ///
+    ///  On success a `OwnershipTransferred` event is emitted.
+    ///
+    ///  # Errors
+    ///
+    ///  Panics with `CallerIsNotOwner` error if caller is not owner
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn renounce_ownership<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<TxInfo, E> {
+        let data = vec![94, 34, 135, 83];
+        conn.exec(self.account_id, data).await
+    }
+}
+
+#[async_trait::async_trait]
+pub trait Pair {
+    async fn mint<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E>;
+    async fn get_token_1<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
+    async fn get_reserves<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<(u128, u128, u64), ink_wrapper_types::InkLangError>, E>;
+    async fn swap<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        amount_0_out: u128,
+        amount_1_out: u128,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E>;
+    async fn price_0_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E>;
+    async fn price_1_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E>;
+    async fn burn<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E>;
+    async fn sync<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<TxInfo, E>;
+    async fn skim<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E>;
+    async fn initialize<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        token_0: ink_primitives::AccountId,
+        token_1: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E>;
+    async fn get_token_0<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
+}
+
+#[async_trait::async_trait]
+impl Pair for Instance {
+    ///  Mints liquidity tokens `to` account.
+    ///  The amount minted is equivalent to the excess of contract's balance and reserves.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn mint<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![78, 170, 247, 34];
+            to.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Returns address of the second token.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn get_token_1<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![165, 176, 97, 111];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Returns amounts of tokens this pair holds at `Timestamp`.
+    ///  
+    ///  NOTE: This does not include the tokens that were transferred to the contract
+    ///  as part of the _current_ transaction.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn get_reserves<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<(u128, u128, u64), ink_wrapper_types::InkLangError>, E> {
+        let data = vec![90, 33, 227, 252];
+        conn.read(self.account_id, data).await
+    }
+
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn swap<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        amount_0_out: u128,
+        amount_1_out: u128,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![196, 182, 14, 216];
+            amount_0_out.encode_to(&mut data);
+            amount_1_out.encode_to(&mut data);
+            to.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Returns cumulative prive of the first token.
+    ///  
+    ///  NOTE: Cumulative price is the sum of token price,
+    ///  recorded at the end of the block (in the last transaction),
+    ///  since the beginning of the token pair.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn price_0_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![244, 217, 153, 81];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Returns cumulative prive of the second token.
+    ///  
+    ///  NOTE: Cumulative price is the sum of token price,
+    ///  recorded at the end of the block (in the last transaction),
+    ///  since the beginning of the token pair.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn price_1_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![29, 211, 141, 82];
+        conn.read(self.account_id, data).await
+    }
+
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn burn<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![2, 33, 197, 36];
+            to.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn sync<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<TxInfo, E> {
+        let data = vec![121, 38, 29, 147];
+        conn.exec(self.account_id, data).await
+    }
+
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn skim<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![81, 195, 39, 129];
+            to.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Initializes the pair with given token IDs.
+    ///  
+    ///  NOTE: Why do we need it at all? Why not put in the constructor?
+    ///  Potentialy dangerous in case of a hack where initial caller/owner
+    ///  of the contract can re-initialize with a different pair.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn initialize<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        token_0: ink_primitives::AccountId,
+        token_1: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![211, 114, 2, 28];
+            token_0.encode_to(&mut data);
+            token_1.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Returns address of the first token.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn get_token_0<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![122, 235, 152, 168];
+        conn.read(self.account_id, data).await
+    }
+}
+
+#[allow(dead_code)]
+pub async fn upload<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+    conn: &C,
+) -> Result<TxInfo, E> {
+    let wasm = include_bytes!("../../target/ink/pair_contract/pair_contract.wasm");
+    let tx_info = conn.upload((*wasm).into(), CODE_HASH.into()).await?;
+
+    Ok(tx_info)
 }
 
 impl Instance {
@@ -679,11 +695,7 @@ impl Instance {
         salt: Vec<u8>,
     ) -> Result<Self, E> {
         let data = vec![155, 174, 157, 94];
-        let code_hash = [
-            20, 50, 227, 100, 237, 15, 226, 122, 184, 218, 36, 232, 170, 107, 225, 198, 177, 36,
-            234, 235, 240, 142, 147, 208, 48, 183, 103, 78, 186, 81, 202, 141,
-        ];
-        let account_id = conn.instantiate(code_hash, salt, data).await?;
+        let account_id = conn.instantiate(CODE_HASH, salt, data).await?;
         Ok(Self { account_id })
     }
 }

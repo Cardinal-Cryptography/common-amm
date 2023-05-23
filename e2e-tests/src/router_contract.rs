@@ -764,6 +764,24 @@ impl Router for Instance {
     }
 }
 
+#[allow(dead_code)]
+pub async fn upload<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+    conn: &C,
+) -> Result<TxInfo, E> {
+    let wasm = include_bytes!("../../target/ink/router_contract/router_contract.wasm");
+    let tx_info = conn
+        .upload(
+            (*wasm).into(),
+            vec![
+                220, 100, 98, 110, 43, 240, 118, 172, 34, 134, 91, 98, 66, 249, 217, 40, 77, 49,
+                53, 79, 188, 25, 28, 76, 162, 55, 254, 62, 6, 177, 119, 226,
+            ],
+        )
+        .await?;
+
+    Ok(tx_info)
+}
+
 impl Instance {
     #[allow(dead_code, clippy::too_many_arguments)]
     pub async fn new<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(

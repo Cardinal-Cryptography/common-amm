@@ -55,6 +55,47 @@ impl ink_wrapper_types::EventSource for Instance {
 }
 
 #[async_trait::async_trait]
+pub trait Wnative {
+    async fn deposit<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<TxInfo, E>;
+    async fn withdraw<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        amount: u128,
+    ) -> Result<TxInfo, E>;
+}
+
+#[async_trait::async_trait]
+impl Wnative for Instance {
+    ///  Deposit NATIVE to wrap it
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn deposit<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<TxInfo, E> {
+        let data = vec![158, 29, 225, 29];
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Unwrap NATIVE
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn withdraw<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        amount: u128,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![87, 17, 232, 16];
+            amount.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+}
+
+#[async_trait::async_trait]
 pub trait PSP22 {
     async fn balance_of<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
@@ -307,47 +348,6 @@ impl PSP22 for Instance {
 }
 
 #[async_trait::async_trait]
-pub trait Wnative {
-    async fn deposit<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<TxInfo, E>;
-    async fn withdraw<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        amount: u128,
-    ) -> Result<TxInfo, E>;
-}
-
-#[async_trait::async_trait]
-impl Wnative for Instance {
-    ///  Deposit NATIVE to wrap it
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn deposit<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<TxInfo, E> {
-        let data = vec![158, 29, 225, 29];
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Unwrap NATIVE
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn withdraw<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        amount: u128,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![87, 17, 232, 16];
-            amount.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-}
-
-#[async_trait::async_trait]
 pub trait PSP22Metadata {
     async fn token_name<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
@@ -394,6 +394,24 @@ impl PSP22Metadata for Instance {
         let data = vec![52, 32, 91, 229];
         conn.read(self.account_id, data).await
     }
+}
+
+#[allow(dead_code)]
+pub async fn upload<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+    conn: &C,
+) -> Result<TxInfo, E> {
+    let wasm = include_bytes!("../../target/ink/wnative_contract/wnative_contract.wasm");
+    let tx_info = conn
+        .upload(
+            (*wasm).into(),
+            vec![
+                196, 228, 71, 56, 248, 153, 241, 92, 155, 134, 170, 114, 221, 79, 133, 134, 163,
+                62, 246, 175, 204, 64, 238, 120, 189, 68, 12, 121, 181, 75, 189, 238,
+            ],
+        )
+        .await?;
+
+    Ok(tx_info)
 }
 
 impl Instance {
