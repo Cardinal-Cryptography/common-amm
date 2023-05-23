@@ -3,6 +3,7 @@ use crate::{
     helpers::{
         math::casted_mul,
         transfer_helper::safe_transfer,
+        ZERO_ADDRESS,
     },
     traits::{
         factory::FactoryRef,
@@ -26,7 +27,6 @@ use openbrush::{
         Balance,
         Storage,
         Timestamp,
-        ZERO_ADDRESS,
     },
 };
 use primitive_types::U256;

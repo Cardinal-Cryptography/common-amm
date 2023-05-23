@@ -15,6 +15,10 @@ openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", versi
 primitive-types = { version = "0.11.1", default-features = false, features = ["codec"] }
 sp-arithmetic = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.37"}
 
+[dev-dependencies]
+curve25519-dalek = { version = "4.0.0-rc.2", features = [ "digest" ] }
+sha2 = "0.10.6"
+
 [lib]
 name = "uniswap_v2"
 path = "lib.rs"

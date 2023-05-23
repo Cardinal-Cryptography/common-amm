@@ -90,7 +90,6 @@ pub mod factory {
             env::test::default_accounts,
             primitives::Hash,
         };
-        use openbrush::traits::AccountIdExt;
 
         use super::*;
 
@@ -98,7 +97,10 @@ pub mod factory {
         fn initialize_works() {
             let accounts = default_accounts::<ink::env::DefaultEnvironment>();
             let factory = FactoryContract::new(accounts.alice, Hash::default());
-            assert!(factory.factory.fee_to.is_zero());
+            assert_eq!(
+                factory.factory.fee_to,
+                uniswap_v2::helpers::ZERO_ADDRESS.into()
+            );
         }
     }
 }

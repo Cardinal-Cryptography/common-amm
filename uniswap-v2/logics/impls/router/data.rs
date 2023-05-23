@@ -1,7 +1,5 @@
-use openbrush::traits::{
-    AccountId,
-    ZERO_ADDRESS,
-};
+use crate::helpers::ZERO_ADDRESS;
+use openbrush::traits::AccountId;
 
 pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
 
