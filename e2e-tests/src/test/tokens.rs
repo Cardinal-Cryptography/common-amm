@@ -34,7 +34,7 @@ const BALANCE: Balance = 10_000;
 const MIN_BALANCE: Balance = 1_000;
 const EXPECTED_INITIAL_NON_SUDO_BALANCE: Balance = 0;
 
-const TOKEN_B_BALANCE: Balance = 1_020;
+const AMOUNT_A_IN: Balance = 1_020;
 const AMOUNT_A_OUT: Balance = 0;
 const AMOUNT_B_OUT: Balance = 900;
 
@@ -180,7 +180,7 @@ pub async fn swap_tokens(test_fixture: &TestFixture) -> Result<()> {
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
 
     token_a
-        .transfer(sudo_connection, pair, TOKEN_B_BALANCE, vec![])
+        .transfer(sudo_connection, pair, AMOUNT_A_IN, vec![])
         .await?;
 
     let non_sudo_ink_account = inkify_account_id(non_sudo.account_id());
