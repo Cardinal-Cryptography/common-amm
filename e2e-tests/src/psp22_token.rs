@@ -2,6 +2,12 @@ use scale::Encode as _;
 
 // This file was auto-generated with ink-wrapper (https://crates.io/crates/ink-wrapper).
 
+#[allow(dead_code)]
+pub const CODE_HASH: [u8; 32] = [
+    51, 206, 50, 252, 212, 49, 88, 206, 210, 142, 173, 95, 238, 153, 15, 130, 149, 120, 124, 40,
+    80, 131, 245, 82, 180, 216, 118, 141, 126, 58, 161, 67,
+];
+
 #[derive(Debug, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
 pub enum PSP22Error {
     Custom(String),
@@ -55,61 +61,10 @@ impl ink_wrapper_types::EventSource for Instance {
 }
 
 #[async_trait::async_trait]
-pub trait PSP22Metadata {
-    async fn token_symbol<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E>;
-    async fn token_name<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E>;
-    async fn token_decimals<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<u8, ink_wrapper_types::InkLangError>, E>;
-}
-
-#[async_trait::async_trait]
-impl PSP22Metadata for Instance {
-    ///  Returns the token symbol.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn token_symbol<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![52, 32, 91, 229];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Returns the token name.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn token_name<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![61, 38, 27, 212];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Returns the token decimals.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn token_decimals<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<u8, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![114, 113, 183, 130];
-        conn.read(self.account_id, data).await
-    }
-}
-
-#[async_trait::async_trait]
 pub trait PSP22 {
-    async fn allowance<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+    async fn total_supply<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
         conn: &C,
-        owner: ink_primitives::AccountId,
-        spender: ink_primitives::AccountId,
     ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
     async fn approve<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
         &self,
@@ -123,6 +78,30 @@ pub trait PSP22 {
         spender: ink_primitives::AccountId,
         delta_value: u128,
     ) -> Result<TxInfo, E>;
+    async fn allowance<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        owner: ink_primitives::AccountId,
+        spender: ink_primitives::AccountId,
+    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
+    async fn increase_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        spender: ink_primitives::AccountId,
+        delta_value: u128,
+    ) -> Result<TxInfo, E>;
+    async fn transfer<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+        value: u128,
+        data: Vec<u8>,
+    ) -> Result<TxInfo, E>;
+    async fn balance_of<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        owner: ink_primitives::AccountId,
+    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
     async fn transfer_from<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
         &self,
         conn: &C,
@@ -131,48 +110,17 @@ pub trait PSP22 {
         value: u128,
         data: Vec<u8>,
     ) -> Result<TxInfo, E>;
-    async fn total_supply<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
-    async fn increase_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        spender: ink_primitives::AccountId,
-        delta_value: u128,
-    ) -> Result<TxInfo, E>;
-    async fn balance_of<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        owner: ink_primitives::AccountId,
-    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
-    async fn transfer<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-        value: u128,
-        data: Vec<u8>,
-    ) -> Result<TxInfo, E>;
 }
 
 #[async_trait::async_trait]
 impl PSP22 for Instance {
-    ///  Returns the amount which `spender` is still allowed to withdraw from `owner`.
-    ///
-    ///  Returns `0` if no allowance has been set `0`.
+    ///  Returns the total token supply.
     #[allow(dead_code, clippy::too_many_arguments)]
-    async fn allowance<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+    async fn total_supply<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
         conn: &C,
-        owner: ink_primitives::AccountId,
-        spender: ink_primitives::AccountId,
     ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E> {
-        let data = {
-            let mut data = vec![77, 71, 217, 33];
-            owner.encode_to(&mut data);
-            spender.encode_to(&mut data);
-            data
-        };
+        let data = vec![22, 45, 248, 194];
         conn.read(self.account_id, data).await
     }
 
@@ -232,6 +180,98 @@ impl PSP22 for Instance {
         conn.exec(self.account_id, data).await
     }
 
+    ///  Returns the amount which `spender` is still allowed to withdraw from `owner`.
+    ///
+    ///  Returns `0` if no allowance has been set `0`.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn allowance<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        owner: ink_primitives::AccountId,
+        spender: ink_primitives::AccountId,
+    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E> {
+        let data = {
+            let mut data = vec![77, 71, 217, 33];
+            owner.encode_to(&mut data);
+            spender.encode_to(&mut data);
+            data
+        };
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Atomically increases the allowance granted to `spender` by the caller.
+    ///
+    ///  An `Approval` event is emitted.
+    ///
+    ///  # Errors
+    ///
+    ///  Returns `ZeroSenderAddress` error if sender's address is zero.
+    ///
+    ///  Returns `ZeroRecipientAddress` error if recipient's address is zero.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn increase_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        spender: ink_primitives::AccountId,
+        delta_value: u128,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![150, 214, 181, 122];
+            spender.encode_to(&mut data);
+            delta_value.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Transfers `value` amount of tokens from the caller's account to account `to`
+    ///  with additional `data` in unspecified format.
+    ///
+    ///  On success a `Transfer` event is emitted.
+    ///
+    ///  # Errors
+    ///
+    ///  Returns `InsufficientBalance` error if there are not enough tokens on
+    ///  the caller's account Balance.
+    ///
+    ///  Returns `ZeroSenderAddress` error if sender's address is zero.
+    ///
+    ///  Returns `ZeroRecipientAddress` error if recipient's address is zero.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn transfer<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+        value: u128,
+        data: Vec<u8>,
+    ) -> Result<TxInfo, E> {
+        let data_ = {
+            let mut data_ = vec![219, 32, 249, 245];
+            to.encode_to(&mut data_);
+            value.encode_to(&mut data_);
+            data.encode_to(&mut data_);
+            data_
+        };
+        conn.exec(self.account_id, data_).await
+    }
+
+    ///  Returns the account Balance for the specified `owner`.
+    ///
+    ///  Returns `0` if the account is non-existent.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn balance_of<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        owner: ink_primitives::AccountId,
+    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E> {
+        let data = {
+            let mut data = vec![101, 104, 56, 47];
+            owner.encode_to(&mut data);
+            data
+        };
+        conn.read(self.account_id, data).await
+    }
+
     ///  Transfers `value` tokens on the behalf of `from` to the account `to`
     ///  with additional `data` in unspecified format.
     ///
@@ -270,88 +310,54 @@ impl PSP22 for Instance {
         };
         conn.exec(self.account_id, data_).await
     }
+}
 
-    ///  Returns the total token supply.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn total_supply<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+#[async_trait::async_trait]
+pub trait PSP22Metadata {
+    async fn token_decimals<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
         conn: &C,
-    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![22, 45, 248, 194];
+    ) -> Result<Result<u8, ink_wrapper_types::InkLangError>, E>;
+    async fn token_symbol<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E>;
+    async fn token_name<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E>;
+}
+
+#[async_trait::async_trait]
+impl PSP22Metadata for Instance {
+    ///  Returns the token decimals.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn token_decimals<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<u8, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![114, 113, 183, 130];
         conn.read(self.account_id, data).await
     }
 
-    ///  Atomically increases the allowance granted to `spender` by the caller.
-    ///
-    ///  An `Approval` event is emitted.
-    ///
-    ///  # Errors
-    ///
-    ///  Returns `ZeroSenderAddress` error if sender's address is zero.
-    ///
-    ///  Returns `ZeroRecipientAddress` error if recipient's address is zero.
+    ///  Returns the token symbol.
     #[allow(dead_code, clippy::too_many_arguments)]
-    async fn increase_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+    async fn token_symbol<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
         conn: &C,
-        spender: ink_primitives::AccountId,
-        delta_value: u128,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![150, 214, 181, 122];
-            spender.encode_to(&mut data);
-            delta_value.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Returns the account Balance for the specified `owner`.
-    ///
-    ///  Returns `0` if the account is non-existent.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn balance_of<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        owner: ink_primitives::AccountId,
-    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E> {
-        let data = {
-            let mut data = vec![101, 104, 56, 47];
-            owner.encode_to(&mut data);
-            data
-        };
+    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![52, 32, 91, 229];
         conn.read(self.account_id, data).await
     }
 
-    ///  Transfers `value` amount of tokens from the caller's account to account `to`
-    ///  with additional `data` in unspecified format.
-    ///
-    ///  On success a `Transfer` event is emitted.
-    ///
-    ///  # Errors
-    ///
-    ///  Returns `InsufficientBalance` error if there are not enough tokens on
-    ///  the caller's account Balance.
-    ///
-    ///  Returns `ZeroSenderAddress` error if sender's address is zero.
-    ///
-    ///  Returns `ZeroRecipientAddress` error if recipient's address is zero.
+    ///  Returns the token name.
     #[allow(dead_code, clippy::too_many_arguments)]
-    async fn transfer<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+    async fn token_name<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
         conn: &C,
-        to: ink_primitives::AccountId,
-        value: u128,
-        data: Vec<u8>,
-    ) -> Result<TxInfo, E> {
-        let data_ = {
-            let mut data_ = vec![219, 32, 249, 245];
-            to.encode_to(&mut data_);
-            value.encode_to(&mut data_);
-            data.encode_to(&mut data_);
-            data_
-        };
-        conn.exec(self.account_id, data_).await
+    ) -> Result<Result<Option<String>, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![61, 38, 27, 212];
+        conn.read(self.account_id, data).await
     }
 }
 
@@ -360,15 +366,7 @@ pub async fn upload<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>
     conn: &C,
 ) -> Result<TxInfo, E> {
     let wasm = include_bytes!("../../target/ink/psp22_token/psp22_token.wasm");
-    let tx_info = conn
-        .upload(
-            (*wasm).into(),
-            vec![
-                88, 35, 214, 153, 129, 33, 99, 28, 180, 252, 43, 221, 82, 85, 168, 170, 254, 95,
-                78, 183, 3, 39, 221, 54, 254, 188, 129, 42, 249, 84, 6, 212,
-            ],
-        )
-        .await?;
+    let tx_info = conn.upload((*wasm).into(), CODE_HASH.into()).await?;
 
     Ok(tx_info)
 }
@@ -391,11 +389,7 @@ impl Instance {
             decimals.encode_to(&mut data);
             data
         };
-        let code_hash = [
-            88, 35, 214, 153, 129, 33, 99, 28, 180, 252, 43, 221, 82, 85, 168, 170, 254, 95, 78,
-            183, 3, 39, 221, 54, 254, 188, 129, 42, 249, 84, 6, 212,
-        ];
-        let account_id = conn.instantiate(code_hash, salt, data).await?;
+        let account_id = conn.instantiate(CODE_HASH, salt, data).await?;
         Ok(Self { account_id })
     }
 

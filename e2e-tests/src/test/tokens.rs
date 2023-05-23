@@ -179,14 +179,20 @@ pub async fn swap_tokens(test_fixture: &TestFixture) -> Result<()> {
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
 
-    token_a
+    let mut tokens: Vec<ink_primitives::AccountId> = vec![(*token_a).into(), (*token_b).into()];
+    tokens.sort();
+
+    let first_token: psp22_token::Instance = tokens[0].into();
+    let second_token: psp22_token::Instance = tokens[1].into();
+
+    first_token
         .transfer(sudo_connection, pair, AMOUNT_A_IN, vec![])
         .await?;
 
     let non_sudo_ink_account = inkify_account_id(non_sudo.account_id());
     balance_of(
         sudo_connection,
-        *token_b,
+        second_token,
         non_sudo_ink_account,
         EXPECTED_INITIAL_NON_SUDO_BALANCE,
     )
@@ -206,14 +212,13 @@ pub async fn swap_tokens(test_fixture: &TestFixture) -> Result<()> {
     let all_pair_contract_events = sudo_connection.get_contract_events(swap_tx_info).await?;
     let pair_contract_events = all_pair_contract_events.for_contract(pair_contract);
     let swap_events = get_swap_events(pair_contract_events);
-    println!("SWAP EVENTS: {:?}", swap_events);
 
     swap_events
         .first()
         .ok_or(anyhow!("No `Swap` events have been emitted!"))?;
     balance_of(
         sudo_connection,
-        *token_b,
+        second_token,
         non_sudo_ink_account,
         AMOUNT_B_OUT,
     )

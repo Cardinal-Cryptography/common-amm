@@ -1,5 +1,4 @@
 use anyhow::Result;
-use log::info;
 
 use aleph_client::{
     pallets::balances::BalanceUserApi,
