@@ -106,7 +106,6 @@ pub fn get_amount_out(
         HelperError::InsufficientLiquidity
     );
 
-    // TODO: Hardcoded fee!?!?
     // Adjusts for fees paid in the `token_in`.
     let amount_in_with_fee = casted_mul(amount_in, 997);
 
@@ -164,10 +163,10 @@ pub fn get_amount_in(
 }
 
 /// Computes swap token amounts over the given path of token pairs.
-/// 
-/// At each step, a swap for pair `(path[i], path[i+1])` is calculated, 
+///
+/// At each step, a swap for pair `(path[i], path[i+1])` is calculated,
 /// using tokens from the previous trade.
-/// 
+///
 /// Returns list of swap outcomes along the path.
 pub fn get_amounts_out(
     factory: &AccountId,

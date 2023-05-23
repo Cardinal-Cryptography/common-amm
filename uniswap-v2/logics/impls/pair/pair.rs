@@ -15,7 +15,6 @@ pub use crate::{
 };
 use openbrush::{
     contracts::{
-        ownable::*,
         psp22::*,
         reentrancy_guard::*,
         traits::psp22::PSP22Ref,
@@ -47,7 +46,7 @@ pub const MINIMUM_LIQUIDITY: u128 = 1000;
 
 pub trait Internal {
     /// If turned on, controlled via `fee_to` parameter, mints protocol fee
-    /// and transfer to `fee_to` address.
+    /// and transfer to `fee_to` address. Mints liquidity equivalent to 1/6th of the growth in sqrt(k).
     /// SHOULD be called before any new tokens are minted or burnt so that no fees are lost.
     fn _mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError>;
 
@@ -79,13 +78,7 @@ pub trait Internal {
     fn _emit_sync_event(&self, reserve_0: Balance, reserve_1: Balance);
 }
 
-impl<
-        T: Storage<data::Data>
-            + Storage<ownable::Data>
-            + Storage<psp22::Data>
-            + Storage<reentrancy_guard::Data>,
-    > Pair for T
-{
+impl<T: Storage<data::Data> + Storage<psp22::Data> + Storage<reentrancy_guard::Data>> Pair for T {
     default fn get_reserves(&self) -> (Balance, Balance, Timestamp) {
         (
             self.data::<data::Data>().reserve_0,
@@ -99,17 +92,6 @@ impl<
 
     default fn price_1_cumulative_last(&self) -> WrappedU256 {
         self.data::<data::Data>().price_1_cumulative_last
-    }
-
-    #[modifiers(only_owner)]
-    default fn initialize(
-        &mut self,
-        token_0: AccountId,
-        token_1: AccountId,
-    ) -> Result<(), PairError> {
-        self.data::<data::Data>().token_0 = token_0;
-        self.data::<data::Data>().token_1 = token_1;
-        Ok(())
     }
 
     #[modifiers(non_reentrant)]
@@ -162,7 +144,11 @@ impl<
             self.data::<data::Data>().k_last = casted_mul(reserves.0, reserves.1).into();
         }
 
-        self._emit_mint_event(Self::env().caller(), amount_0_transferred, amount_1_transferred);
+        self._emit_mint_event(
+            Self::env().caller(),
+            amount_0_transferred,
+            amount_1_transferred,
+        );
 
         Ok(liquidity)
     }
@@ -173,19 +159,19 @@ impl<
         let contract = Self::env().account_id();
         let token_0 = self.data::<data::Data>().token_0;
         let token_1 = self.data::<data::Data>().token_1;
-        let mut balance_0 = PSP22Ref::balance_of(&token_0, contract);
-        let mut balance_1 = PSP22Ref::balance_of(&token_1, contract);
+        let balance_0_before = PSP22Ref::balance_of(&token_0, contract);
+        let balance_1_before = PSP22Ref::balance_of(&token_1, contract);
         let liquidity = self._balance_of(&contract);
 
         let fee_on = self._mint_fee(reserves.0, reserves.1)?;
         let total_supply = self.data::<psp22::Data>().supply;
         let amount_0 = liquidity
-            .checked_mul(balance_0)
+            .checked_mul(balance_0_before)
             .ok_or(PairError::MulOverFlow5)?
             .checked_div(total_supply)
             .ok_or(PairError::DivByZero3)?;
         let amount_1 = liquidity
-            .checked_mul(balance_1)
+            .checked_mul(balance_1_before)
             .ok_or(PairError::MulOverFlow6)?
             .checked_div(total_supply)
             .ok_or(PairError::DivByZero4)?;
@@ -200,10 +186,10 @@ impl<
         safe_transfer(token_0, to, amount_0)?;
         safe_transfer(token_1, to, amount_1)?;
 
-        balance_0 = PSP22Ref::balance_of(&token_0, contract);
-        balance_1 = PSP22Ref::balance_of(&token_1, contract);
+        let balance_0_after = PSP22Ref::balance_of(&token_0, contract);
+        let balance_1_after = PSP22Ref::balance_of(&token_1, contract);
 
-        self._update(balance_0, balance_1, reserves.0, reserves.1)?;
+        self._update(balance_0_after, balance_1_after, reserves.0, reserves.1)?;
 
         if fee_on {
             self.data::<data::Data>().k_last = casted_mul(reserves.0, reserves.1).into();
@@ -410,6 +396,7 @@ impl<T: Storage<data::Data> + Storage<psp22::Data>> Internal for T {
         let fee_on = !fee_to.is_zero();
         let k_last: U256 = self.data::<data::Data>().k_last.into();
         if fee_on {
+            // Section 2.4 Protocol fee in the whitepaper.
             if !k_last.is_zero() {
                 let root_k: Balance = casted_mul(reserve_0, reserve_1)
                     .integer_sqrt()

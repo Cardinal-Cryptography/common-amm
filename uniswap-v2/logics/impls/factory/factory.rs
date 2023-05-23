@@ -1,4 +1,3 @@
-use crate::traits::pair::PairRef;
 pub use crate::{
     ensure,
     impls::factory::*,
@@ -59,9 +58,7 @@ where
         );
 
         let salt = Self::env().hash_encoded::<Blake2x256, _>(&token_pair);
-        let pair_contract = self._instantiate_pair(salt.as_ref())?;
-        //TODO: Why can't we include token pairs in the `_instantiate_pair`?
-        PairRef::initialize(&pair_contract, token_pair.0, token_pair.1)?;
+        let pair_contract = self._instantiate_pair(salt.as_ref(), token_pair.0, token_pair.1)?;
 
         self.data::<data::Data>()
             .get_pair
@@ -116,7 +113,12 @@ pub trait Internal {
     );
 
     /// Creates an instance of the `Pair` contract.
-    fn _instantiate_pair(&mut self, salt_bytes: &[u8]) -> Result<AccountId, FactoryError>;
+    fn _instantiate_pair(
+        &mut self,
+        salt_bytes: &[u8],
+        token_0: AccountId,
+        token_1: AccountId,
+    ) -> Result<AccountId, FactoryError>;
 }
 
 #[modifier_definition]

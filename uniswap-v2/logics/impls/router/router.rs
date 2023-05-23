@@ -324,8 +324,9 @@ impl<T: Storage<data::Data>> Router for T {
             amounts[0],
         )?;
         self._swap(&amounts, &path, Self::env().account_id())?;
-        unwrap(&wnative, amounts[amounts.len() - 1])?;
-        safe_transfer_native(to, amounts[amounts.len() - 1])?;
+        let native_out = amounts[amounts.len() - 1];
+        unwrap(&wnative, native_out)?;
+        safe_transfer_native(to, native_out)?;
         Ok(amounts)
     }
 
@@ -343,8 +344,9 @@ impl<T: Storage<data::Data>> Router for T {
         let wnative = self.data().wnative;
         ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
         let amounts = get_amounts_out(&factory, amount_in, &path)?;
+        let native_out = amounts[amounts.len() - 1];
         ensure!(
-            amounts[amounts.len() - 1] >= amount_out_min,
+            native_out >= amount_out_min,
             RouterError::InsufficientOutputAmount
         );
         safe_transfer_from(
@@ -354,8 +356,8 @@ impl<T: Storage<data::Data>> Router for T {
             amounts[0],
         )?;
         self._swap(&amounts, &path, Self::env().account_id())?;
-        unwrap(&wnative, amounts[amounts.len() - 1])?;
-        safe_transfer_native(to, amounts[amounts.len() - 1])?;
+        unwrap(&wnative, native_out)?;
+        safe_transfer_native(to, native_out)?;
         Ok(amounts)
     }
 
@@ -369,23 +371,24 @@ impl<T: Storage<data::Data>> Router for T {
     ) -> Result<Vec<Balance>, RouterError> {
         let factory = self.data().factory;
         let wnative = self.data().wnative;
-        let received_value = Self::env().transferred_value();
+        let received_native = Self::env().transferred_value();
 
         ensure!(path[0] == wnative, RouterError::InvalidPath);
         let amounts = get_amounts_in(&factory, amount_out, &path)?;
+        let native_in = amounts[0];
         ensure!(
-            amounts[0] <= received_value,
+            native_in <= received_native,
             RouterError::ExcessiveInputAmount
         );
-        wrap(&wnative, amounts[0])?;
+        wrap(&wnative, native_in)?;
         safe_transfer(
             wnative,
             pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
-            amounts[0],
+            native_in,
         )?;
         self._swap(&amounts, &path, to)?;
-        if received_value > amounts[0] {
-            safe_transfer_native(Self::env().caller(), received_value - amounts[0])?
+        if received_native > native_in {
+            safe_transfer_native(Self::env().caller(), received_native - native_in)?
         }
         Ok(amounts)
     }
@@ -405,9 +408,6 @@ impl<T: Storage<data::Data>> Router for T {
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError> {
-        // TODO: Instead of passing in `Balance`s we should pass in token addresses
-        // and let the contract pull reserves before calling helper `get_amount_out`.
-        // That way users don't have to read reserves first and can offload the computation to contract.
         Ok(get_amount_out(amount_in, reserve_in, reserve_out)?)
     }
 
@@ -417,9 +417,6 @@ impl<T: Storage<data::Data>> Router for T {
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError> {
-        // TODO: Instead of passing in `Balance`s we should pass in token addresses
-        // and let the contract pull reserves before calling helper `get_amount_out`.
-        // That way users don't have to read reserves first and can offload the computation to contract.
         Ok(get_amount_in(amount_out, reserve_in, reserve_out)?)
     }
 
@@ -494,6 +491,8 @@ impl<T: Storage<data::Data>> Internal for T {
             } else {
                 (amount_out, 0)
             };
+            // If last pair in the path, transfer tokens to the `_to` recipient.
+            // Otherwise, transfer to the next Pair contract instance.
             let to = if i < path.len() - 2 {
                 pair_for_on_chain(&factory, output, path[i + 2]).ok_or(RouterError::PairNotFound)?
             } else {

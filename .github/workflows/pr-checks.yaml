@@ -1,8 +1,7 @@
 name: PR checks
 
 on:
-  push:
-  workflow_dispatch:
+  pull_request:
 
 env:
   NODE_JS_VER: 18.x
@@ -12,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  tests:
+  check:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout the source code
@@ -34,11 +33,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-rust
 
-    - name: Use Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ env.NODE_JS_VER }}
-
     - name: Check if cargo-contract exists
       id: check-cargo-contract
       continue-on-error: true
@@ -49,10 +43,8 @@ jobs:
       run: |
         cargo install --version 2.1.0 --force --locked cargo-contract
 
-    - name: integration test
-      run: cargo test
+    - name: Rust checks
+      run: make check-all
 
-    - name: e2e test
-      run: |
-        make up
-        make test
+    - name: Build contracts
+      run: make build-all

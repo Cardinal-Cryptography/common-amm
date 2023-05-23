@@ -211,7 +211,7 @@ pub trait Router {
     #[ink(message)]
     fn get_amount_out(
         &self,
-        amount_in: Balance, // TODO: rename `*_in` and `*_out` for consistency.
+        amount_in: Balance,
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError>;
@@ -222,11 +222,12 @@ pub trait Router {
     #[ink(message)]
     fn get_amount_in(
         &self,
-        amount_out: Balance, // TODO: rename `*_in` and `*_out` for consistency.
+        amount_out: Balance,
         reserve_in: Balance,
         reserve_out: Balance,
     ) -> Result<Balance, RouterError>;
 
+    /// Returns amounts of tokens received for `amount_in`.
     #[ink(message)]
     fn get_amounts_out(
         &self,
@@ -234,6 +235,7 @@ pub trait Router {
         path: Vec<AccountId>,
     ) -> Result<Vec<Balance>, RouterError>;
 
+    /// Returns amounts of tokens user has to supply.
     #[ink(message)]
     fn get_amounts_in(
         &self,
@@ -252,7 +254,7 @@ pub enum RouterError {
     TransferHelperError(TransferHelperError),
     LangError(LangError),
     TransferError,
-    PairNotFound, //TODO: We _could_ include (AccountId, AccountId) in the error to signal which pair we failed to find.
+    PairNotFound,
     InsufficientAmount,
     InsufficientAAmount,
     InsufficientOutputAmount,

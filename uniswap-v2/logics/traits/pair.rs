@@ -22,44 +22,43 @@ pub type PairRef = dyn Pair;
 #[openbrush::trait_definition]
 pub trait Pair {
     /// Returns amounts of tokens this pair holds at `Timestamp`.
-    /// 
+    ///
     /// NOTE: This does not include the tokens that were transferred to the contract
     /// as part of the _current_ transaction.
     #[ink(message)]
     fn get_reserves(&self) -> (Balance, Balance, Timestamp);
 
     /// Returns cumulative prive of the first token.
-    /// 
-    /// NOTE: Cumulative price is the sum of token price, 
-    /// recorded at the end of the block (in the last transaction), 
+    ///
+    /// NOTE: Cumulative price is the sum of token price,
+    /// recorded at the end of the block (in the last transaction),
     /// since the beginning of the token pair.
     #[ink(message)]
     fn price_0_cumulative_last(&self) -> WrappedU256;
 
     /// Returns cumulative prive of the second token.
-    /// 
-    /// NOTE: Cumulative price is the sum of token price, 
-    /// recorded at the end of the block (in the last transaction), 
+    ///
+    /// NOTE: Cumulative price is the sum of token price,
+    /// recorded at the end of the block (in the last transaction),
     /// since the beginning of the token pair.
     #[ink(message)]
     fn price_1_cumulative_last(&self) -> WrappedU256;
-
-    /// Initializes the pair with given token IDs.
-    /// 
-    /// NOTE: Why do we need it at all? Why not put in the constructor?
-    /// Potentialy dangerous in case of a hack where initial caller/owner
-    /// of the contract can re-initialize with a different pair.
-    #[ink(message)]
-    fn initialize(&mut self, token_0: AccountId, token_1: AccountId) -> Result<(), PairError>;
 
     /// Mints liquidity tokens `to` account.
     /// The amount minted is equivalent to the excess of contract's balance and reserves.
     #[ink(message)]
     fn mint(&mut self, to: AccountId) -> Result<Balance, PairError>;
 
+    /// Burns liquidity transferred to the contract prior to calling this method.
+    /// Tokens resulting from the burning of this liquidity tokens are transferred to
+    /// an address controlled by `to` account.
     #[ink(message)]
     fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError>;
 
+    /// Requests a swap on the token pair, with the outcome amounts equal to
+    /// `amount_0_out` and `amount_1_out`. Assumes enough tokens have been transferred
+    /// to the contract before calling the method. Tokens are sent to address controlled
+    /// by `to` account.
     #[ink(message)]
     fn swap(
         &mut self,
@@ -68,9 +67,17 @@ pub trait Pair {
         to: AccountId,
     ) -> Result<(), PairError>;
 
+    /// Skims the excess of tokens (difference between balance and reserves) and
+    /// sends them to an address controlled by `to` account.
+    /// This situation happens if, for example, someone sends tokens to the contract
+    /// (by mistake). If enough tokens were sent to the contract to trigger overflows,
+    /// the `swap` methods could start to fail.
     #[ink(message)]
     fn skim(&mut self, to: AccountId) -> Result<(), PairError>;
 
+    /// Sets the reserves of the contract to its balances providing a graceful recover
+    /// in the case that a token asynchronously deflates the balance of a pair.
+    // In this case, trades will receive sub-optimal rates.
     #[ink(message)]
     fn sync(&mut self) -> Result<(), PairError>;
 
