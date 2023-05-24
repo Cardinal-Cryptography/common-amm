@@ -45,14 +45,8 @@ async fn setup_factory_contract(
     pair_code_hash: ink_primitives::Hash,
 ) -> Result<factory_contract::Instance> {
     factory_contract::upload(connection).await?;
-    let salt = 1u8.to_le_bytes();
-    factory_contract::Instance::new(
-        connection,
-        salt.into(),
-        non_sudo_ink_account_id,
-        pair_code_hash,
-    )
-    .await
+    factory_contract::Instance::new(connection, vec![], non_sudo_ink_account_id, pair_code_hash)
+        .await
 }
 
 /// Instances of the `Pair` contract are to be created indirectly via the `Factory` contract.
@@ -69,24 +63,14 @@ async fn setup_psp22_token(
     decimals: u8,
 ) -> Result<psp22_token::Instance> {
     psp22_token::upload(connection).await?;
-    let salt = 1u8.to_le_bytes();
-    psp22_token::Instance::new(
-        connection,
-        salt.into(),
-        total_supply,
-        name,
-        symbol,
-        decimals,
-    )
-    .await
+    psp22_token::Instance::new(connection, vec![], total_supply, name, symbol, decimals).await
 }
 
 async fn setup_wnative_contract(
     connection: &SignedConnection,
 ) -> Result<wnative_contract::Instance> {
     wnative_contract::upload(connection).await?;
-    let salt = 1u8.to_le_bytes();
-    wnative_contract::Instance::new(connection, salt.into()).await
+    wnative_contract::Instance::new(connection, vec![]).await
 }
 
 async fn setup_router_contract(
@@ -95,8 +79,7 @@ async fn setup_router_contract(
     wnative: ink_primitives::AccountId,
 ) -> Result<router_contract::Instance> {
     router_contract::upload(connection).await?;
-    let salt = 1u8.to_le_bytes();
-    router_contract::Instance::new(connection, salt.into(), factory, wnative).await
+    router_contract::Instance::new(connection, vec![], factory, wnative).await
 }
 
 pub struct Contracts {
