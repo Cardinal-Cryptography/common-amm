@@ -1,9 +1,11 @@
-use crate::traits::types::WrappedU256;
+use crate::{
+    helpers::ZERO_ADDRESS,
+    traits::types::WrappedU256,
+};
 use openbrush::traits::{
     AccountId,
     Balance,
     Timestamp,
-    ZERO_ADDRESS,
 };
 
 pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
