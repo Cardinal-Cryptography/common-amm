@@ -17,8 +17,7 @@ RUN aleph-node key inspect //Alice | grep "SS58 Address" | awk "{print \$3}" \
       --file /node/$(cat /node/node_account_id)/p2p_secret \
       > /node/bootnode_peer_id
 
-ENTRYPOINT aleph-node -lerror,runtime::contracts=debug \
-  --chain chainspec.json \
+ENTRYPOINT aleph-node --chain chainspec.json \
   --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/$(cat /node/bootnode_peer_id) \
   --base-path /node/$(cat /node/node_account_id)/ \
   --node-key-file /node/$(cat /node/node_account_id)/p2p_secret \
