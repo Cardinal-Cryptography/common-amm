@@ -1,4 +1,6 @@
 #[cfg(test)]
+mod events;
+#[cfg(test)]
 mod factory_contract;
 #[cfg(test)]
 mod pair_contract;

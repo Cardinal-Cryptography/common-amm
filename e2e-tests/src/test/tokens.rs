@@ -11,6 +11,12 @@ use aleph_client::{
 use ink_wrapper_types::Connection;
 
 use crate::{
+    events::{
+        get_burn_events,
+        get_mint_events,
+        get_pair_created_events,
+        get_swap_events,
+    },
     factory_contract,
     factory_contract::Factory,
     pair_contract,
@@ -34,12 +40,15 @@ const BALANCE: Balance = 10_000;
 const MIN_BALANCE: Balance = 1_000;
 const EXPECTED_INITIAL_NON_SUDO_BALANCE: Balance = 0;
 
-const AMOUNT_A_IN: Balance = 1_020;
-const AMOUNT_A_OUT: Balance = 0;
-const AMOUNT_B_OUT: Balance = 900;
+const FIRST_AMOUNT_IN: Balance = 1_020;
+const FIRST_AMOUNT_OUT: Balance = 0;
+const SECOND_AMOUNT_OUT: Balance = 900;
+
+const FIRST_BALANCE_LOCKED: Balance = 2_204;
+const SECOND_BALANCE_LOCKED: Balance = 1_820;
+const PAIR_TRANSFER: Balance = 2_000;
 
 pub async fn create_pair(test_fixture: &TestFixture) -> Result<()> {
-    println!("Running `create_pair` test.");
     info!("Running `create_pair` test.");
     let TestFixture {
         sudo_connection,
@@ -97,7 +106,6 @@ pub async fn create_pair(test_fixture: &TestFixture) -> Result<()> {
 }
 
 pub async fn mint_pair(test_fixture: &TestFixture) -> Result<()> {
-    println!("Running `mint_pair` test.");
     info!("Running `mint_pair` test.");
     let TestFixture {
         sudo_connection,
@@ -158,7 +166,6 @@ pub async fn mint_pair(test_fixture: &TestFixture) -> Result<()> {
 }
 
 pub async fn swap_tokens(test_fixture: &TestFixture) -> Result<()> {
-    println!("Running `swap_tokens` test.");
     info!("Running `swap_tokens` test.");
     let TestFixture {
         sudo_connection,
@@ -186,7 +193,7 @@ pub async fn swap_tokens(test_fixture: &TestFixture) -> Result<()> {
     let second_token: psp22_token::Instance = tokens[1].into();
 
     first_token
-        .transfer(sudo_connection, pair, AMOUNT_A_IN, vec![])
+        .transfer(sudo_connection, pair, FIRST_AMOUNT_IN, vec![])
         .await?;
 
     let non_sudo_ink_account = inkify_account_id(non_sudo.account_id());
@@ -203,8 +210,8 @@ pub async fn swap_tokens(test_fixture: &TestFixture) -> Result<()> {
     let swap_tx_info = pair_contract
         .swap(
             sudo_connection,
-            AMOUNT_A_OUT,
-            AMOUNT_B_OUT,
+            FIRST_AMOUNT_OUT,
+            SECOND_AMOUNT_OUT,
             non_sudo_ink_account,
         )
         .await?;
@@ -220,9 +227,80 @@ pub async fn swap_tokens(test_fixture: &TestFixture) -> Result<()> {
         sudo_connection,
         second_token,
         non_sudo_ink_account,
-        AMOUNT_B_OUT,
+        SECOND_AMOUNT_OUT,
     )
     .await?;
+
+    Ok(())
+}
+
+pub async fn burn_liquidity_provider_token(test_fixture: &TestFixture) -> Result<()> {
+    info!("Running `burn_liquidity_provider_token` test.");
+    let TestFixture {
+        sudo_connection,
+        non_sudo_connection,
+        non_sudo,
+        contracts,
+        ..
+    } = test_fixture;
+
+    let Contracts {
+        factory_contract,
+        token_a,
+        token_b,
+        ..
+    } = contracts;
+
+    let mut tokens: Vec<ink_primitives::AccountId> = vec![(*token_a).into(), (*token_b).into()];
+    tokens.sort();
+
+    let first_token: psp22_token::Instance = tokens[0].into();
+    let second_token: psp22_token::Instance = tokens[1].into();
+
+    let non_sudo_ink_account = inkify_account_id(non_sudo.account_id());
+
+    let first_token_balance_before = first_token
+        .balance_of(sudo_connection, non_sudo_ink_account)
+        .await??;
+    let second_token_balance_before = second_token
+        .balance_of(sudo_connection, non_sudo_ink_account)
+        .await??;
+
+    let pair = factory_contract
+        .get_pair(sudo_connection, first_token.into(), second_token.into())
+        .await??
+        .ok_or(anyhow!("Specified token pair does not exist!"))?;
+
+    let pair_contract: pair_contract::Instance = pair.into();
+
+    pair_contract
+        .transfer(non_sudo_connection, pair, PAIR_TRANSFER, vec![])
+        .await?;
+
+    let burn_tx_info = pair_contract
+        .burn(non_sudo_connection, non_sudo_ink_account)
+        .await?;
+
+    let all_pair_contract_events = sudo_connection.get_contract_events(burn_tx_info).await?;
+    let pair_contract_events = all_pair_contract_events.for_contract(pair_contract);
+    let burn_events = get_burn_events(pair_contract_events);
+
+    burn_events
+        .first()
+        .ok_or(anyhow!("No `Burn` events have been emitted!"))?;
+
+    let first_token_balance_after = first_token
+        .balance_of(sudo_connection, non_sudo_ink_account)
+        .await??;
+    let second_token_balance_after = second_token
+        .balance_of(sudo_connection, non_sudo_ink_account)
+        .await??;
+
+    let first_token_balance_diff = first_token_balance_after - first_token_balance_before;
+    let second_token_balance_diff = second_token_balance_after - second_token_balance_before;
+
+    assert_eq!(first_token_balance_diff, FIRST_BALANCE_LOCKED);
+    assert_eq!(second_token_balance_diff, SECOND_BALANCE_LOCKED);
 
     Ok(())
 }
@@ -237,46 +315,6 @@ pub async fn all_pairs_length(
     Ok(())
 }
 
-fn get_pair_created_events(
-    contract_events: Vec<Result<factory_contract::event::Event, scale::Error>>,
-) -> Vec<factory_contract::event::Event> {
-    contract_events
-        .into_iter()
-        .filter_map(|res| res.ok())
-        .collect()
-}
-
-fn get_mint_events(
-    contract_events: Vec<Result<pair_contract::event::Event, scale::Error>>,
-) -> Vec<pair_contract::event::Event> {
-    contract_events
-        .into_iter()
-        .filter_map(|res| {
-            let event = res.ok();
-            match event {
-                Some(pair_contract::event::Event::Mint { .. }) => event,
-                _ => None,
-            }
-        })
-        .collect()
-}
-
-fn get_swap_events(
-    contract_events: Vec<Result<pair_contract::event::Event, scale::Error>>,
-) -> Vec<pair_contract::event::Event> {
-    contract_events
-        .into_iter()
-        .filter_map(|res| {
-            let event = res.ok();
-            match event {
-                Some(pair_contract::event::Event::Swap { .. }) => event,
-                _ => None,
-            }
-        })
-        .collect()
-}
-
-// TODO: Can we get rid of this indirection?
 #[async_trait::async_trait]
 pub trait BalanceOf {
     async fn balance<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(

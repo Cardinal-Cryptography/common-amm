@@ -22,7 +22,6 @@ use crate::{
 };
 
 pub async fn fee(test_fixture: &TestFixture) -> Result<()> {
-    println!("Running `fee` test.");
     info!("Running `fee` test.");
     let TestFixture {
         sudo_connection,
@@ -54,7 +53,6 @@ pub async fn fee(test_fixture: &TestFixture) -> Result<()> {
 }
 
 pub async fn set_fee(test_fixture: &TestFixture) -> Result<()> {
-    println!("Running `set_fee` test.");
     info!("Running `set_fee` test.");
     let TestFixture {
         sudo_connection,
@@ -93,7 +91,6 @@ pub async fn set_fee(test_fixture: &TestFixture) -> Result<()> {
 }
 
 pub async fn set_fee_setter(test_fixture: &TestFixture) -> Result<()> {
-    println!("Running `set_fee_setter` test.");
     info!("Running `set_fee_setter` test.");
     let TestFixture {
         sudo_connection,
