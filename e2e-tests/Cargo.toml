@@ -7,7 +7,6 @@ edition = "2021"
 anyhow = "1.0.71"
 async-trait = "0.1.68"
 env_logger = "0.10.0"
-log = "0.4.17"
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 tokio = "1.28.1"
 

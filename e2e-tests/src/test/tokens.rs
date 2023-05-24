@@ -2,7 +2,6 @@ use anyhow::{
     anyhow,
     Result,
 };
-use log::info;
 
 use aleph_client::{
     Balance,
@@ -51,7 +50,6 @@ const SECOND_BALANCE_LOCKED: Balance = 1_820;
 const PAIR_TRANSFER: Balance = 2_000;
 
 pub async fn create_pair(test_fixture: &TestFixture) -> Result<()> {
-    info!("Running `create_pair` test.");
     let TestFixture {
         sudo_connection,
         contracts,
@@ -108,7 +106,6 @@ pub async fn create_pair(test_fixture: &TestFixture) -> Result<()> {
 }
 
 pub async fn mint_pair(test_fixture: &TestFixture) -> Result<()> {
-    info!("Running `mint_pair` test.");
     let TestFixture {
         sudo_connection,
         non_sudo,
@@ -168,7 +165,6 @@ pub async fn mint_pair(test_fixture: &TestFixture) -> Result<()> {
 }
 
 pub async fn swap_tokens(test_fixture: &TestFixture) -> Result<()> {
-    info!("Running `swap_tokens` test.");
     let TestFixture {
         sudo_connection,
         non_sudo,
@@ -233,7 +229,6 @@ pub async fn swap_tokens(test_fixture: &TestFixture) -> Result<()> {
 }
 
 pub async fn burn_liquidity_provider_token(test_fixture: &TestFixture) -> Result<()> {
-    info!("Running `burn_liquidity_provider_token` test.");
     let TestFixture {
         sudo_connection,
         non_sudo_connection,

@@ -2,7 +2,6 @@ use anyhow::{
     ensure,
     Result,
 };
-use log::info;
 
 use aleph_client::SignedConnection;
 use ink_wrapper_types::util::ToAccountId;
@@ -22,7 +21,6 @@ use crate::{
 };
 
 pub async fn fee(test_fixture: &TestFixture) -> Result<()> {
-    info!("Running `fee` test.");
     let TestFixture {
         sudo_connection,
         non_sudo,
@@ -53,7 +51,6 @@ pub async fn fee(test_fixture: &TestFixture) -> Result<()> {
 }
 
 pub async fn set_fee(test_fixture: &TestFixture) -> Result<()> {
-    info!("Running `set_fee` test.");
     let TestFixture {
         sudo_connection,
         non_sudo_connection,
@@ -91,7 +88,6 @@ pub async fn set_fee(test_fixture: &TestFixture) -> Result<()> {
 }
 
 pub async fn set_fee_setter(test_fixture: &TestFixture) -> Result<()> {
-    info!("Running `set_fee_setter` test.");
     let TestFixture {
         sudo_connection,
         non_sudo_connection,
