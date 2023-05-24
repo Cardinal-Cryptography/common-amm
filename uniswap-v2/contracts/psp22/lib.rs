@@ -86,11 +86,5 @@ pub mod token {
                 .expect("Should mint");
             instance
         }
-        #[ink(message)]
-        /// Permissionless mint, test purpose only. DO NOT use for production.
-        /// Users can test our uniswap v2 demo on Shibuya by minting it by themselves.
-        pub fn mint(&mut self, account: AccountId, amount: Balance) -> Result<(), PSP22Error> {
-            self._mint_to(account, amount)
-        }
     }
 }
