@@ -212,7 +212,6 @@ impl<T: Storage<data::Data> + Storage<psp22::Data> + Storage<reentrancy_guard::D
             PairError::InsufficientOutputAmount
         );
         let reserves = self.get_reserves();
-        ink::env::debug_println!("amount_0_out | amount_1_out | reserves: {:?}", (amount_0_out, amount_1_out, reserves));
         ensure!(
             amount_0_out < reserves.0 && amount_1_out < reserves.1,
             PairError::InsufficientLiquidity
