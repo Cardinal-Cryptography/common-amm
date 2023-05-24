@@ -8,7 +8,10 @@ use aleph_client::{
     Balance,
     SignedConnection,
 };
-use ink_wrapper_types::Connection;
+use ink_wrapper_types::{
+    util::ToAccountId,
+    Connection,
+};
 
 use crate::{
     events::{
@@ -27,7 +30,6 @@ use crate::{
     psp22_token,
     psp22_token::PSP22 as TokenPSP22,
     test::setup::{
-        inkify_account_id,
         Contracts,
         TestFixture,
         EXPECTED_INITIAL_ALL_PAIRS_LENGTH,
@@ -134,7 +136,7 @@ pub async fn mint_pair(test_fixture: &TestFixture) -> Result<()> {
         .await?;
 
     let pair_contract: pair_contract::Instance = pair.into();
-    let non_sudo_ink_account = inkify_account_id(non_sudo.account_id());
+    let non_sudo_ink_account = non_sudo.account_id().to_account_id();
     balance_of(
         sudo_connection,
         pair_contract,
@@ -186,17 +188,13 @@ pub async fn swap_tokens(test_fixture: &TestFixture) -> Result<()> {
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
 
-    let mut tokens: Vec<ink_primitives::AccountId> = vec![(*token_a).into(), (*token_b).into()];
-    tokens.sort();
-
-    let first_token: psp22_token::Instance = tokens[0].into();
-    let second_token: psp22_token::Instance = tokens[1].into();
+    let (first_token, second_token) = sort_tokens(*token_a, *token_b);
 
     first_token
         .transfer(sudo_connection, pair, FIRST_AMOUNT_IN, vec![])
         .await?;
 
-    let non_sudo_ink_account = inkify_account_id(non_sudo.account_id());
+    let non_sudo_ink_account = non_sudo.account_id().to_account_id();
     balance_of(
         sudo_connection,
         second_token,
@@ -251,13 +249,9 @@ pub async fn burn_liquidity_provider_token(test_fixture: &TestFixture) -> Result
         ..
     } = contracts;
 
-    let mut tokens: Vec<ink_primitives::AccountId> = vec![(*token_a).into(), (*token_b).into()];
-    tokens.sort();
+    let (first_token, second_token) = sort_tokens(*token_a, *token_b);
 
-    let first_token: psp22_token::Instance = tokens[0].into();
-    let second_token: psp22_token::Instance = tokens[1].into();
-
-    let non_sudo_ink_account = inkify_account_id(non_sudo.account_id());
+    let non_sudo_ink_account = non_sudo.account_id().to_account_id();
 
     let first_token_balance_before = first_token
         .balance_of(sudo_connection, non_sudo_ink_account)
@@ -310,8 +304,8 @@ pub async fn all_pairs_length(
     factory_contract: &factory_contract::Instance,
     expected_all_pairs_length: u64,
 ) -> Result<()> {
-    let all_pair_length = factory_contract.all_pairs_length(connection).await??;
-    assert_eq!(all_pair_length, expected_all_pairs_length);
+    let all_pairs_length = factory_contract.all_pairs_length(connection).await??;
+    assert_eq!(all_pairs_length, expected_all_pairs_length);
     Ok(())
 }
 
@@ -355,4 +349,14 @@ pub async fn balance_of<Contract: BalanceOf>(
     let non_sudo_balance = contract.balance(connection, non_sudo_ink_account).await??;
     assert_eq!(non_sudo_balance, expected_balance);
     Ok(())
+}
+
+pub fn sort_tokens(
+    token_a: psp22_token::Instance,
+    token_b: psp22_token::Instance,
+) -> (psp22_token::Instance, psp22_token::Instance) {
+    let mut tokens: Vec<ink_primitives::AccountId> = vec![token_a.into(), token_b.into()];
+    tokens.sort();
+
+    (tokens[0].into(), tokens[1].into())
 }

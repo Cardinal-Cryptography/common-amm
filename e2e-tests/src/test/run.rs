@@ -6,13 +6,13 @@ use crate::test::{
         set_fee,
         set_fee_setter,
     },
+    setup::setup_test,
     tokens::{
         burn_liquidity_provider_token,
         create_pair,
         mint_pair,
         swap_tokens,
     },
-    setup::setup_test,
 };
 
 #[tokio::test]

@@ -5,13 +5,13 @@ use anyhow::{
 use log::info;
 
 use aleph_client::SignedConnection;
+use ink_wrapper_types::util::ToAccountId;
 
 use crate::{
     factory_contract,
     factory_contract::Factory,
     test::{
         setup::{
-            inkify_account_id,
             Contracts,
             TestFixture,
             EXPECTED_INITIAL_ALL_PAIRS_LENGTH,
@@ -38,7 +38,7 @@ pub async fn fee(test_fixture: &TestFixture) -> Result<()> {
 
     fee_to(sudo_connection, factory_contract, &zero_account_id).await?;
 
-    let non_sudo_ink_account_id = inkify_account_id(non_sudo.account_id());
+    let non_sudo_ink_account_id = non_sudo.account_id().to_account_id();
 
     fee_to_setter(sudo_connection, factory_contract, &non_sudo_ink_account_id).await?;
 
@@ -108,7 +108,7 @@ pub async fn set_fee_setter(test_fixture: &TestFixture) -> Result<()> {
 
     let token_a: ink_primitives::AccountId = (*token).into();
 
-    let non_sudo_ink_account_id = inkify_account_id(non_sudo.account_id());
+    let non_sudo_ink_account_id = non_sudo.account_id().to_account_id();
 
     fee_to_setter(sudo_connection, factory_contract, &non_sudo_ink_account_id).await?;
 

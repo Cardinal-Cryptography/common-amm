@@ -2,12 +2,13 @@ use anyhow::Result;
 
 use aleph_client::{
     pallets::balances::BalanceUserApi,
-    AccountId,
     Balance,
     KeyPair,
     SignedConnection,
     TxStatus,
 };
+
+use ink_wrapper_types::util::ToAccountId;
 
 use crate::{
     factory_contract,
@@ -30,11 +31,6 @@ const TOKEN_B_SYMBOL: &str = "TKNB";
 const DECIMALS: u8 = 18;
 
 pub const EXPECTED_INITIAL_ALL_PAIRS_LENGTH: u64 = 0;
-
-pub fn inkify_account_id(account_id: &AccountId) -> ink_primitives::AccountId {
-    let inner: [u8; 32] = *account_id.as_ref();
-    inner.into()
-}
 
 fn setup_keypairs(sudo_seed: &str, non_sudo_seed: &str) -> (KeyPair, KeyPair) {
     let sudo = aleph_client::keypair_from_string(sudo_seed);
@@ -177,7 +173,7 @@ pub async fn setup_test() -> Result<TestFixture> {
         )
         .await?;
 
-    let non_sudo_ink_account_id = inkify_account_id(non_sudo_account_id);
+    let non_sudo_ink_account_id = non_sudo_account_id.to_account_id();
 
     let contracts = setup_contracts(
         &sudo_connection,
@@ -199,4 +195,3 @@ pub async fn setup_test() -> Result<TestFixture> {
         contracts,
     })
 }
-
