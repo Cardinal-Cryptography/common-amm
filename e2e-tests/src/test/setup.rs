@@ -142,6 +142,8 @@ pub struct TestFixture {
 }
 
 pub async fn setup_test() -> Result<TestFixture> {
+    let _ = env_logger::builder().is_test(true).try_init();
+
     let (sudo, non_sudo) = setup_keypairs(SUDO_SEED, NON_SUDO_SEED);
     let sudo_connection = SignedConnection::new(DEFAULT_NODE_ADDRESS, sudo.clone()).await;
     let non_sudo_connection = SignedConnection::new(DEFAULT_NODE_ADDRESS, non_sudo.clone()).await;
