@@ -2,21 +2,17 @@ use anyhow::{
     ensure,
     Result,
 };
+use assert2::assert;
 
-use aleph_client::SignedConnection;
 use ink_wrapper_types::util::ToAccountId;
 
 use crate::{
-    factory_contract,
     factory_contract::Factory,
-    test::{
-        setup::{
-            Contracts,
-            TestFixture,
-            EXPECTED_INITIAL_ALL_PAIRS_LENGTH,
-            ZERO_ADDRESS,
-        },
-        tokens::all_pairs_length,
+    test::setup::{
+        Contracts,
+        TestFixture,
+        EXPECTED_INITIAL_ALL_PAIRS_LENGTH,
+        ZERO_ADDRESS,
     },
 };
 
@@ -28,24 +24,17 @@ pub async fn fee(test_fixture: &TestFixture) -> Result<()> {
         ..
     } = test_fixture;
 
-    let Contracts {
-        factory_contract, ..
-    } = contracts;
-
+    let factory_contract = contracts.factory_contract;
     let zero_account_id = ink_primitives::AccountId::from(ZERO_ADDRESS);
-
-    fee_to(sudo_connection, factory_contract, &zero_account_id).await?;
-
     let non_sudo_ink_account_id = non_sudo.account_id().to_account_id();
 
-    fee_to_setter(sudo_connection, factory_contract, &non_sudo_ink_account_id).await?;
+    let recipient = factory_contract.fee_to(sudo_connection).await??;
+    let setter = factory_contract.fee_to_setter(sudo_connection).await??;
+    let all_pairs_length = factory_contract.all_pairs_length(sudo_connection).await??;
 
-    all_pairs_length(
-        sudo_connection,
-        factory_contract,
-        EXPECTED_INITIAL_ALL_PAIRS_LENGTH,
-    )
-    .await?;
+    assert!(recipient == zero_account_id);
+    assert!(setter == non_sudo_ink_account_id);
+    assert!(all_pairs_length == EXPECTED_INITIAL_ALL_PAIRS_LENGTH);
 
     Ok(())
 }
@@ -60,29 +49,32 @@ pub async fn set_fee(test_fixture: &TestFixture) -> Result<()> {
 
     let Contracts {
         factory_contract,
-        token_a: token,
+        token_a,
         ..
     } = contracts;
 
     let zero_account_id = ink_primitives::AccountId::from(ZERO_ADDRESS);
+    let token_a_account: ink_primitives::AccountId = (*token_a).into();
 
-    let token_a: ink_primitives::AccountId = (*token).into();
+    let sudo_recipient = factory_contract.fee_to(sudo_connection).await??;
 
-    fee_to(sudo_connection, factory_contract, &zero_account_id).await?;
+    assert!(sudo_recipient == zero_account_id);
 
     ensure!(
         factory_contract
-            .set_fee_to(sudo_connection, token_a)
+            .set_fee_to(sudo_connection, token_a_account)
             .await
             .is_err(),
         "Call should have errored out - caller is not fee setter!"
     );
 
     factory_contract
-        .set_fee_to(non_sudo_connection, token_a)
+        .set_fee_to(non_sudo_connection, token_a_account)
         .await?;
 
-    fee_to(non_sudo_connection, factory_contract, &token_a).await?;
+    let non_sudo_recipient = factory_contract.fee_to(non_sudo_connection).await??;
+
+    assert!(non_sudo_recipient == token_a_account);
 
     Ok(())
 }
@@ -98,49 +90,34 @@ pub async fn set_fee_setter(test_fixture: &TestFixture) -> Result<()> {
 
     let Contracts {
         factory_contract,
-        token_a: token,
+        token_a,
         ..
     } = contracts;
 
-    let token_a: ink_primitives::AccountId = (*token).into();
-
     let non_sudo_ink_account_id = non_sudo.account_id().to_account_id();
+    let token_a_account: ink_primitives::AccountId = (*token_a).into();
 
-    fee_to_setter(sudo_connection, factory_contract, &non_sudo_ink_account_id).await?;
+    let setter_before = factory_contract.fee_to_setter(sudo_connection).await??;
+
+    assert!(setter_before == non_sudo_ink_account_id);
 
     ensure!(
         factory_contract
-            .set_fee_to_setter(sudo_connection, token_a)
+            .set_fee_to_setter(sudo_connection, token_a_account)
             .await
             .is_err(),
         "Call should have errored out - caller is not fee setter!"
     );
 
     factory_contract
-        .set_fee_to_setter(non_sudo_connection, token_a)
+        .set_fee_to_setter(non_sudo_connection, token_a_account)
         .await?;
 
-    fee_to_setter(non_sudo_connection, factory_contract, &token_a).await?;
+    let setter_after = factory_contract
+        .fee_to_setter(non_sudo_connection)
+        .await??;
 
-    Ok(())
-}
+    assert!(setter_after == token_a_account);
 
-async fn fee_to(
-    connection: &SignedConnection,
-    factory_contract: &factory_contract::Instance,
-    expected_recipient: &ink_primitives::AccountId,
-) -> Result<()> {
-    let recipient = &factory_contract.fee_to(connection).await??;
-    assert_eq!(recipient, expected_recipient);
-    Ok(())
-}
-
-async fn fee_to_setter(
-    connection: &SignedConnection,
-    factory_contract: &factory_contract::Instance,
-    expected_setter: &ink_primitives::AccountId,
-) -> Result<()> {
-    let setter = &factory_contract.fee_to_setter(connection).await??;
-    assert_eq!(setter, expected_setter);
     Ok(())
 }
