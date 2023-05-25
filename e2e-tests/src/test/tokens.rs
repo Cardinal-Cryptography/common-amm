@@ -24,7 +24,6 @@ use crate::{
         Pair,
         PSP22 as PairPSP22,
     },
-    psp22_token,
     psp22_token::PSP22 as TokenPSP22,
     test::setup::{
         setup_test,
@@ -36,7 +35,7 @@ use crate::{
 };
 
 const EXPECTED_ALL_PAIR_LENGTH: u64 = 1;
-const BALANCE: Balance = 10_000;
+pub const BALANCE: Balance = 10_000;
 const MIN_BALANCE: Balance = 1_000;
 const EXPECTED_INITIAL_NON_SUDO_BALANCE: Balance = 0;
 
@@ -58,8 +57,8 @@ pub async fn create_pair() -> Result<()> {
 
     let Contracts {
         factory_contract,
-        token_a,
-        token_b,
+        first_token,
+        second_token,
         ..
     } = contracts;
 
@@ -70,7 +69,7 @@ pub async fn create_pair() -> Result<()> {
     assert!(all_pairs_length_before == EXPECTED_INITIAL_ALL_PAIRS_LENGTH);
 
     let tx_info = factory_contract
-        .create_pair(&sudo_connection, token_a.into(), token_b.into())
+        .create_pair(&sudo_connection, first_token.into(), second_token.into())
         .await?;
 
     let all_events = sudo_connection.get_contract_events(tx_info).await?;
@@ -86,13 +85,9 @@ pub async fn create_pair() -> Result<()> {
         pair_len,
     } = first_pair_created_event;
 
-    let mut expected_token_pair: Vec<ink_primitives::AccountId> =
-        vec![token_a.into(), token_b.into()];
-    expected_token_pair.sort();
-    let actual_token_pair = vec![*token_0, *token_1];
-
     assert!(*pair != ZERO_ADDRESS.into());
-    assert!(actual_token_pair == expected_token_pair);
+    assert!(*token_0 == first_token.into());
+    assert!(*token_1 == second_token.into());
     assert!(*pair_len == EXPECTED_ALL_PAIR_LENGTH);
 
     let all_pairs_length_after = factory_contract
@@ -115,22 +110,22 @@ pub async fn mint_pair() -> Result<()> {
 
     let Contracts {
         factory_contract,
-        token_a,
-        token_b,
+        first_token,
+        second_token,
         ..
     } = contracts;
 
     factory_contract
-        .create_pair(&sudo_connection, token_a.into(), token_b.into())
+        .create_pair(&sudo_connection, first_token.into(), second_token.into())
         .await?;
     let pair = factory_contract
-        .get_pair(&sudo_connection, token_a.into(), token_b.into())
+        .get_pair(&sudo_connection, first_token.into(), second_token.into())
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
-    token_a
+    first_token
         .transfer(&sudo_connection, pair, BALANCE, vec![])
         .await?;
-    token_b
+    second_token
         .transfer(&sudo_connection, pair, BALANCE, vec![])
         .await?;
 
@@ -174,22 +169,22 @@ pub async fn swap_tokens() -> Result<()> {
 
     let Contracts {
         factory_contract,
-        token_a,
-        token_b,
+        first_token,
+        second_token,
         ..
     } = contracts;
 
     factory_contract
-        .create_pair(&sudo_connection, token_a.into(), token_b.into())
+        .create_pair(&sudo_connection, first_token.into(), second_token.into())
         .await?;
     let pair = factory_contract
-        .get_pair(&sudo_connection, token_a.into(), token_b.into())
+        .get_pair(&sudo_connection, first_token.into(), second_token.into())
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
-    token_a
+    first_token
         .transfer(&sudo_connection, pair, BALANCE, vec![])
         .await?;
-    token_b
+    second_token
         .transfer(&sudo_connection, pair, BALANCE, vec![])
         .await?;
     let non_sudo_ink_account = non_sudo.account_id().to_account_id();
@@ -198,7 +193,6 @@ pub async fn swap_tokens() -> Result<()> {
         .mint(&sudo_connection, non_sudo_ink_account)
         .await?;
 
-    let (first_token, second_token) = sort_tokens(token_a, token_b);
     first_token
         .transfer(&sudo_connection, pair, FIRST_AMOUNT_IN, vec![])
         .await?;
@@ -245,22 +239,22 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
 
     let Contracts {
         factory_contract,
-        token_a,
-        token_b,
+        first_token,
+        second_token,
         ..
     } = contracts;
 
     factory_contract
-        .create_pair(&sudo_connection, token_a.into(), token_b.into())
+        .create_pair(&sudo_connection, first_token.into(), second_token.into())
         .await?;
     let pair = factory_contract
-        .get_pair(&sudo_connection, token_a.into(), token_b.into())
+        .get_pair(&sudo_connection, first_token.into(), second_token.into())
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
-    token_a
+    first_token
         .transfer(&sudo_connection, pair, BALANCE, vec![])
         .await?;
-    token_b
+    second_token
         .transfer(&sudo_connection, pair, BALANCE, vec![])
         .await?;
     let non_sudo_ink_account = non_sudo.account_id().to_account_id();
@@ -268,7 +262,6 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
     pair_contract
         .mint(&sudo_connection, non_sudo_ink_account)
         .await?;
-    let (first_token, second_token) = sort_tokens(token_a, token_b);
     first_token
         .transfer(&sudo_connection, pair, FIRST_AMOUNT_IN, vec![])
         .await?;
@@ -315,14 +308,4 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
     assert!(second_token_balance_diff == SECOND_BALANCE_LOCKED);
 
     Ok(())
-}
-
-pub fn sort_tokens(
-    token_a: psp22_token::Instance,
-    token_b: psp22_token::Instance,
-) -> (psp22_token::Instance, psp22_token::Instance) {
-    let mut tokens: Vec<ink_primitives::AccountId> = vec![token_a.into(), token_b.into()];
-    tokens.sort();
-
-    (tokens[0].into(), tokens[1].into())
 }

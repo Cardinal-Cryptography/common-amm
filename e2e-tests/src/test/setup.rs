@@ -82,10 +82,20 @@ async fn setup_router_contract(
     router_contract::Instance::new(connection, vec![], factory, wnative).await
 }
 
+pub fn sort_tokens(
+    token_a: psp22_token::Instance,
+    token_b: psp22_token::Instance,
+) -> (psp22_token::Instance, psp22_token::Instance) {
+    let mut tokens: Vec<ink_primitives::AccountId> = vec![token_a.into(), token_b.into()];
+    tokens.sort();
+
+    (tokens[0].into(), tokens[1].into())
+}
+
 pub struct Contracts {
     pub factory_contract: factory_contract::Instance,
-    pub token_a: psp22_token::Instance,
-    pub token_b: psp22_token::Instance,
+    pub first_token: psp22_token::Instance,
+    pub second_token: psp22_token::Instance,
     pub router_contract: router_contract::Instance,
     pub wnative_contract: wnative_contract::Instance,
 }
@@ -120,14 +130,17 @@ async fn setup_contracts(
         decimals,
     )
     .await?;
+
+    let (first_token, second_token) = sort_tokens(token_a, token_b);
+
     let wnative_contract = setup_wnative_contract(connection).await?;
     let router_contract =
         setup_router_contract(connection, factory_contract.into(), wnative_contract.into()).await?;
 
     Ok(Contracts {
         factory_contract,
-        token_a,
-        token_b,
+        first_token,
+        second_token,
         router_contract,
         wnative_contract,
     })

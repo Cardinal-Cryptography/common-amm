@@ -54,7 +54,7 @@ pub async fn set_fee() -> Result<()> {
 
     let Contracts {
         factory_contract,
-        token_a,
+        first_token,
         ..
     } = contracts;
 
@@ -66,19 +66,19 @@ pub async fn set_fee() -> Result<()> {
 
     ensure!(
         factory_contract
-            .set_fee_to(&sudo_connection, token_a.into())
+            .set_fee_to(&sudo_connection, first_token.into())
             .await
             .is_err(),
         "Call should have errored out - caller is not fee setter!"
     );
 
     factory_contract
-        .set_fee_to(&non_sudo_connection, token_a.into())
+        .set_fee_to(&non_sudo_connection, first_token.into())
         .await?;
 
     let non_sudo_recipient = factory_contract.fee_to(&non_sudo_connection).await??;
 
-    assert!(non_sudo_recipient == token_a.into());
+    assert!(non_sudo_recipient == first_token.into());
 
     Ok(())
 }
@@ -95,7 +95,7 @@ pub async fn set_fee_setter() -> Result<()> {
 
     let Contracts {
         factory_contract,
-        token_a,
+        first_token,
         ..
     } = contracts;
 
@@ -107,21 +107,21 @@ pub async fn set_fee_setter() -> Result<()> {
 
     ensure!(
         factory_contract
-            .set_fee_to_setter(&sudo_connection, token_a.into())
+            .set_fee_to_setter(&sudo_connection, first_token.into())
             .await
             .is_err(),
         "Call should have errored out - caller is not fee setter!"
     );
 
     factory_contract
-        .set_fee_to_setter(&non_sudo_connection, token_a.into())
+        .set_fee_to_setter(&non_sudo_connection, first_token.into())
         .await?;
 
     let setter_after = factory_contract
         .fee_to_setter(&non_sudo_connection)
         .await??;
 
-    assert!(setter_after == token_a.into());
+    assert!(setter_after == first_token.into());
 
     Ok(())
 }
