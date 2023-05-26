@@ -156,8 +156,12 @@ pub async fn mint_pair() -> Result<()> {
     let non_sudo_balance_after = pair_contract
         .balance_of(&sudo_connection, non_sudo_ink_account)
         .await??;
+    let zero_address_balance_after = pair_contract
+        .balance_of(&sudo_connection, ZERO_ADDRESS.into())
+        .await??;
 
     assert!(non_sudo_balance_after == expected_balance);
+    assert!(zero_address_balance_after == MIN_BALANCE);
 
     Ok(())
 }

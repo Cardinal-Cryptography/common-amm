@@ -43,7 +43,7 @@ where
 {
     env::var(name).ok().map(|v| {
         v.parse()
-            .unwrap_or_else(|_| panic!("Failed to parse env var {}", name))
+            .unwrap_or_else(|_| panic!("Failed to parse env var {name}"))
     })
 }
 

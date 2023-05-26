@@ -73,12 +73,12 @@ pub async fn set_fee() -> Result<()> {
     );
 
     factory_contract
-        .set_fee_to(&non_sudo_connection, non_sudo_ink_account_id.into())
+        .set_fee_to(&non_sudo_connection, non_sudo_ink_account_id)
         .await?;
 
     let non_sudo_recipient = factory_contract.fee_to(&non_sudo_connection).await??;
 
-    assert!(non_sudo_recipient == non_sudo_ink_account_id.into());
+    assert!(non_sudo_recipient == non_sudo_ink_account_id);
 
     Ok(())
 }
@@ -118,7 +118,7 @@ pub async fn set_fee_setter() -> Result<()> {
         .fee_to_setter(&non_sudo_connection)
         .await??;
 
-    assert!(setter_after == sudo_ink_account_id.into());
+    assert!(setter_after == sudo_ink_account_id);
 
     Ok(())
 }
