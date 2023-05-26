@@ -13,8 +13,8 @@ use ink_wrapper_types::{
 use crate::{
     events::{
         get_burn_events,
+        get_events,
         get_mint_events,
-        get_pair_created_events,
         get_swap_events,
     },
     factory_contract,
@@ -30,12 +30,10 @@ use crate::{
         setup_test,
         Contracts,
         TestFixture,
-        EXPECTED_INITIAL_ALL_PAIRS_LENGTH,
         ZERO_ADDRESS,
     },
 };
 
-const EXPECTED_ALL_PAIR_LENGTH: u64 = 1;
 const BALANCE: Balance = 10_000;
 const MIN_BALANCE: Balance = 1_000;
 const EXPECTED_INITIAL_NON_SUDO_BALANCE: Balance = 0;
@@ -67,7 +65,7 @@ pub async fn create_pair() -> Result<()> {
         .all_pairs_length(&sudo_connection)
         .await??;
 
-    assert!(all_pairs_length_before == EXPECTED_INITIAL_ALL_PAIRS_LENGTH);
+    assert!(all_pairs_length_before == 0);
 
     let tx_info = factory_contract
         .create_pair(&sudo_connection, token_a.into(), token_b.into())
@@ -75,8 +73,9 @@ pub async fn create_pair() -> Result<()> {
 
     let all_events = sudo_connection.get_contract_events(tx_info).await?;
     let contract_events = all_events.for_contract(factory_contract);
-    let pair_created_events = get_pair_created_events(contract_events);
-    let first_pair_created_event = pair_created_events
+    let contract_events: Vec<factory_contract::event::Event> =
+        get_events(contract_events).collect();
+    let first_event = contract_events
         .first()
         .ok_or(anyhow!("No `PairCreated` events have been emitted!"))?;
     let factory_contract::event::Event::PairCreated {
@@ -84,7 +83,7 @@ pub async fn create_pair() -> Result<()> {
         token_1,
         pair,
         pair_len,
-    } = first_pair_created_event;
+    } = first_event;
 
     let mut expected_token_pair: Vec<ink_primitives::AccountId> =
         vec![token_a.into(), token_b.into()];
@@ -93,13 +92,13 @@ pub async fn create_pair() -> Result<()> {
 
     assert!(*pair != ZERO_ADDRESS.into());
     assert!(actual_token_pair == expected_token_pair);
-    assert!(*pair_len == EXPECTED_ALL_PAIR_LENGTH);
+    assert!(*pair_len == 1);
 
     let all_pairs_length_after = factory_contract
         .all_pairs_length(&sudo_connection)
         .await??;
 
-    assert!(all_pairs_length_after == EXPECTED_ALL_PAIR_LENGTH);
+    assert!(all_pairs_length_after == 1);
 
     Ok(())
 }
