@@ -37,16 +37,20 @@ CONTRACTS = ./uniswap-v2/contracts
 
 .PHONY: check-all
 check-all: # Runs cargo checks on all contracts
-	@cargo check --all-targets --all-features --all
-	@cargo clippy --all-features -- --no-deps -D warnings
+	@cargo check --quiet --all-targets --all-features --all
+	@cargo clippy --quiet --all-features -- --no-deps -D warnings
+	@cargo fmt --quiet --all --check
 	@for d in $(shell find $(CONTRACTS) -mindepth 1 -maxdepth 1 -type d); do \
-		cargo contract check --manifest-path $$d/Cargo.toml ; \
+		echo "Checking $$d" ; \
+		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
 	done
+	@cargo test --quiet --locked --frozen --workspace
 
 .PHONY: build-all
 build-all: # Builds all contracts
 	@for d in $(shell find $(CONTRACTS) -mindepth 1 -maxdepth 1 -type d); do \
-		cargo contract build --manifest-path $$d/Cargo.toml --release ; \
+		echo "cargo contract build --quiet --manifest-path $$d/Cargo.toml --release" ; \
+		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
 
 .PHONY: format

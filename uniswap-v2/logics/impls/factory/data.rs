@@ -4,11 +4,10 @@ use ink::{
 };
 use openbrush::{
     storage::Mapping,
-    traits::{
-        AccountId,
-        ZERO_ADDRESS,
-    },
+    traits::AccountId,
 };
+
+use crate::helpers::ZERO_ADDRESS;
 
 pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
 
