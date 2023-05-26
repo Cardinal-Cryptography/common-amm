@@ -1,3 +1,8 @@
+use std::{
+    env,
+    str::FromStr,
+};
+
 use anyhow::Result;
 
 use aleph_client::{
@@ -7,7 +12,6 @@ use aleph_client::{
     SignedConnection,
     TxStatus,
 };
-
 use ink_wrapper_types::util::ToAccountId;
 
 use crate::{
@@ -17,29 +21,40 @@ use crate::{
     router_contract,
     wnative_contract,
 };
+pub use uniswap_v2::helpers::ZERO_ADDRESS;
 
 pub const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:9944";
 const SUDO_SEED: &str = "//Alice";
 const NON_SUDO_SEED: &str = "//0";
+
 const INITIAL_TRANSFER: Balance = 1_000_000_000_000;
-pub const ZERO_ADDRESS: [u8; 32] = [255; 32];
 const PSP22_TOTAL_SUPPLY: Balance = 10_000_000;
+const PSP22_DECIMALS: u8 = 18;
+
 const TOKEN_A_NAME: &str = "TOKEN_A";
 const TOKEN_B_NAME: &str = "TOKEN_B";
 const TOKEN_A_SYMBOL: &str = "TKNA";
 const TOKEN_B_SYMBOL: &str = "TKNB";
-const DECIMALS: u8 = 18;
 
-pub const EXPECTED_INITIAL_ALL_PAIRS_LENGTH: u64 = 0;
+fn get_env<T>(name: &str) -> Option<T>
+where
+    T: FromStr,
+    T::Err: std::fmt::Debug,
+{
+    env::var(name).ok().map(|v| {
+        v.parse()
+            .unwrap_or_else(|_| panic!("Failed to parse env var {name}"))
+    })
+}
 
-fn setup_keypairs(sudo_seed: &str, non_sudo_seed: &str) -> (KeyPair, KeyPair) {
-    let sudo = aleph_client::keypair_from_string(sudo_seed);
-    let non_sudo = aleph_client::keypair_from_string(non_sudo_seed);
+fn setup_keypairs() -> (KeyPair, KeyPair) {
+    let sudo = aleph_client::keypair_from_string(SUDO_SEED);
+    let non_sudo = aleph_client::keypair_from_string(NON_SUDO_SEED);
 
     (sudo, non_sudo)
 }
 
-async fn setup_factory_contract(
+pub async fn setup_factory_contract(
     connection: &SignedConnection,
     non_sudo_ink_account_id: ink_primitives::AccountId,
     pair_code_hash: ink_primitives::Hash,
@@ -57,13 +72,19 @@ async fn upload_code_pair_contract(connection: &SignedConnection) -> Result<()> 
 
 async fn setup_psp22_token(
     connection: &SignedConnection,
-    total_supply: Balance,
-    name: Option<String>,
-    symbol: Option<String>,
-    decimals: u8,
+    name: &str,
+    symbol: &str,
 ) -> Result<psp22_token::Instance> {
     psp22_token::upload(connection).await?;
-    psp22_token::Instance::new(connection, vec![], total_supply, name, symbol, decimals).await
+    psp22_token::Instance::new(
+        connection,
+        vec![],
+        PSP22_TOTAL_SUPPLY,
+        Some(name.to_string()),
+        Some(symbol.to_string()),
+        PSP22_DECIMALS,
+    )
+    .await
 }
 
 async fn setup_wnative_contract(
@@ -103,37 +124,16 @@ pub struct Contracts {
 async fn setup_contracts(
     connection: &SignedConnection,
     non_sudo_ink_account_id: ink_primitives::AccountId,
-    pair_code_hash: ink_primitives::Hash,
-    total_supply: Balance,
-    token_a_name: Option<String>,
-    token_a_symbol: Option<String>,
-    token_b_name: Option<String>,
-    token_b_symbol: Option<String>,
-    decimals: u8,
 ) -> Result<Contracts> {
     upload_code_pair_contract(connection).await?;
-    let factory_contract =
-        setup_factory_contract(connection, non_sudo_ink_account_id, pair_code_hash).await?;
-    let token_a = setup_psp22_token(
+    let factory_contract = setup_factory_contract(
         connection,
-        total_supply,
-        token_a_name,
-        token_a_symbol,
-        decimals,
+        non_sudo_ink_account_id,
+        pair_contract::CODE_HASH.into(),
     )
     .await?;
-    let token_b = setup_psp22_token(
-        connection,
-        total_supply,
-        token_b_name,
-        token_b_symbol,
-        decimals,
-    )
-    .await?;
-
-    let (first_token, second_token) = sort_tokens(token_a, token_b);
-
     let wnative_contract = setup_wnative_contract(connection).await?;
+    let (first_token, second_token) = sort_tokens(token_a, token_b);
     let router_contract =
         setup_router_contract(connection, factory_contract.into(), wnative_contract.into()).await?;
 
@@ -157,9 +157,10 @@ pub struct TestFixture {
 pub async fn setup_test() -> Result<TestFixture> {
     let _ = env_logger::builder().is_test(true).try_init();
 
-    let (sudo, non_sudo) = setup_keypairs(SUDO_SEED, NON_SUDO_SEED);
-    let sudo_connection = SignedConnection::new(DEFAULT_NODE_ADDRESS, sudo.clone()).await;
-    let non_sudo_connection = SignedConnection::new(DEFAULT_NODE_ADDRESS, non_sudo.clone()).await;
+    let node_address = get_env("NODE_ADDRESS").unwrap_or(DEFAULT_NODE_ADDRESS.to_string());
+    let (sudo, non_sudo) = setup_keypairs();
+    let sudo_connection = SignedConnection::new(&node_address, sudo.clone()).await;
+    let non_sudo_connection = SignedConnection::new(&node_address, non_sudo.clone()).await;
 
     let non_sudo_account_id = non_sudo.account_id();
 
@@ -173,18 +174,7 @@ pub async fn setup_test() -> Result<TestFixture> {
 
     let non_sudo_ink_account_id = non_sudo_account_id.to_account_id();
 
-    let contracts = setup_contracts(
-        &sudo_connection,
-        non_sudo_ink_account_id,
-        pair_contract::CODE_HASH.into(),
-        PSP22_TOTAL_SUPPLY,
-        Some(TOKEN_A_NAME.to_string()),
-        Some(TOKEN_A_SYMBOL.to_string()),
-        Some(TOKEN_B_NAME.to_string()),
-        Some(TOKEN_B_SYMBOL.to_string()),
-        DECIMALS,
-    )
-    .await?;
+    let contracts = setup_contracts(&sudo_connection, non_sudo_ink_account_id).await?;
     Ok(TestFixture {
         sudo_connection,
         non_sudo_connection,
