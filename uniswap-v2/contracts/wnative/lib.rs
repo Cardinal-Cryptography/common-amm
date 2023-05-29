@@ -78,7 +78,7 @@ pub mod wnative {
             let mut instance = Self::default();
             instance.metadata.name = Some(String::from("Wrapped Native"));
             instance.metadata.symbol = Some(String::from("WNATIVE"));
-            instance.metadata.decimals = 18;
+            instance.metadata.decimals = 12;
             instance
         }
     }
