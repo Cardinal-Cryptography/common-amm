@@ -98,7 +98,7 @@ pub async fn create_pair() -> Result<()> {
         .all_pairs_length(&wealthy_connection)
         .await??;
 
-    assert!(all_pairs_length_after == 1);
+    assert!(all_pairs_length_after == all_pairs_length_before + 1);
 
     Ok(())
 }
