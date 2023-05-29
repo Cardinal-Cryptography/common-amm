@@ -85,10 +85,10 @@ pub async fn create_pair() -> Result<()> {
         pair_len,
     } = create_pair_events[0];
 
-    assert!(*pair != ZERO_ADDRESS.into());
-    assert!(*token_0 == first_token.into());
-    assert!(*token_1 == second_token.into());
-    assert!(*pair_len == 1);
+    assert!(pair != ZERO_ADDRESS.into());
+    assert!(token_0 == first_token.into());
+    assert!(token_1 == second_token.into());
+    assert!(pair_len == 1);
 
     let all_pairs_length_after = factory_contract
         .all_pairs_length(&wealthy_connection)
