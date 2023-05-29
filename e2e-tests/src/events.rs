@@ -1,10 +1,21 @@
-use crate::pair_contract;
+use crate::{
+    factory_contract,
+    pair_contract,
+};
 
 pub fn get_events<I, T>(contract_events: I) -> impl Iterator<Item = T>
 where
     I: IntoIterator<Item = Result<T, scale::Error>>,
 {
     contract_events.into_iter().filter_map(|res| res.ok())
+}
+
+pub fn get_create_pair_events(
+    contract_events: Vec<Result<factory_contract::event::Event, scale::Error>>,
+) -> Vec<factory_contract::event::Event> {
+    get_events(contract_events)
+        .filter(|event| matches!(event, factory_contract::event::Event::PairCreated { .. }))
+        .collect()
 }
 
 pub fn get_mint_events(

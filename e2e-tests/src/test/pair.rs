@@ -13,7 +13,7 @@ use ink_wrapper_types::{
 use crate::{
     events::{
         get_burn_events,
-        get_events,
+        get_create_pair_events,
         get_mint_events,
         get_swap_events,
     },
@@ -36,20 +36,16 @@ use crate::{
 
 const BALANCE: Balance = 10_000;
 const MIN_BALANCE: Balance = 1_000;
-const EXPECTED_INITIAL_NON_SUDO_BALANCE: Balance = 0;
+const EXPECTED_INITIAL_REGULAR_BALANCE: Balance = 0;
 
 const FIRST_AMOUNT_IN: Balance = 1_020;
 const FIRST_AMOUNT_OUT: Balance = 0;
 const SECOND_AMOUNT_OUT: Balance = 900;
 
-const FIRST_BALANCE_LOCKED: Balance = 2_204;
-const SECOND_BALANCE_LOCKED: Balance = 1_820;
-const PAIR_TRANSFER: Balance = 2_000;
-
 #[tokio::test]
 pub async fn create_pair() -> Result<()> {
     let TestFixture {
-        sudo_connection,
+        wealthy_connection,
         contracts,
         ..
     } = setup_test().await?;
@@ -62,28 +58,32 @@ pub async fn create_pair() -> Result<()> {
     } = contracts;
 
     let all_pairs_length_before = factory_contract
-        .all_pairs_length(&sudo_connection)
+        .all_pairs_length(&wealthy_connection)
         .await??;
 
     assert!(all_pairs_length_before == 0);
 
     let tx_info = factory_contract
-        .create_pair(&sudo_connection, first_token.into(), second_token.into())
+        .create_pair(&wealthy_connection, first_token.into(), second_token.into())
         .await?;
 
-    let all_events = sudo_connection.get_contract_events(tx_info).await?;
+    let all_events = wealthy_connection.get_contract_events(tx_info).await?;
     let contract_events = all_events.for_contract(factory_contract);
-    let contract_events: Vec<factory_contract::event::Event> =
-        get_events(contract_events).collect();
-    let first_event = contract_events
-        .first()
-        .ok_or(anyhow!("No `PairCreated` events have been emitted!"))?;
+    let create_pair_events = get_create_pair_events(contract_events);
+    let create_pair_events_len = create_pair_events.len();
+
+    assert!(
+        create_pair_events_len == 1,
+        "The number of emitted `PairCreated` events is {}, should be 1.",
+        create_pair_events_len
+    );
+
     let factory_contract::event::Event::PairCreated {
         token_0,
         token_1,
         pair,
         pair_len,
-    } = first_event;
+    } = create_pair_events[0];
 
     assert!(*pair != ZERO_ADDRESS.into());
     assert!(*token_0 == first_token.into());
@@ -91,10 +91,10 @@ pub async fn create_pair() -> Result<()> {
     assert!(*pair_len == 1);
 
     let all_pairs_length_after = factory_contract
-        .all_pairs_length(&sudo_connection)
+        .all_pairs_length(&wealthy_connection)
         .await??;
 
-    assert!(all_pairs_length_after == 1);
+    assert!(all_pairs_length_after == all_pairs_length_before + 1);
 
     Ok(())
 }
@@ -102,8 +102,8 @@ pub async fn create_pair() -> Result<()> {
 #[tokio::test]
 pub async fn mint_pair() -> Result<()> {
     let TestFixture {
-        sudo_connection,
-        non_sudo,
+        wealthy_connection,
+        regular,
         contracts,
         ..
     } = setup_test().await?;
@@ -116,47 +116,51 @@ pub async fn mint_pair() -> Result<()> {
     } = contracts;
 
     factory_contract
-        .create_pair(&sudo_connection, first_token.into(), second_token.into())
+        .create_pair(&wealthy_connection, first_token.into(), second_token.into())
         .await?;
     let pair = factory_contract
-        .get_pair(&sudo_connection, first_token.into(), second_token.into())
+        .get_pair(&wealthy_connection, first_token.into(), second_token.into())
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
     first_token
-        .transfer(&sudo_connection, pair, BALANCE, vec![])
+        .transfer(&wealthy_connection, pair, BALANCE, vec![])
         .await?;
     second_token
-        .transfer(&sudo_connection, pair, BALANCE, vec![])
+        .transfer(&wealthy_connection, pair, BALANCE, vec![])
         .await?;
 
     let pair_contract: pair_contract::Instance = pair.into();
-    let non_sudo_ink_account = non_sudo.account_id().to_account_id();
-    let non_sudo_balance_before = pair_contract
-        .balance_of(&sudo_connection, non_sudo_ink_account)
+    let regular_account = regular.account_id().to_account_id();
+    let regular_balance_before = pair_contract
+        .balance_of(&wealthy_connection, regular_account)
         .await??;
 
-    assert!(non_sudo_balance_before == EXPECTED_INITIAL_NON_SUDO_BALANCE);
+    assert!(regular_balance_before == EXPECTED_INITIAL_REGULAR_BALANCE);
 
     let mint_tx_info = pair_contract
-        .mint(&sudo_connection, non_sudo_ink_account)
+        .mint(&wealthy_connection, regular_account)
         .await?;
 
-    let all_pair_contract_events = sudo_connection.get_contract_events(mint_tx_info).await?;
+    let all_pair_contract_events = wealthy_connection.get_contract_events(mint_tx_info).await?;
     let pair_contract_events = all_pair_contract_events.for_contract(pair_contract);
     let mint_events = get_mint_events(pair_contract_events);
-    mint_events
-        .first()
-        .ok_or(anyhow!("No `Mint` events have been emitted!"))?;
+    let mint_events_len = mint_events.len();
+
+    assert!(
+        mint_events_len == 1,
+        "The number of emitted `Mint` events is {}, should be 1.",
+        mint_events_len
+    );
 
     let expected_balance = BALANCE - MIN_BALANCE;
-    let non_sudo_balance_after = pair_contract
-        .balance_of(&sudo_connection, non_sudo_ink_account)
+    let regular_balance_after = pair_contract
+        .balance_of(&wealthy_connection, regular_account)
         .await??;
     let zero_address_balance_after = pair_contract
-        .balance_of(&sudo_connection, ZERO_ADDRESS.into())
+        .balance_of(&wealthy_connection, ZERO_ADDRESS.into())
         .await??;
 
-    assert!(non_sudo_balance_after == expected_balance);
+    assert!(regular_balance_after == expected_balance);
     assert!(zero_address_balance_after == MIN_BALANCE);
 
     Ok(())
@@ -165,8 +169,8 @@ pub async fn mint_pair() -> Result<()> {
 #[tokio::test]
 pub async fn swap_tokens() -> Result<()> {
     let TestFixture {
-        sudo_connection,
-        non_sudo,
+        wealthy_connection,
+        regular,
         contracts,
         ..
     } = setup_test().await?;
@@ -179,64 +183,72 @@ pub async fn swap_tokens() -> Result<()> {
     } = contracts;
 
     factory_contract
-        .create_pair(&sudo_connection, first_token.into(), second_token.into())
+        .create_pair(&wealthy_connection, first_token.into(), second_token.into())
         .await?;
     let pair = factory_contract
-        .get_pair(&sudo_connection, first_token.into(), second_token.into())
+        .get_pair(&wealthy_connection, first_token.into(), second_token.into())
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
     first_token
-        .transfer(&sudo_connection, pair, BALANCE, vec![])
+        .transfer(&wealthy_connection, pair, BALANCE, vec![])
         .await?;
     second_token
-        .transfer(&sudo_connection, pair, BALANCE, vec![])
+        .transfer(&wealthy_connection, pair, BALANCE, vec![])
         .await?;
-    let non_sudo_ink_account = non_sudo.account_id().to_account_id();
+    let regular_account = regular.account_id().to_account_id();
     let pair_contract: pair_contract::Instance = pair.into();
     pair_contract
-        .mint(&sudo_connection, non_sudo_ink_account)
+        .mint(&wealthy_connection, regular_account)
         .await?;
 
     first_token
-        .transfer(&sudo_connection, pair, FIRST_AMOUNT_IN, vec![])
+        .transfer(&wealthy_connection, pair, FIRST_AMOUNT_IN, vec![])
         .await?;
-    let non_sudo_balance_before = second_token
-        .balance_of(&sudo_connection, non_sudo_ink_account)
+    let regular_balance_before = second_token
+        .balance_of(&wealthy_connection, regular_account)
         .await??;
 
-    assert!(non_sudo_balance_before == EXPECTED_INITIAL_NON_SUDO_BALANCE);
+    assert!(regular_balance_before == EXPECTED_INITIAL_REGULAR_BALANCE);
 
     let swap_tx_info = pair_contract
         .swap(
-            &sudo_connection,
+            &wealthy_connection,
             FIRST_AMOUNT_OUT,
             SECOND_AMOUNT_OUT,
-            non_sudo_ink_account,
+            regular_account,
         )
         .await?;
 
-    let all_pair_contract_events = sudo_connection.get_contract_events(swap_tx_info).await?;
+    let all_pair_contract_events = wealthy_connection.get_contract_events(swap_tx_info).await?;
     let pair_contract_events = all_pair_contract_events.for_contract(pair_contract);
     let swap_events = get_swap_events(pair_contract_events);
-    swap_events
-        .first()
-        .ok_or(anyhow!("No `Swap` events have been emitted!"))?;
+    let swap_events_len = swap_events.len();
 
-    let non_sudo_balance_after = second_token
-        .balance_of(&sudo_connection, non_sudo_ink_account)
+    assert!(
+        swap_events_len == 1,
+        "The number of emitted `Swap` events is {}, should be 1.",
+        swap_events_len
+    );
+
+    let regular_balance_after = second_token
+        .balance_of(&wealthy_connection, regular_account)
         .await??;
 
-    assert!(non_sudo_balance_after == SECOND_AMOUNT_OUT);
+    assert!(regular_balance_after == SECOND_AMOUNT_OUT);
 
     Ok(())
 }
 
 #[tokio::test]
 pub async fn burn_liquidity_provider_token() -> Result<()> {
+    const FIRST_BALANCE_LOCKED: Balance = 2_204;
+    const SECOND_BALANCE_LOCKED: Balance = 1_820;
+    const PAIR_TRANSFER: Balance = 2_000;
+
     let TestFixture {
-        sudo_connection,
-        non_sudo_connection,
-        non_sudo,
+        wealthy_connection,
+        regular_connection,
+        regular,
         contracts,
         ..
     } = setup_test().await?;
@@ -249,61 +261,65 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
     } = contracts;
 
     factory_contract
-        .create_pair(&sudo_connection, first_token.into(), second_token.into())
+        .create_pair(&wealthy_connection, first_token.into(), second_token.into())
         .await?;
     let pair = factory_contract
-        .get_pair(&sudo_connection, first_token.into(), second_token.into())
+        .get_pair(&wealthy_connection, first_token.into(), second_token.into())
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
     first_token
-        .transfer(&sudo_connection, pair, BALANCE, vec![])
+        .transfer(&wealthy_connection, pair, BALANCE, vec![])
         .await?;
     second_token
-        .transfer(&sudo_connection, pair, BALANCE, vec![])
+        .transfer(&wealthy_connection, pair, BALANCE, vec![])
         .await?;
-    let non_sudo_ink_account = non_sudo.account_id().to_account_id();
+    let regular_account = regular.account_id().to_account_id();
     let pair_contract: pair_contract::Instance = pair.into();
     pair_contract
-        .mint(&sudo_connection, non_sudo_ink_account)
+        .mint(&wealthy_connection, regular_account)
         .await?;
     first_token
-        .transfer(&sudo_connection, pair, FIRST_AMOUNT_IN, vec![])
+        .transfer(&wealthy_connection, pair, FIRST_AMOUNT_IN, vec![])
         .await?;
     pair_contract
         .swap(
-            &sudo_connection,
+            &wealthy_connection,
             FIRST_AMOUNT_OUT,
             SECOND_AMOUNT_OUT,
-            non_sudo_ink_account,
+            regular_account,
         )
         .await?;
 
     let first_token_balance_before = first_token
-        .balance_of(&sudo_connection, non_sudo_ink_account)
+        .balance_of(&wealthy_connection, regular_account)
         .await??;
     let second_token_balance_before = second_token
-        .balance_of(&sudo_connection, non_sudo_ink_account)
+        .balance_of(&wealthy_connection, regular_account)
         .await??;
 
     pair_contract
-        .transfer(&non_sudo_connection, pair, PAIR_TRANSFER, vec![])
+        .transfer(&regular_connection, pair, PAIR_TRANSFER, vec![])
         .await?;
     let burn_tx_info = pair_contract
-        .burn(&non_sudo_connection, non_sudo_ink_account)
+        .burn(&regular_connection, regular_account)
         .await?;
 
-    let all_pair_contract_events = sudo_connection.get_contract_events(burn_tx_info).await?;
+    let all_pair_contract_events = wealthy_connection.get_contract_events(burn_tx_info).await?;
     let pair_contract_events = all_pair_contract_events.for_contract(pair_contract);
     let burn_events = get_burn_events(pair_contract_events);
-    burn_events
-        .first()
-        .ok_or(anyhow!("No `Burn` events have been emitted!"))?;
+    let burn_events_len = burn_events.len();
+
+    assert!(
+        burn_events_len == 1,
+        "The number of emitted `Burn` events is {}, should be 1.",
+        burn_events_len
+    );
 
     let first_token_balance_after = first_token
-        .balance_of(&sudo_connection, non_sudo_ink_account)
+        .balance_of(&wealthy_connection, regular_account)
         .await??;
     let second_token_balance_after = second_token
-        .balance_of(&sudo_connection, non_sudo_ink_account)
+        .balance_of(&wealthy_connection, regular_account)
         .await??;
     let first_token_balance_diff = first_token_balance_after - first_token_balance_before;
     let second_token_balance_diff = second_token_balance_after - second_token_balance_before;

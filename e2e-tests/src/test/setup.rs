@@ -24,8 +24,8 @@ use crate::{
 pub use uniswap_v2::helpers::ZERO_ADDRESS;
 
 pub const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:9944";
-const SUDO_SEED: &str = "//Alice";
-const NON_SUDO_SEED: &str = "//0";
+const WEALTHY_SEED: &str = "//Alice";
+const REGULAR_SEED: &str = "//0";
 
 const INITIAL_TRANSFER: Balance = 1_000_000_000_000;
 const PSP22_TOTAL_SUPPLY: Balance = 10_000_000;
@@ -48,20 +48,19 @@ where
 }
 
 fn setup_keypairs() -> (KeyPair, KeyPair) {
-    let sudo = aleph_client::keypair_from_string(SUDO_SEED);
-    let non_sudo = aleph_client::keypair_from_string(NON_SUDO_SEED);
+    let wealthy = aleph_client::keypair_from_string(WEALTHY_SEED);
+    let regular = aleph_client::keypair_from_string(REGULAR_SEED);
 
-    (sudo, non_sudo)
+    (wealthy, regular)
 }
 
 pub async fn setup_factory_contract(
     connection: &SignedConnection,
-    non_sudo_ink_account_id: ink_primitives::AccountId,
+    regular_account_id: ink_primitives::AccountId,
     pair_code_hash: ink_primitives::Hash,
 ) -> Result<factory_contract::Instance> {
     factory_contract::upload(connection).await?;
-    factory_contract::Instance::new(connection, vec![], non_sudo_ink_account_id, pair_code_hash)
-        .await
+    factory_contract::Instance::new(connection, vec![], regular_account_id, pair_code_hash).await
 }
 
 /// Instances of the `Pair` contract are to be created indirectly via the `Factory` contract.
@@ -123,12 +122,12 @@ pub struct Contracts {
 
 async fn setup_contracts(
     connection: &SignedConnection,
-    non_sudo_ink_account_id: ink_primitives::AccountId,
+    regular_account_id: ink_primitives::AccountId,
 ) -> Result<Contracts> {
     upload_code_pair_contract(connection).await?;
     let factory_contract = setup_factory_contract(
         connection,
-        non_sudo_ink_account_id,
+        regular_account_id,
         pair_contract::CODE_HASH.into(),
     )
     .await?;
@@ -147,10 +146,10 @@ async fn setup_contracts(
 }
 
 pub struct TestFixture {
-    pub sudo_connection: SignedConnection,
-    pub non_sudo_connection: SignedConnection,
-    pub sudo: KeyPair,
-    pub non_sudo: KeyPair,
+    pub wealthy_connection: SignedConnection,
+    pub regular_connection: SignedConnection,
+    pub wealthy: KeyPair,
+    pub regular: KeyPair,
     pub contracts: Contracts,
 }
 
@@ -158,28 +157,27 @@ pub async fn setup_test() -> Result<TestFixture> {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let node_address = get_env("NODE_ADDRESS").unwrap_or(DEFAULT_NODE_ADDRESS.to_string());
-    let (sudo, non_sudo) = setup_keypairs();
-    let sudo_connection = SignedConnection::new(&node_address, sudo.clone()).await;
-    let non_sudo_connection = SignedConnection::new(&node_address, non_sudo.clone()).await;
+    let (wealthy, regular) = setup_keypairs();
+    let wealthy_connection = SignedConnection::new(&node_address, wealthy.clone()).await;
+    let regular_connection = SignedConnection::new(&node_address, regular.clone()).await;
 
-    let non_sudo_account_id = non_sudo.account_id();
+    let regular_account_id = regular.account_id();
 
-    sudo_connection
+    wealthy_connection
         .transfer(
-            non_sudo_account_id.clone(),
+            regular_account_id.clone(),
             INITIAL_TRANSFER,
             TxStatus::InBlock,
         )
         .await?;
 
-    let non_sudo_ink_account_id = non_sudo_account_id.to_account_id();
-
-    let contracts = setup_contracts(&sudo_connection, non_sudo_ink_account_id).await?;
+    let contracts =
+        setup_contracts(&wealthy_connection, regular_account_id.to_account_id()).await?;
     Ok(TestFixture {
-        sudo_connection,
-        non_sudo_connection,
-        sudo,
-        non_sudo,
+        wealthy_connection,
+        regular_connection,
+        wealthy,
+        regular,
         contracts,
     })
 }
