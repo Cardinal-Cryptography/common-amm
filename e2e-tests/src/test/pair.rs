@@ -42,10 +42,6 @@ const FIRST_AMOUNT_IN: Balance = 1_020;
 const FIRST_AMOUNT_OUT: Balance = 0;
 const SECOND_AMOUNT_OUT: Balance = 900;
 
-const FIRST_BALANCE_LOCKED: Balance = 2_204;
-const SECOND_BALANCE_LOCKED: Balance = 1_820;
-const PAIR_TRANSFER: Balance = 2_000;
-
 #[tokio::test]
 pub async fn create_pair() -> Result<()> {
     let TestFixture {
@@ -238,6 +234,10 @@ pub async fn swap_tokens() -> Result<()> {
 
 #[tokio::test]
 pub async fn burn_liquidity_provider_token() -> Result<()> {
+    const FIRST_BALANCE_LOCKED: Balance = 2_204;
+    const SECOND_BALANCE_LOCKED: Balance = 1_820;
+    const PAIR_TRANSFER: Balance = 2_000;
+
     let TestFixture {
         wealthy_connection,
         regular_connection,
