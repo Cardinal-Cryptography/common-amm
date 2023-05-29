@@ -56,11 +56,11 @@ fn setup_keypairs() -> (KeyPair, KeyPair) {
 
 pub async fn setup_factory_contract(
     connection: &SignedConnection,
-    regular_account_id: ink_primitives::AccountId,
+    regular_account: ink_primitives::AccountId,
     pair_code_hash: ink_primitives::Hash,
 ) -> Result<factory_contract::Instance> {
     factory_contract::upload(connection).await?;
-    factory_contract::Instance::new(connection, vec![], regular_account_id, pair_code_hash).await
+    factory_contract::Instance::new(connection, vec![], regular_account, pair_code_hash).await
 }
 
 /// Instances of the `Pair` contract are to be created indirectly via the `Factory` contract.
@@ -112,15 +112,12 @@ pub struct Contracts {
 
 async fn setup_contracts(
     connection: &SignedConnection,
-    regular_account_id: ink_primitives::AccountId,
+    regular_account: ink_primitives::AccountId,
 ) -> Result<Contracts> {
     upload_code_pair_contract(connection).await?;
-    let factory_contract = setup_factory_contract(
-        connection,
-        regular_account_id,
-        pair_contract::CODE_HASH.into(),
-    )
-    .await?;
+    let factory_contract =
+        setup_factory_contract(connection, regular_account, pair_contract::CODE_HASH.into())
+            .await?;
     let token_a = setup_psp22_token(connection, TOKEN_A_NAME, TOKEN_A_SYMBOL).await?;
     let token_b = setup_psp22_token(connection, TOKEN_B_NAME, TOKEN_B_SYMBOL).await?;
     let wnative_contract = setup_wnative_contract(connection).await?;
@@ -152,18 +149,14 @@ pub async fn setup_test() -> Result<TestFixture> {
     let wealthy_connection = SignedConnection::new(&node_address, wealthy.clone()).await;
     let regular_connection = SignedConnection::new(&node_address, regular.clone()).await;
 
-    let regular_account_id = regular.account_id();
+    let regular_account = regular.account_id();
 
     wealthy_connection
-        .transfer(
-            regular_account_id.clone(),
-            INITIAL_TRANSFER,
-            TxStatus::InBlock,
-        )
+        .transfer(regular_account.clone(), INITIAL_TRANSFER, TxStatus::InBlock)
         .await?;
 
-    let contracts =
-        setup_contracts(&wealthy_connection, regular_account_id.to_account_id()).await?;
+    let contracts = setup_contracts(&wealthy_connection, regular_account.to_account_id()).await?;
+
     Ok(TestFixture {
         wealthy_connection,
         regular_connection,
