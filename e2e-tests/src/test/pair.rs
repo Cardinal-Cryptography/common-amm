@@ -13,7 +13,7 @@ use ink_wrapper_types::{
 use crate::{
     events::{
         get_burn_events,
-        get_events,
+        get_create_pair_events,
         get_mint_events,
         get_swap_events,
     },
@@ -69,26 +69,30 @@ pub async fn create_pair() -> Result<()> {
 
     let all_events = wealthy_connection.get_contract_events(tx_info).await?;
     let contract_events = all_events.for_contract(factory_contract);
-    let contract_events: Vec<factory_contract::event::Event> =
-        get_events(contract_events).collect();
-    let first_event = contract_events
-        .first()
-        .ok_or(anyhow!("No `PairCreated` events have been emitted!"))?;
+    let create_pair_events = get_create_pair_events(contract_events);
+    let create_pair_events_len = create_pair_events.len();
+
+    assert!(
+        create_pair_events_len == 1,
+        "The number of emitted `PairCreated` events is {}, should be 1.",
+        create_pair_events_len
+    );
+
     let factory_contract::event::Event::PairCreated {
         token_0,
         token_1,
         pair,
         pair_len,
-    } = first_event;
+    } = create_pair_events[0];
 
     let mut expected_token_pair: Vec<ink_primitives::AccountId> =
         vec![token_a.into(), token_b.into()];
     expected_token_pair.sort();
-    let actual_token_pair = vec![*token_0, *token_1];
+    let actual_token_pair = vec![token_0, token_1];
 
-    assert!(*pair != ZERO_ADDRESS.into());
+    assert!(pair != ZERO_ADDRESS.into());
     assert!(actual_token_pair == expected_token_pair);
-    assert!(*pair_len == 1);
+    assert!(pair_len == 1);
 
     let all_pairs_length_after = factory_contract
         .all_pairs_length(&wealthy_connection)
@@ -144,9 +148,13 @@ pub async fn mint_pair() -> Result<()> {
     let all_pair_contract_events = wealthy_connection.get_contract_events(mint_tx_info).await?;
     let pair_contract_events = all_pair_contract_events.for_contract(pair_contract);
     let mint_events = get_mint_events(pair_contract_events);
-    mint_events
-        .first()
-        .ok_or(anyhow!("No `Mint` events have been emitted!"))?;
+    let mint_events_len = mint_events.len();
+
+    assert!(
+        mint_events_len == 1,
+        "The number of emitted `Mint` events is {}, should be 1.",
+        mint_events_len
+    );
 
     let expected_balance = BALANCE - MIN_BALANCE;
     let regular_balance_after = pair_contract
@@ -219,9 +227,13 @@ pub async fn swap_tokens() -> Result<()> {
     let all_pair_contract_events = wealthy_connection.get_contract_events(swap_tx_info).await?;
     let pair_contract_events = all_pair_contract_events.for_contract(pair_contract);
     let swap_events = get_swap_events(pair_contract_events);
-    swap_events
-        .first()
-        .ok_or(anyhow!("No `Swap` events have been emitted!"))?;
+    let swap_events_len = swap_events.len();
+
+    assert!(
+        swap_events_len == 1,
+        "The number of emitted `Swap` events is {}, should be 1.",
+        swap_events_len
+    );
 
     let regular_balance_after = second_token
         .balance_of(&wealthy_connection, regular_account)
@@ -301,9 +313,13 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
     let all_pair_contract_events = wealthy_connection.get_contract_events(burn_tx_info).await?;
     let pair_contract_events = all_pair_contract_events.for_contract(pair_contract);
     let burn_events = get_burn_events(pair_contract_events);
-    burn_events
-        .first()
-        .ok_or(anyhow!("No `Burn` events have been emitted!"))?;
+    let burn_events_len = burn_events.len();
+
+    assert!(
+        burn_events_len == 1,
+        "The number of emitted `Burn` events is {}, should be 1.",
+        burn_events_len
+    );
 
     let first_token_balance_after = first_token
         .balance_of(&wealthy_connection, regular_account)
