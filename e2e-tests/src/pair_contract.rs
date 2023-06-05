@@ -4,8 +4,8 @@ use scale::Encode as _;
 
 #[allow(dead_code)]
 pub const CODE_HASH: [u8; 32] = [
-    169, 52, 187, 107, 235, 201, 178, 193, 150, 171, 46, 69, 105, 111, 75, 251, 56, 190, 249, 23,
-    212, 79, 212, 217, 82, 47, 236, 255, 199, 106, 15, 30,
+    54, 136, 186, 164, 219, 39, 10, 112, 244, 93, 52, 211, 146, 183, 223, 88, 251, 57, 230, 250,
+    75, 184, 177, 154, 36, 244, 91, 22, 43, 83, 229, 132,
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -160,7 +160,212 @@ impl ink_wrapper_types::EventSource for Instance {
 }
 
 #[async_trait::async_trait]
+pub trait Pair {
+    async fn mint<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E>;
+    async fn swap<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        amount_0_out: u128,
+        amount_1_out: u128,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E>;
+    async fn get_reserves<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<(u128, u128, u64), ink_wrapper_types::InkLangError>, E>;
+    async fn price_1_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E>;
+    async fn get_token_0<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
+    async fn burn<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E>;
+    async fn sync<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<TxInfo, E>;
+    async fn price_0_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E>;
+    async fn get_token_1<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
+    async fn skim<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E>;
+}
+
+#[async_trait::async_trait]
+impl Pair for Instance {
+    ///  Mints liquidity tokens `to` account.
+    ///  The amount minted is equivalent to the excess of contract's balance and reserves.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn mint<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![78, 170, 247, 34];
+            to.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Requests a swap on the token pair, with the outcome amounts equal to
+    ///  `amount_0_out` and `amount_1_out`. Assumes enough tokens have been transferred
+    ///  to the contract before calling the method. Tokens are sent to address controlled
+    ///  by `to` account.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn swap<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        amount_0_out: u128,
+        amount_1_out: u128,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![196, 182, 14, 216];
+            amount_0_out.encode_to(&mut data);
+            amount_1_out.encode_to(&mut data);
+            to.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Returns amounts of tokens this pair holds at `Timestamp`.
+    ///
+    ///  NOTE: This does not include the tokens that were transferred to the contract
+    ///  as part of the _current_ transaction.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn get_reserves<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<(u128, u128, u64), ink_wrapper_types::InkLangError>, E> {
+        let data = vec![90, 33, 227, 252];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Returns cumulative prive of the second token.
+    ///
+    ///  NOTE: Cumulative price is the sum of token price,
+    ///  recorded at the end of the block (in the last transaction),
+    ///  since the beginning of the token pair.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn price_1_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![29, 211, 141, 82];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Returns address of the first token.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn get_token_0<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![122, 235, 152, 168];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Burns liquidity transferred to the contract prior to calling this method.
+    ///  Tokens resulting from the burning of this liquidity tokens are transferred to
+    ///  an address controlled by `to` account.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn burn<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![2, 33, 197, 36];
+            to.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Sets the reserves of the contract to its balances providing a graceful recover
+    ///  in the case that a token asynchronously deflates the balance of a pair.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn sync<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<TxInfo, E> {
+        let data = vec![121, 38, 29, 147];
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Returns cumulative prive of the first token.
+    ///
+    ///  NOTE: Cumulative price is the sum of token price,
+    ///  recorded at the end of the block (in the last transaction),
+    ///  since the beginning of the token pair.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn price_0_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![244, 217, 153, 81];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Returns address of the second token.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn get_token_1<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![165, 176, 97, 111];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Skims the excess of tokens (difference between balance and reserves) and
+    ///  sends them to an address controlled by `to` account.
+    ///  This situation happens if, for example, someone sends tokens to the contract
+    ///  (by mistake). If enough tokens were sent to the contract to trigger overflows,
+    ///  the `swap` methods could start to fail.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn skim<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        to: ink_primitives::AccountId,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![81, 195, 39, 129];
+            to.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+}
+
+#[async_trait::async_trait]
 pub trait PSP22 {
+    async fn decrease_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        spender: ink_primitives::AccountId,
+        delta_value: u128,
+    ) -> Result<TxInfo, E>;
     async fn total_supply<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
         conn: &C,
@@ -170,12 +375,6 @@ pub trait PSP22 {
         conn: &C,
         spender: ink_primitives::AccountId,
         value: u128,
-    ) -> Result<TxInfo, E>;
-    async fn decrease_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        spender: ink_primitives::AccountId,
-        delta_value: u128,
     ) -> Result<TxInfo, E>;
     async fn transfer_from<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
         &self,
@@ -191,6 +390,11 @@ pub trait PSP22 {
         spender: ink_primitives::AccountId,
         delta_value: u128,
     ) -> Result<TxInfo, E>;
+    async fn balance_of<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        owner: ink_primitives::AccountId,
+    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
     async fn transfer<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
         &self,
         conn: &C,
@@ -204,15 +408,38 @@ pub trait PSP22 {
         owner: ink_primitives::AccountId,
         spender: ink_primitives::AccountId,
     ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
-    async fn balance_of<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        owner: ink_primitives::AccountId,
-    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E>;
 }
 
 #[async_trait::async_trait]
 impl PSP22 for Instance {
+    ///  Atomically decreases the allowance granted to `spender` by the caller.
+    ///
+    ///  An `Approval` event is emitted.
+    ///
+    ///  # Errors
+    ///
+    ///  Returns `InsufficientAllowance` error if there are not enough tokens allowed
+    ///  by owner for `spender`.
+    ///
+    ///  Returns `ZeroSenderAddress` error if sender's address is zero.
+    ///
+    ///  Returns `ZeroRecipientAddress` error if recipient's address is zero.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn decrease_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        spender: ink_primitives::AccountId,
+        delta_value: u128,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![254, 203, 87, 213];
+            spender.encode_to(&mut data);
+            delta_value.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
+
     ///  Returns the total token supply.
     #[allow(dead_code, clippy::too_many_arguments)]
     async fn total_supply<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
@@ -246,34 +473,6 @@ impl PSP22 for Instance {
             let mut data = vec![178, 15, 27, 189];
             spender.encode_to(&mut data);
             value.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Atomically decreases the allowance granted to `spender` by the caller.
-    ///
-    ///  An `Approval` event is emitted.
-    ///
-    ///  # Errors
-    ///
-    ///  Returns `InsufficientAllowance` error if there are not enough tokens allowed
-    ///  by owner for `spender`.
-    ///
-    ///  Returns `ZeroSenderAddress` error if sender's address is zero.
-    ///
-    ///  Returns `ZeroRecipientAddress` error if recipient's address is zero.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn decrease_allowance<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        spender: ink_primitives::AccountId,
-        delta_value: u128,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![254, 203, 87, 213];
-            spender.encode_to(&mut data);
-            delta_value.encode_to(&mut data);
             data
         };
         conn.exec(self.account_id, data).await
@@ -324,6 +523,23 @@ impl PSP22 for Instance {
         conn.exec(self.account_id, data).await
     }
 
+    ///  Returns the account Balance for the specified `owner`.
+    ///
+    ///  Returns `0` if the account is non-existent.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn balance_of<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        owner: ink_primitives::AccountId,
+    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E> {
+        let data = {
+            let mut data = vec![101, 104, 56, 47];
+            owner.encode_to(&mut data);
+            data
+        };
+        conn.read(self.account_id, data).await
+    }
+
     ///  Transfers `value` amount of tokens from the caller's account to account `to`
     ///  with additional `data` in unspecified format.
     ///
@@ -371,222 +587,6 @@ impl PSP22 for Instance {
             spender.encode_to(&mut data);
             data
         };
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Returns the account Balance for the specified `owner`.
-    ///
-    ///  Returns `0` if the account is non-existent.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn balance_of<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        owner: ink_primitives::AccountId,
-    ) -> Result<Result<u128, ink_wrapper_types::InkLangError>, E> {
-        let data = {
-            let mut data = vec![101, 104, 56, 47];
-            owner.encode_to(&mut data);
-            data
-        };
-        conn.read(self.account_id, data).await
-    }
-}
-
-#[async_trait::async_trait]
-pub trait Pair {
-    async fn burn<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E>;
-    async fn get_reserves<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<(u128, u128, u64), ink_wrapper_types::InkLangError>, E>;
-    async fn sync<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<TxInfo, E>;
-    async fn skim<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E>;
-    async fn price_1_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E>;
-    async fn mint<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E>;
-    async fn get_token_0<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
-    async fn price_0_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E>;
-    async fn swap<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        amount_0_out: u128,
-        amount_1_out: u128,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E>;
-    async fn get_token_1<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
-}
-
-#[async_trait::async_trait]
-impl Pair for Instance {
-    ///  Burns liquidity transferred to the contract prior to calling this method.
-    ///  Tokens resulting from the burning of this liquidity tokens are transferred to
-    ///  an address controlled by `to` account.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn burn<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![2, 33, 197, 36];
-            to.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Returns amounts of tokens this pair holds at `Timestamp`.
-    ///
-    ///  NOTE: This does not include the tokens that were transferred to the contract
-    ///  as part of the _current_ transaction.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn get_reserves<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<(u128, u128, u64), ink_wrapper_types::InkLangError>, E> {
-        let data = vec![90, 33, 227, 252];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Sets the reserves of the contract to its balances providing a graceful recover
-    ///  in the case that a token asynchronously deflates the balance of a pair.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn sync<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<TxInfo, E> {
-        let data = vec![121, 38, 29, 147];
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Skims the excess of tokens (difference between balance and reserves) and
-    ///  sends them to an address controlled by `to` account.
-    ///  This situation happens if, for example, someone sends tokens to the contract
-    ///  (by mistake). If enough tokens were sent to the contract to trigger overflows,
-    ///  the `swap` methods could start to fail.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn skim<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![81, 195, 39, 129];
-            to.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Returns cumulative prive of the second token.
-    ///
-    ///  NOTE: Cumulative price is the sum of token price,
-    ///  recorded at the end of the block (in the last transaction),
-    ///  since the beginning of the token pair.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn price_1_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![29, 211, 141, 82];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Mints liquidity tokens `to` account.
-    ///  The amount minted is equivalent to the excess of contract's balance and reserves.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn mint<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![78, 170, 247, 34];
-            to.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Returns address of the first token.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn get_token_0<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![122, 235, 152, 168];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Returns cumulative prive of the first token.
-    ///
-    ///  NOTE: Cumulative price is the sum of token price,
-    ///  recorded at the end of the block (in the last transaction),
-    ///  since the beginning of the token pair.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn price_0_cumulative_last<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<WrappedU256, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![244, 217, 153, 81];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Requests a swap on the token pair, with the outcome amounts equal to
-    ///  `amount_0_out` and `amount_1_out`. Assumes enough tokens have been transferred
-    ///  to the contract before calling the method. Tokens are sent to address controlled
-    ///  by `to` account.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn swap<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        amount_0_out: u128,
-        amount_1_out: u128,
-        to: ink_primitives::AccountId,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![196, 182, 14, 216];
-            amount_0_out.encode_to(&mut data);
-            amount_1_out.encode_to(&mut data);
-            to.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Returns address of the second token.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn get_token_1<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![165, 176, 97, 111];
         conn.read(self.account_id, data).await
     }
 }
