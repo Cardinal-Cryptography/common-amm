@@ -4,8 +4,8 @@ use scale::Encode as _;
 
 #[allow(dead_code)]
 pub const CODE_HASH: [u8; 32] = [
-    137, 9, 198, 79, 125, 183, 237, 166, 15, 85, 167, 224, 99, 183, 78, 188, 118, 240, 132, 153,
-    172, 57, 66, 128, 100, 111, 146, 127, 41, 204, 140, 150,
+    168, 58, 161, 117, 39, 113, 200, 115, 232, 151, 4, 94, 159, 207, 1, 63, 164, 30, 74, 23, 254,
+    69, 110, 9, 90, 78, 61, 121, 207, 231, 206, 147,
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -133,15 +133,33 @@ impl ink_wrapper_types::EventSource for Instance {
 
 #[async_trait::async_trait]
 pub trait Factory {
+    async fn fee_to_setter<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
+    async fn fee_to<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
+    async fn all_pairs_length<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<u64, ink_wrapper_types::InkLangError>, E>;
     async fn all_pairs<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
         conn: &C,
         pid: u64,
     ) -> Result<Result<Option<ink_primitives::AccountId>, ink_wrapper_types::InkLangError>, E>;
-    async fn all_pairs_length<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+    async fn get_pair<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
         conn: &C,
-    ) -> Result<Result<u64, ink_wrapper_types::InkLangError>, E>;
+        token_a: ink_primitives::AccountId,
+        token_b: ink_primitives::AccountId,
+    ) -> Result<Result<Option<ink_primitives::AccountId>, ink_wrapper_types::InkLangError>, E>;
+    async fn pair_contract_code_hash<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::Hash, ink_wrapper_types::InkLangError>, E>;
     async fn set_fee_to_setter<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
         &self,
         conn: &C,
@@ -152,34 +170,46 @@ pub trait Factory {
         conn: &C,
         fee_to: ink_primitives::AccountId,
     ) -> Result<TxInfo, E>;
-    async fn pair_contract_code_hash<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::Hash, ink_wrapper_types::InkLangError>, E>;
-    async fn fee_to<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
-    async fn get_pair<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        token_a: ink_primitives::AccountId,
-        token_b: ink_primitives::AccountId,
-    ) -> Result<Result<Option<ink_primitives::AccountId>, ink_wrapper_types::InkLangError>, E>;
     async fn create_pair<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
         &self,
         conn: &C,
         token_a: ink_primitives::AccountId,
         token_b: ink_primitives::AccountId,
     ) -> Result<TxInfo, E>;
-    async fn fee_to_setter<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E>;
 }
 
 #[async_trait::async_trait]
 impl Factory for Instance {
+    ///  Returns account allowed to call `set_fee_to_setter`.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn fee_to_setter<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![157, 8, 231, 17];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Returns recipient address of the trading fees.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn fee_to<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![214, 131, 50, 243];
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Returns number of token pairs created by the factory contract.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn all_pairs_length<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<u64, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![249, 45, 204, 63];
+        conn.read(self.account_id, data).await
+    }
+
     ///  Returns address of the pair contract identified by `pid` id.
     #[allow(dead_code, clippy::too_many_arguments)]
     async fn all_pairs<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
@@ -195,13 +225,30 @@ impl Factory for Instance {
         conn.read(self.account_id, data).await
     }
 
-    ///  Returns number of token pairs created by the factory contract.
+    ///  Returns addres of `Pair` contract instance (if any) for `(token_a, token_b)` pair.
     #[allow(dead_code, clippy::too_many_arguments)]
-    async fn all_pairs_length<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+    async fn get_pair<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
         &self,
         conn: &C,
-    ) -> Result<Result<u64, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![249, 45, 204, 63];
+        token_a: ink_primitives::AccountId,
+        token_b: ink_primitives::AccountId,
+    ) -> Result<Result<Option<ink_primitives::AccountId>, ink_wrapper_types::InkLangError>, E> {
+        let data = {
+            let mut data = vec![69, 163, 192, 246];
+            token_a.encode_to(&mut data);
+            token_b.encode_to(&mut data);
+            data
+        };
+        conn.read(self.account_id, data).await
+    }
+
+    ///  Returns code hash of the `Pair` contract this factory instance uses.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn pair_contract_code_hash<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<Result<ink_primitives::Hash, ink_wrapper_types::InkLangError>, E> {
+        let data = vec![32, 190, 88, 163];
         conn.read(self.account_id, data).await
     }
 
@@ -235,43 +282,6 @@ impl Factory for Instance {
         conn.exec(self.account_id, data).await
     }
 
-    ///  Returns code hash of the `Pair` contract this factory instance uses.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn pair_contract_code_hash<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::Hash, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![32, 190, 88, 163];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Returns recipient address of the trading fees.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn fee_to<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![214, 131, 50, 243];
-        conn.read(self.account_id, data).await
-    }
-
-    ///  Returns addres of `Pair` contract instance (if any) for `(token_a, token_b)` pair.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn get_pair<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        token_a: ink_primitives::AccountId,
-        token_b: ink_primitives::AccountId,
-    ) -> Result<Result<Option<ink_primitives::AccountId>, ink_wrapper_types::InkLangError>, E> {
-        let data = {
-            let mut data = vec![69, 163, 192, 246];
-            token_a.encode_to(&mut data);
-            token_b.encode_to(&mut data);
-            data
-        };
-        conn.read(self.account_id, data).await
-    }
-
     ///  Creates an instance of the `Pair` contract for the `(token_a, token_b)` pair.
     ///  Returns the address of the contract instance if successful.
     ///  Fails if the `Pair` instance of the token pair already exists
@@ -290,16 +300,6 @@ impl Factory for Instance {
             data
         };
         conn.exec(self.account_id, data).await
-    }
-
-    ///  Returns account allowed to call `set_fee_to_setter`.
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn fee_to_setter<TxInfo, E, C: ink_wrapper_types::Connection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<Result<ink_primitives::AccountId, ink_wrapper_types::InkLangError>, E> {
-        let data = vec![157, 8, 231, 17];
-        conn.read(self.account_id, data).await
     }
 }
 

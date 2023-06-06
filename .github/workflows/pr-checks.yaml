@@ -44,7 +44,4 @@ jobs:
         cargo install --version 2.1.0 --force --locked cargo-contract
 
     - name: Rust checks
-      run: make check-all
-
-    - name: Build contracts
-      run: make build-all
+      run: make all-dockerized
