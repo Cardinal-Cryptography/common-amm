@@ -8,10 +8,10 @@ help: # Show help for each of the Makefile recipes.
 BUILDARCH := $(shell uname -m)
 
 .PHONY: run-node
-run-node: build-node ## Runs a network consisting of single Aleph node.
+run-node: build-node ## Runs a network consisting of a single Aleph node.
 	@echo "Starting aleph-network."
 	@docker run --detach --rm --network host \
-	       	--name aleph-network aleph-onenode-chain-${BUILDARCH}
+		--name aleph-network aleph-onenode-chain-${BUILDARCH}
 
 .PHONY: stop-node
 stop-node: ## Stops the local network.
@@ -102,8 +102,8 @@ e2e-tests:
 		make TEST=$$t e2e-test ; \
   	done
 
-.PHONY: all
-all: check-all build-all wrap-all #e2e-tests
+.PHONY: check-build-wrap
+check-build-wrap: check-all build-all wrap-all
 
 .PHONY: all-dockerized
 all-dockerized: build-ink-dev
@@ -114,6 +114,5 @@ all-dockerized: build-ink-dev
     	-v "$(shell pwd)":/code \
     	-v ~/.cargo/git:/usr/local/cargo/git \
     	-v ~/.cargo/registry:/usr/local/cargo/registry \
-    	--workdir /code \
     	ink-dev \
-    	make all
+    	make check-build-wrap
