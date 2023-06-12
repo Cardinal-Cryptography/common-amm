@@ -23,10 +23,6 @@ kill-node: ## Kills the local network.
 	@echo "Killing aleph-network."
 	@docker kill aleph-network
 
-.PHONY: test
-test: ## Runs the e2e tests.
-	@npm run test:typechain
-
 .PHONY: build-node
 # Build multi-CPU architecture images and publish them. rust alpine images support the linux/amd64 and linux/arm64/v8 architectures.
 build-node: build-node-${BUILDARCH} ## Detects local arch and builds docker image
@@ -107,11 +103,11 @@ e2e-tests:
 		make TEST=$$t e2e-test ; \
   	done
 
-.PHONY: check-build-wrap
-check-build-wrap: check-all build-all wrap-all
+.PHONY: build-and-wrap-all
+build-and-wrap-all: build-all wrap-all
 
-.PHONY: all-dockerized
-all-dockerized: build-ink-dev
+.PHONY: check-all-dockerized
+check-all-dockerized: build-ink-dev
 	@docker run --rm \
     	--network host \
     	--user "$(shell id -u):$(shell id -g)" \
@@ -120,5 +116,16 @@ all-dockerized: build-ink-dev
     	-v ~/.cargo/git:/usr/local/cargo/git \
     	-v ~/.cargo/registry:/usr/local/cargo/registry \
     	ink-dev \
-    	make check-build-wrap
-	@make e2e-tests
+    	make check-all
+
+.PHONY: build-and-wrap-all-dockerized
+build-and-wrap-all-dockerized: build-ink-dev
+	@docker run --rm \
+    	--network host \
+    	--user "$(shell id -u):$(shell id -g)" \
+    	--name ink-dev \
+    	-v "$(shell pwd)":/code \
+    	-v ~/.cargo/git:/usr/local/cargo/git \
+    	-v ~/.cargo/registry:/usr/local/cargo/registry \
+    	ink-dev \
+    	make build-and-wrap-all
