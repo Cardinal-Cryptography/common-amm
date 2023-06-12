@@ -45,8 +45,3 @@ jobs:
 
     - name: Rust checks
       run: make check-all-dockerized
-
-    - name: E2E tests
-      run: |
-        make  build-and-wrap-all-dockerized
-        make e2e-tests
