@@ -2,6 +2,9 @@
 **/target/
 /artifacts/
 
+# Ignore contract wrappers.
+e2e-tests/src/*_contract.rs
+
 # Ignore backup files creates by cargo fmt.
 **/*.rs.bk
 

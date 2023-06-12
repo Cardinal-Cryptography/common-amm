@@ -4,8 +4,8 @@ use scale::Encode as _;
 
 #[allow(dead_code)]
 pub const CODE_HASH: [u8; 32] = [
-    162, 80, 158, 1, 74, 39, 135, 241, 46, 181, 152, 141, 243, 41, 101, 218, 197, 163, 142, 151,
-    186, 86, 63, 40, 102, 254, 44, 91, 216, 163, 216, 23,
+    201, 78, 252, 240, 114, 26, 217, 159, 124, 247, 26, 152, 105, 95, 253, 202, 10, 12, 149, 52,
+    245, 50, 31, 175, 47, 170, 69, 234, 2, 78, 121, 81,
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -58,6 +58,47 @@ impl From<Instance> for ink_primitives::AccountId {
 
 impl ink_wrapper_types::EventSource for Instance {
     type Event = event::Event;
+}
+
+#[async_trait::async_trait]
+pub trait Wnative {
+    async fn deposit<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<TxInfo, E>;
+    async fn withdraw<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        amount: u128,
+    ) -> Result<TxInfo, E>;
+}
+
+#[async_trait::async_trait]
+impl Wnative for Instance {
+    ///  Deposit NATIVE to wrap it
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn deposit<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+    ) -> Result<TxInfo, E> {
+        let data = vec![158, 29, 225, 29];
+        conn.exec(self.account_id, data).await
+    }
+
+    ///  Unwrap NATIVE
+    #[allow(dead_code, clippy::too_many_arguments)]
+    async fn withdraw<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
+        &self,
+        conn: &C,
+        amount: u128,
+    ) -> Result<TxInfo, E> {
+        let data = {
+            let mut data = vec![87, 17, 232, 16];
+            amount.encode_to(&mut data);
+            data
+        };
+        conn.exec(self.account_id, data).await
+    }
 }
 
 #[async_trait::async_trait]
@@ -309,47 +350,6 @@ impl PSP22 for Instance {
             data_
         };
         conn.exec(self.account_id, data_).await
-    }
-}
-
-#[async_trait::async_trait]
-pub trait Wnative {
-    async fn deposit<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<TxInfo, E>;
-    async fn withdraw<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        amount: u128,
-    ) -> Result<TxInfo, E>;
-}
-
-#[async_trait::async_trait]
-impl Wnative for Instance {
-    ///  Deposit NATIVE to wrap it
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn deposit<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-    ) -> Result<TxInfo, E> {
-        let data = vec![158, 29, 225, 29];
-        conn.exec(self.account_id, data).await
-    }
-
-    ///  Unwrap NATIVE
-    #[allow(dead_code, clippy::too_many_arguments)]
-    async fn withdraw<TxInfo, E, C: ink_wrapper_types::SignedConnection<TxInfo, E>>(
-        &self,
-        conn: &C,
-        amount: u128,
-    ) -> Result<TxInfo, E> {
-        let data = {
-            let mut data = vec![87, 17, 232, 16];
-            amount.encode_to(&mut data);
-            data
-        };
-        conn.exec(self.account_id, data).await
     }
 }
 

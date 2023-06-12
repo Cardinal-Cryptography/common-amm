@@ -18,6 +18,11 @@ stop-node: ## Stops the local network.
 	@echo "Stopping aleph-network."
 	@docker stop aleph-network
 
+.PHONY: kill-node
+kill-node: ## Kills the local network.
+	@echo "Killing aleph-network."
+	@docker kill aleph-network
+
 .PHONY: test
 test: ## Runs the e2e tests.
 	@npm run test:typechain
@@ -46,7 +51,7 @@ build-ink-dev: ## Builds ink-dev image for contract generation and wrapping.
 
 .PHONY: build-all
 build-all: ## Builds all contracts.
-	@for d in $(shell find $(CONTRACTS) -mindepth 1 -maxdepth 1 -type d); do \
+	@for d in $(CONTRACT_PATHS); do \
 		echo "cargo contract build --quiet --manifest-path $$d/Cargo.toml --release" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
@@ -85,7 +90,7 @@ e2e-test-case:
 
 # `TEST` needs to be passed into this rule.
 .PHONY: e2e-test
-e2e-test: run-node e2e-test-case stop-node
+e2e-test: run-node e2e-test-case kill-node
 
 TEST_CASES = \
 	fee::factory_contract_set_up_correctly \
@@ -116,3 +121,4 @@ all-dockerized: build-ink-dev
     	-v ~/.cargo/registry:/usr/local/cargo/registry \
     	ink-dev \
     	make check-build-wrap
+	@make e2e-tests
