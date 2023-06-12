@@ -51,5 +51,5 @@ jobs:
 #
     - name: E2E tests
       run: |
-        make  build-and-wrap-all-dockerized
+        make build-and-wrap-all-dockerized
         make e2e-tests
