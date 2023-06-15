@@ -86,14 +86,10 @@ wrap-all: ## Generates code for contract interaction.
 	done
 
 # `TEST` needs to be passed into this rule.
-.PHONY: e2e-test-case
-e2e-test-case:
+.PHONY: e2e-test
+e2e-test:
 	@echo "\nRunning test case: test::$(TEST)\n"
 	@cd e2e-tests && cargo test test::$(TEST) -- --exact && cd ..
-
-# `TEST` needs to be passed into this rule.
-.PHONY: e2e-test
-e2e-test: run-node e2e-test-case kill-node
 
 TEST_CASES = \
 	factory::factory_contract_set_up_correctly \
@@ -139,3 +135,6 @@ build-and-wrap-all-for-e2e-tests-dockerized: build-ink-dev
     	-v ~/.cargo/registry:/usr/local/cargo/registry \
     	ink-dev \
     	make build-and-wrap-all-for-e2e-tests
+
+.PHONY: e2e-tests-with-prelims
+e2e-tests-with-prelims: build-and-wrap-all-for-e2e-tests-dockerized run-node e2e-tests stop-node

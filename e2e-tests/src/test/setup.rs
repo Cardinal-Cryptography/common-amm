@@ -99,6 +99,7 @@ pub async fn set_up_psp22_token(
     .await
 }
 
+#[allow(dead_code)]
 async fn set_up_wnative_contract(
     connection: &SignedConnection,
 ) -> Result<wnative_contract::Instance> {
@@ -106,6 +107,7 @@ async fn set_up_wnative_contract(
     wnative_contract::Instance::new(connection, vec![]).await
 }
 
+#[allow(dead_code)]
 async fn set_up_router_contract(
     connection: &SignedConnection,
     factory: ink_primitives::AccountId,
