@@ -75,11 +75,10 @@ format: ## Formats contract files.
 	@cargo fmt --all
 
 CONTRACT_DATA = ./target/ink
-CONTRACT_DATA_PATHS := $(shell find $(CONTRACT_DATA) -mindepth 1 -maxdepth 1 -type d)
 
 .PHONY: wrap-all
 wrap-all: ## Generates code for contract interaction.
-	@for c in $(notdir $(CONTRACT_DATA_PATHS)); do \
+	@for c in $(notdir $(shell find $(CONTRACT_DATA) -mindepth 1 -maxdepth 1 -type d)); do \
 		echo "Wrapping $$c" ; \
 	 	ink-wrapper -m ./target/ink/$$c/$$c.json --wasm-path ../../target/ink/$$c/$$c.wasm \
 	 		| rustfmt --edition 2021 > ./e2e-tests/src/$$c.rs ; \
