@@ -4,7 +4,12 @@ use anyhow::{
 };
 use assert2::assert;
 
-use aleph_client::Balance;
+use aleph_client::{
+    pallets::contract::ContractsUserApi,
+    Balance,
+    SignedConnection,
+    TxStatus,
+};
 use ink_wrapper_types::{
     util::ToAccountId,
     Connection,
@@ -27,9 +32,20 @@ use crate::{
     psp22_token,
     psp22_token::PSP22 as TokenPSP22,
     test::setup::{
-        setup_test,
-        Contracts,
-        TestFixture,
+        get_env,
+        replenish_account,
+        set_up_connections,
+        set_up_factory_contract,
+        set_up_key_pairs,
+        set_up_logger,
+        set_up_psp22_token,
+        upload_code_pair_contract,
+        DEFAULT_NODE_ADDRESS,
+        INITIAL_TRANSFER,
+        TOKEN_A_NAME,
+        TOKEN_A_SYMBOL,
+        TOKEN_B_NAME,
+        TOKEN_B_SYMBOL,
         ZERO_ADDRESS,
     },
 };
@@ -42,20 +58,92 @@ const FIRST_AMOUNT_IN: Balance = 1_020;
 const FIRST_AMOUNT_OUT: Balance = 0;
 const SECOND_AMOUNT_OUT: Balance = 900;
 
-#[tokio::test]
-pub async fn create_pair() -> Result<()> {
-    let TestFixture {
-        wealthy_connection,
-        contracts,
-        ..
-    } = setup_test().await?;
+struct PairTestSetup {
+    token_a: psp22_token::Instance,
+    token_b: psp22_token::Instance,
+    factory_contract: factory_contract::Instance,
+    wealthy_connection: SignedConnection,
+    regular_connection: SignedConnection,
+    regular_account: ink_primitives::AccountId,
+}
 
-    let Contracts {
-        factory_contract,
+struct PairTestTeardown {
+    pair_contract: pair_contract::Instance,
+    token_a: psp22_token::Instance,
+    token_b: psp22_token::Instance,
+    factory_contract: factory_contract::Instance,
+    connection: SignedConnection,
+}
+
+async fn set_up_pair_test() -> Result<PairTestSetup> {
+    let node_address = get_env("NODE_ADDRESS").unwrap_or(DEFAULT_NODE_ADDRESS.to_string());
+
+    let (wealthy, regular) = set_up_key_pairs();
+    let (wealthy_connection, regular_connection) =
+        set_up_connections(&node_address, wealthy, regular.clone()).await;
+
+    let regular_account = regular.account_id().to_account_id();
+
+    upload_code_pair_contract(&wealthy_connection).await?;
+
+    let factory_contract = set_up_factory_contract(
+        &wealthy_connection,
+        regular_account,
+        pair_contract::CODE_HASH.into(),
+    )
+    .await?;
+    let token_a = set_up_psp22_token(&wealthy_connection, TOKEN_A_NAME, TOKEN_A_SYMBOL).await?;
+    let token_b = set_up_psp22_token(&wealthy_connection, TOKEN_B_NAME, TOKEN_B_SYMBOL).await?;
+
+    let pair_test_setup = PairTestSetup {
         token_a,
         token_b,
+        factory_contract,
+        wealthy_connection,
+        regular_connection,
+        regular_account,
+    };
+
+    Ok(pair_test_setup)
+}
+
+async fn tear_down_pair_test(pair_test_teardown: PairTestTeardown) -> Result<()> {
+    let PairTestTeardown {
+        pair_contract,
+        token_a,
+        token_b,
+        factory_contract,
+        connection,
+    } = pair_test_teardown;
+
+    pair_contract.terminate(&connection).await?;
+    token_a.terminate(&connection).await?;
+    token_b.terminate(&connection).await?;
+    connection
+        .remove_code(psp22_token::CODE_HASH.into(), TxStatus::InBlock)
+        .await?;
+    factory_contract.terminate(&connection).await?;
+    connection
+        .remove_code(factory_contract::CODE_HASH.into(), TxStatus::InBlock)
+        .await?;
+    connection
+        .remove_code(pair_contract::CODE_HASH.into(), TxStatus::InBlock)
+        .await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+pub async fn create_pair() -> Result<()> {
+    set_up_logger();
+
+    let PairTestSetup {
+        token_a,
+        token_b,
+        factory_contract,
+        wealthy_connection,
         ..
-    } = contracts;
+    } = set_up_pair_test().await?;
 
     let all_pairs_length_before = factory_contract
         .all_pairs_length(&wealthy_connection)
@@ -100,24 +188,33 @@ pub async fn create_pair() -> Result<()> {
 
     assert!(all_pairs_length_after == all_pairs_length_before + 1);
 
+    let pair_contract: pair_contract::Instance = pair.into();
+
+    let pair_test_teardown = PairTestTeardown {
+        pair_contract,
+        token_a,
+        token_b,
+        factory_contract,
+        connection: wealthy_connection,
+    };
+
+    tear_down_pair_test(pair_test_teardown).await?;
+
     Ok(())
 }
 
 #[tokio::test]
 pub async fn mint_pair() -> Result<()> {
-    let TestFixture {
-        wealthy_connection,
-        regular,
-        contracts,
-        ..
-    } = setup_test().await?;
+    set_up_logger();
 
-    let Contracts {
-        factory_contract,
+    let PairTestSetup {
         token_a,
         token_b,
+        factory_contract,
+        wealthy_connection,
+        regular_account,
         ..
-    } = contracts;
+    } = set_up_pair_test().await?;
 
     factory_contract
         .create_pair(&wealthy_connection, token_a.into(), token_b.into())
@@ -134,7 +231,6 @@ pub async fn mint_pair() -> Result<()> {
         .await?;
 
     let pair_contract: pair_contract::Instance = pair.into();
-    let regular_account = regular.account_id().to_account_id();
     let regular_balance_before = pair_contract
         .balance_of(&wealthy_connection, regular_account)
         .await??;
@@ -167,24 +263,31 @@ pub async fn mint_pair() -> Result<()> {
     assert!(regular_balance_after == expected_balance);
     assert!(zero_address_balance_after == MIN_BALANCE);
 
+    let pair_test_teardown = PairTestTeardown {
+        pair_contract,
+        token_a,
+        token_b,
+        factory_contract,
+        connection: wealthy_connection,
+    };
+
+    tear_down_pair_test(pair_test_teardown).await?;
+
     Ok(())
 }
 
 #[tokio::test]
 pub async fn swap_tokens() -> Result<()> {
-    let TestFixture {
-        wealthy_connection,
-        regular,
-        contracts,
-        ..
-    } = setup_test().await?;
+    set_up_logger();
 
-    let Contracts {
-        factory_contract,
+    let PairTestSetup {
         token_a,
         token_b,
+        factory_contract,
+        wealthy_connection,
+        regular_account,
         ..
-    } = contracts;
+    } = set_up_pair_test().await?;
 
     factory_contract
         .create_pair(&wealthy_connection, token_a.into(), token_b.into())
@@ -199,7 +302,6 @@ pub async fn swap_tokens() -> Result<()> {
     token_b
         .transfer(&wealthy_connection, pair, BALANCE, vec![])
         .await?;
-    let regular_account = regular.account_id().to_account_id();
     let pair_contract: pair_contract::Instance = pair.into();
     pair_contract
         .mint(&wealthy_connection, regular_account)
@@ -241,29 +343,35 @@ pub async fn swap_tokens() -> Result<()> {
 
     assert!(regular_balance_after == SECOND_AMOUNT_OUT);
 
+    let pair_test_teardown = PairTestTeardown {
+        pair_contract,
+        token_a,
+        token_b,
+        factory_contract,
+        connection: wealthy_connection,
+    };
+
+    tear_down_pair_test(pair_test_teardown).await?;
+
     Ok(())
 }
 
 #[tokio::test]
 pub async fn burn_liquidity_provider_token() -> Result<()> {
+    set_up_logger();
+
     const FIRST_BALANCE_LOCKED: Balance = 2_204;
     const SECOND_BALANCE_LOCKED: Balance = 1_820;
     const PAIR_TRANSFER: Balance = 2_000;
 
-    let TestFixture {
-        wealthy_connection,
-        regular_connection,
-        regular,
-        contracts,
-        ..
-    } = setup_test().await?;
-
-    let Contracts {
-        factory_contract,
+    let PairTestSetup {
         token_a,
         token_b,
-        ..
-    } = contracts;
+        factory_contract,
+        wealthy_connection,
+        regular_connection,
+        regular_account,
+    } = set_up_pair_test().await?;
 
     factory_contract
         .create_pair(&wealthy_connection, token_a.into(), token_b.into())
@@ -278,7 +386,6 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
     token_b
         .transfer(&wealthy_connection, pair, BALANCE, vec![])
         .await?;
-    let regular_account = regular.account_id().to_account_id();
     let pair_contract: pair_contract::Instance = pair.into();
     pair_contract
         .mint(&wealthy_connection, regular_account)
@@ -303,6 +410,8 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
         .balance_of(&wealthy_connection, regular_account)
         .await??;
 
+    let dest = aleph_client::AccountId::new(*regular_account.as_ref());
+    replenish_account(&wealthy_connection, dest, INITIAL_TRANSFER).await?;
     pair_contract
         .transfer(&regular_connection, pair, PAIR_TRANSFER, vec![])
         .await?;
@@ -332,6 +441,16 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
 
     assert!(first_token_balance_diff == FIRST_BALANCE_LOCKED);
     assert!(second_token_balance_diff == SECOND_BALANCE_LOCKED);
+
+    let pair_test_teardown = PairTestTeardown {
+        pair_contract,
+        token_a,
+        token_b,
+        factory_contract,
+        connection: wealthy_connection,
+    };
+
+    tear_down_pair_test(pair_test_teardown).await?;
 
     Ok(())
 }

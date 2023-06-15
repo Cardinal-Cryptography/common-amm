@@ -52,6 +52,13 @@ build-all: ## Builds all contracts.
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
 
+.PHONY: build-all-for-e2e-tests
+build-all-for-e2e-tests: ## Builds all contracts with features required for e2e tests.
+	@for d in $(CONTRACT_PATHS); do \
+		echo "cargo contract build --quiet --manifest-path $$d/Cargo.toml --release --features e2e-tests" ; \
+		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release --features e2e-tests; \
+	done
+
 .PHONY: check-all
 check-all: ## Runs cargo checks on all contracts.
 	@cargo check --quiet --all-targets --all-features --all
@@ -89,9 +96,9 @@ e2e-test-case:
 e2e-test: run-node e2e-test-case kill-node
 
 TEST_CASES = \
-	fee::factory_contract_set_up_correctly \
-	fee::set_fee \
-	fee::set_fee_setter \
+	factory::factory_contract_set_up_correctly \
+	factory::set_fee \
+	factory::set_fee_setter \
 	pair::create_pair \
 	pair::mint_pair \
 	pair::swap_tokens \
@@ -106,6 +113,9 @@ e2e-tests:
 .PHONY: build-and-wrap-all
 build-and-wrap-all: build-all wrap-all
 
+.PHONY: build-and-wrap-all-for-e2e-tests
+build-and-wrap-all-for-e2e-tests: build-all-for-e2e-tests wrap-all
+
 .PHONY: check-all-dockerized
 check-all-dockerized: build-ink-dev
 	@docker run --rm \
@@ -118,8 +128,8 @@ check-all-dockerized: build-ink-dev
     	ink-dev \
     	make check-all
 
-.PHONY: build-and-wrap-all-dockerized
-build-and-wrap-all-dockerized: build-ink-dev
+.PHONY: build-and-wrap-all-for-e2e-tests-dockerized
+build-and-wrap-all-for-e2e-tests-dockerized: build-ink-dev
 	@docker run --rm \
     	--network host \
     	--user "$(shell id -u):$(shell id -g)" \
@@ -128,4 +138,4 @@ build-and-wrap-all-dockerized: build-ink-dev
     	-v ~/.cargo/git:/usr/local/cargo/git \
     	-v ~/.cargo/registry:/usr/local/cargo/registry \
     	ink-dev \
-    	make build-and-wrap-all
+    	make build-and-wrap-all-for-e2e-tests

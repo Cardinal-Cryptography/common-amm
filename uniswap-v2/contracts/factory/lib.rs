@@ -83,7 +83,15 @@ pub mod factory {
             instance.factory.fee_to_setter = fee_to_setter;
             instance
         }
+        /// For e2e testing purposes only. Do not use in production!
+        #[cfg(feature = "e2e-tests")]
+        #[ink(message)]
+        pub fn terminate(&mut self) -> Result<(), FactoryError> {
+            let caller = self.env().caller();
+            self.env().terminate_contract(caller)
+        }
     }
+
     #[cfg(test)]
     mod tests {
         use ink::{

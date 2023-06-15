@@ -26,6 +26,13 @@ pub mod router {
             instance.router.wnative = wnative;
             instance
         }
+        /// For e2e testing purposes only. Do not use in production!
+        #[cfg(feature = "e2e-tests")]
+        #[ink(message)]
+        pub fn terminate(&mut self) -> Result<(), RouterError> {
+            let caller = self.env().caller();
+            self.env().terminate_contract(caller)
+        }
     }
 
     #[cfg(test)]
