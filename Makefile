@@ -18,11 +18,6 @@ stop-node: ## Stops the local network.
 	@echo "Stopping aleph-network."
 	@docker stop aleph-network
 
-.PHONY: kill-node
-kill-node: ## Kills the local network.
-	@echo "Killing aleph-network."
-	@docker kill aleph-network
-
 .PHONY: build-node
 # Build multi-CPU architecture images and publish them. rust alpine images support the linux/amd64 and linux/arm64/v8 architectures.
 build-node: build-node-${BUILDARCH} ## Detects local arch and builds docker image
@@ -60,7 +55,7 @@ build-all-for-e2e-tests: ## Builds all contracts with features required for e2e 
 	done
 
 .PHONY: check-all
-check-all: ## Runs cargo checks on all contracts.
+check-all: ## Runs cargo checks and unit tests on all contracts.
 	@cargo check --quiet --all-targets --all-features --all
 	@cargo clippy --quiet --all-features -- --no-deps -D warnings
 	@cargo fmt --quiet --all --check
@@ -84,35 +79,18 @@ wrap-all: ## Generates code for contract interaction.
 	 		| rustfmt --edition 2021 > ./e2e-tests/src/$$c.rs ; \
 	done
 
-# `TEST` needs to be passed into this rule.
-.PHONY: e2e-test
-e2e-test:
-	@echo "\nRunning test case: test::$(TEST)\n"
-	@cd e2e-tests && cargo test test::$(TEST) -- --exact && cd ..
-
-TEST_CASES = \
-	factory::factory_contract_set_up_correctly \
-	factory::set_fee \
-	factory::set_fee_setter \
-	pair::create_pair \
-	pair::mint_pair \
-	pair::swap_tokens \
-	pair::burn_liquidity_provider_token
-
 .PHONY: e2e-tests
-e2e-tests:
-	@for t in $(TEST_CASES); do \
-		make TEST=$$t e2e-test ; \
-  	done
+e2e-tests: ## Runs all the e2e tests in sequence.
+	@cd e2e-tests && cargo test -- --test-threads 1 && cd ..
 
 .PHONY: build-and-wrap-all
-build-and-wrap-all: build-all wrap-all
+build-and-wrap-all: build-all wrap-all ## Builds all contracts and generates code for contract interaction.
 
 .PHONY: build-and-wrap-all-for-e2e-tests
-build-and-wrap-all-for-e2e-tests: build-all-for-e2e-tests wrap-all
+build-and-wrap-all-for-e2e-tests: build-all-for-e2e-tests wrap-all ## Builds all contracts and generates code for contract interaction. E2E test version, do not use in production!
 
 .PHONY: check-all-dockerized
-check-all-dockerized: build-ink-dev
+check-all-dockerized: build-ink-dev ## Runs cargo checks and unit tests on all contracts in a container.
 	@docker run --rm \
     	--network host \
     	--user "$(shell id -u):$(shell id -g)" \
@@ -124,7 +102,7 @@ check-all-dockerized: build-ink-dev
     	make check-all
 
 .PHONY: build-and-wrap-all-for-e2e-tests-dockerized
-build-and-wrap-all-for-e2e-tests-dockerized: build-ink-dev
+build-and-wrap-all-for-e2e-tests-dockerized: build-ink-dev ## Builds all contracts and generates code for contract interaction. Run in a container. E2E test version, do not use in production!
 	@docker run --rm \
     	--network host \
     	--user "$(shell id -u):$(shell id -g)" \
@@ -135,5 +113,5 @@ build-and-wrap-all-for-e2e-tests-dockerized: build-ink-dev
     	ink-dev \
     	make build-and-wrap-all-for-e2e-tests
 
-.PHONY: e2e-tests-with-prelims
-e2e-tests-with-prelims: build-and-wrap-all-for-e2e-tests-dockerized run-node e2e-tests stop-node
+.PHONY: e2e-tests-with-setup-and-teardown
+e2e-tests-with-setup-and-teardown: build-and-wrap-all-for-e2e-tests-dockerized run-node e2e-tests stop-node ## Runs the E2E test suite.
