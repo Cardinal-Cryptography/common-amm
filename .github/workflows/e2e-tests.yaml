@@ -31,10 +31,5 @@ jobs:
       continue-on-error: true
       run: cargo contract --version
 
-    - name: Install cargo contract
-      if: ${{ steps.check-cargo-contract.outcome == 'failure' }}
-      run: |
-        cargo install --version 2.1.0 --force --locked cargo-contract
-
     - name: E2E tests
       run: make e2e-tests-with-setup-and-teardown
