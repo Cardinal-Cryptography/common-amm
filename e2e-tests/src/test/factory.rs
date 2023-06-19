@@ -16,7 +16,6 @@ use crate::{
     factory_contract,
     factory_contract::Factory,
     pair_contract,
-    psp22_token,
     test::setup::{
         get_env,
         replenish_account,
@@ -24,12 +23,9 @@ use crate::{
         set_up_factory_contract,
         set_up_key_pairs,
         set_up_logger,
-        set_up_psp22_token,
         upload_code_pair_contract,
         DEFAULT_NODE_ADDRESS,
         INITIAL_TRANSFER,
-        TOKEN_A_NAME,
-        TOKEN_A_SYMBOL,
         ZERO_ADDRESS,
     },
 };
@@ -42,18 +38,11 @@ pub struct FactoryTestAccounts {
 
 struct FactoryTestSetup {
     factory_contract: factory_contract::Instance,
-    token_a: psp22_token::Instance,
     wealthy_connection: SignedConnection,
     regular_connection: SignedConnection,
     wealthy_account: ink_primitives::AccountId,
     regular_account: ink_primitives::AccountId,
     zero_account: ink_primitives::AccountId,
-}
-
-struct FactoryTestTeardown {
-    factory_contract: factory_contract::Instance,
-    token_a: psp22_token::Instance,
-    connection: SignedConnection,
 }
 
 pub fn set_up_accounts(wealthy: &KeyPair, regular: &KeyPair) -> FactoryTestAccounts {
@@ -90,11 +79,9 @@ async fn set_up_factory_test() -> Result<FactoryTestSetup> {
         pair_contract::CODE_HASH.into(),
     )
     .await?;
-    let token_a = set_up_psp22_token(&wealthy_connection, TOKEN_A_NAME, TOKEN_A_SYMBOL).await?;
 
     let factory_test_setup = FactoryTestSetup {
         factory_contract,
-        token_a,
         wealthy_connection,
         regular_connection,
         wealthy_account,
@@ -105,18 +92,11 @@ async fn set_up_factory_test() -> Result<FactoryTestSetup> {
     Ok(factory_test_setup)
 }
 
-async fn tear_down_factory_test(factory_test_teardown: FactoryTestTeardown) -> Result<()> {
-    let FactoryTestTeardown {
-        factory_contract,
-        token_a,
-        connection,
-    } = factory_test_teardown;
-
-    token_a.terminate(&connection).await?;
-    connection
-        .remove_code(psp22_token::CODE_HASH.into(), TxStatus::InBlock)
-        .await?;
-    factory_contract.terminate(&connection).await?;
+async fn tear_down_factory_test(
+    factory_contract: factory_contract::Instance,
+    connection: &SignedConnection,
+) -> Result<()> {
+    factory_contract.terminate(connection).await?;
     connection
         .remove_code(factory_contract::CODE_HASH.into(), TxStatus::InBlock)
         .await?;
@@ -133,7 +113,6 @@ pub async fn factory_contract_set_up_correctly() -> Result<()> {
 
     let FactoryTestSetup {
         factory_contract,
-        token_a,
         wealthy_connection,
         regular_account,
         zero_account,
@@ -152,12 +131,7 @@ pub async fn factory_contract_set_up_correctly() -> Result<()> {
     assert!(setter == regular_account);
     assert!(all_pairs_length == 0);
 
-    let factory_test_teardown = FactoryTestTeardown {
-        factory_contract,
-        token_a,
-        connection: wealthy_connection,
-    };
-    tear_down_factory_test(factory_test_teardown).await?;
+    tear_down_factory_test(factory_contract, &wealthy_connection).await?;
 
     Ok(())
 }
@@ -168,7 +142,6 @@ pub async fn set_fee() -> Result<()> {
 
     let FactoryTestSetup {
         factory_contract,
-        token_a,
         wealthy_connection,
         regular_connection,
         regular_account,
@@ -182,7 +155,7 @@ pub async fn set_fee() -> Result<()> {
 
     ensure!(
         factory_contract
-            .set_fee_to(&wealthy_connection, token_a.into())
+            .set_fee_to(&wealthy_connection, zero_account)
             .await
             .is_err(),
         "Call should have errored out - caller is not fee setter!"
@@ -199,12 +172,7 @@ pub async fn set_fee() -> Result<()> {
 
     assert!(regular_recipient == regular_account);
 
-    let factory_test_teardown = FactoryTestTeardown {
-        factory_contract,
-        token_a,
-        connection: wealthy_connection,
-    };
-    tear_down_factory_test(factory_test_teardown).await?;
+    tear_down_factory_test(factory_contract, &wealthy_connection).await?;
 
     Ok(())
 }
@@ -215,7 +183,6 @@ pub async fn set_fee_setter() -> Result<()> {
 
     let FactoryTestSetup {
         factory_contract,
-        token_a,
         wealthy_connection,
         regular_connection,
         wealthy_account,
@@ -250,12 +217,7 @@ pub async fn set_fee_setter() -> Result<()> {
 
     assert!(setter_after == wealthy_account);
 
-    let factory_test_teardown = FactoryTestTeardown {
-        factory_contract,
-        token_a,
-        connection: wealthy_connection,
-    };
-    tear_down_factory_test(factory_test_teardown).await?;
+    tear_down_factory_test(factory_contract, &wealthy_connection).await?;
 
     Ok(())
 }
