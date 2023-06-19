@@ -22,10 +22,5 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-rust
 
-    - name: Check if cargo-contract exists
-      id: check-cargo-contract
-      continue-on-error: true
-      run: cargo contract --version
-
     - name: Rust checks
       run: make check-all-dockerized
