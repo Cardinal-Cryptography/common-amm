@@ -15,11 +15,6 @@ jobs:
     - name: Checkout the source code
       uses: actions/checkout@v3
 
-    - name: Install & display rust toolchain
-      run: |
-        rustup show
-        rustup component add rust-src
-
     - name: Check targets are installed correctly
       run: rustup target list --installed
 
