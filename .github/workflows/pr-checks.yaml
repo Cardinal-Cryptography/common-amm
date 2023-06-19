@@ -9,7 +9,7 @@ concurrency:
 
 jobs:
   check:
-    runs-on: [self-hosted, Linux, X64, large]
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
