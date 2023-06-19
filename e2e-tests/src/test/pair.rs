@@ -116,7 +116,6 @@ async fn tear_down_pair_test(pair_test_teardown: PairTestTeardown) -> Result<()>
         connection,
     } = pair_test_teardown;
 
-    pair_contract.terminate(&connection).await?;
     token_a.terminate(&connection).await?;
     token_b.terminate(&connection).await?;
     connection
@@ -126,6 +125,7 @@ async fn tear_down_pair_test(pair_test_teardown: PairTestTeardown) -> Result<()>
     connection
         .remove_code(factory_contract::CODE_HASH.into(), TxStatus::InBlock)
         .await?;
+    pair_contract.terminate(&connection).await?;
     connection
         .remove_code(pair_contract::CODE_HASH.into(), TxStatus::InBlock)
         .await?;
