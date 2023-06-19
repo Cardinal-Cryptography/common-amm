@@ -149,9 +149,9 @@ pub async fn set_fee() -> Result<()> {
         ..
     } = set_up_factory_test().await?;
 
-    let wealthy_recipient = factory_contract.fee_to(&wealthy_connection).await??;
+    let fee_recipient = factory_contract.fee_to(&wealthy_connection).await??;
 
-    assert!(wealthy_recipient == zero_account);
+    assert!(fee_recipient == zero_account);
 
     ensure!(
         factory_contract
