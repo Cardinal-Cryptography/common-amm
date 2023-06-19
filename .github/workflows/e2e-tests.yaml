@@ -31,11 +31,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-rust
 
-#    - name: Use Node.js
-#      uses: actions/setup-node@v3
-#      with:
-#        node-version: ${{ env.NODE_JS_VER }}
-#
     - name: Check if cargo-contract exists
       id: check-cargo-contract
       continue-on-error: true
@@ -46,8 +41,5 @@ jobs:
       run: |
         cargo install --version 2.1.0 --force --locked cargo-contract
 
-#    - name: integration test
-#      run: cargo test
-#
     - name: E2E tests
       run: make e2e-tests-with-setup-and-teardown
