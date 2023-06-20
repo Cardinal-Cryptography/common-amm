@@ -7,8 +7,8 @@ help: # Show help for each of the Makefile recipes.
 # Native arch
 BUILDARCH := $(shell uname -m)
 
-.PHONY: run-node
-run-node: build-node ## Runs a network consisting of a single Aleph node.
+.PHONY: start-node
+start-node: build-node ## Runs a network consisting of a single Aleph node.
 	@echo "Starting aleph-network."
 	@docker run --detach --rm --network host \
 		--name aleph-network aleph-onenode-chain-${BUILDARCH}
@@ -92,4 +92,4 @@ build-and-wrap-all-dockerized: ## Builds all contracts and generates code for co
     	make build-and-wrap-all
 
 .PHONY: e2e-tests-with-setup-and-teardown
-e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized run-node e2e-tests stop-node ## Runs the E2E test suite.
+e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized start-node e2e-tests stop-node ## Runs the E2E test suite.

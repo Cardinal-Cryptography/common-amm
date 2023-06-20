@@ -62,7 +62,7 @@ This will:
 - Stop the node.
 
 ##### 💫 Deploy
-First start your local node. You can do that by running `make run-node` in the root directory of the project.
+First start your local node. You can do that by running `make start-node` in the root directory of the project.
 
 ##### 💫 Help
 You can see a list of available `make` recipes by running:
