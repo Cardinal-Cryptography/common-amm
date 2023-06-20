@@ -14,7 +14,7 @@ import 'dotenv/config';
 import '@polkadot/api-augment';
 
 // Create a new instance of contract
-const wsProvider = new WsProvider('wss://rpc.shibuya.astar.network');
+const wsProvider = new WsProvider('ws://localhost:9944');
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
 
@@ -39,8 +39,8 @@ async function main(): Promise<void> {
   );
   const { address: aploAddress } = await tokenFactory.new(
     totalSupply,
-    'Apollo Token' as unknown as string[],
-    'APLO' as unknown as string[],
+    'Apollo Token',
+    'APLO',
     18,
     { gasLimit: gasRequired },
   );
@@ -48,8 +48,8 @@ async function main(): Promise<void> {
   const aplo = new Token(aploAddress, deployer, api);
   const { address: usdcAddress } = await tokenFactory.new(
     stableTotalSupply,
-    'USD Coin' as unknown as string[],
-    'USDC' as unknown as string[],
+    'USD Coin',
+    'USDC',
     6,
     { gasLimit: gasRequired },
   );
@@ -57,8 +57,8 @@ async function main(): Promise<void> {
   const usdc = new Token(usdcAddress, deployer, api);
   const { address: usdtAddress } = await tokenFactory.new(
     stableTotalSupply,
-    'Tether USD' as unknown as string[],
-    'USDT' as unknown as string[],
+    'Tether USD',
+    'USDT',
     6,
     { gasLimit: gasRequired },
   );
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   const pairAbi = new Abi(pairContractRaw);
   const deployedHash: Hash = await (new Promise(async (resolve, reject) => {
     const unsub = await api.tx.contracts
-      .uploadCode(pairAbi.info.source.wasm, null, 'Deterministic')
+      .uploadCode(pairAbi.info.source.wasm, null, 0)
       .signAndSend(deployer, (result) => {
         if (result.isFinalized) {
           unsub();

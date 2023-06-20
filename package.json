@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@727-ventures/typechain-compiler": "1.0.0-beta.2",
-    "@727-ventures/typechain-types": "1.0.0-beta.1",
+    "@727-ventures/typechain-compiler": "1.1.0",
+    "@727-ventures/typechain-types": "1.1.0",
     "@types/jest": "^29.2.3",
     "@typescript-eslint/eslint-plugin": "^4.8.2",
     "@typescript-eslint/parser": "^4.8.2",
@@ -22,16 +22,11 @@
   "scripts": {
     "compile": "typechain-compiler --toolchain nightly-2023-01-10",
     "compile:release": "typechain-compiler --release --toolchain nightly-2023-01-10",
-    "test:typechain": "jest --testPathPattern \".spec.ts$\" --runInBand",
-    "test:single": "jest",
-    "lint": "prettier --check . && eslint . && cargo check",
-    "lint:fix": "prettier --write . && eslint . --fix && cargo fmt --all",
-    "deploy": "ts-node scripts/deploy.ts",
-    "postinstall": "patch-package"
+    "deploy": "ts-node scripts/deploy.ts"
   },
   "resolutions": {
-    "@polkadot/api": "^9.10.3",
-    "@polkadot/api-contract": "^9.10.3"
+    "@polkadot/api": "^10.9.1",
+    "@polkadot/api-contract": "^10.9.1"
   },
   "devDependencies": {
     "dotenv": "^16.0.3",

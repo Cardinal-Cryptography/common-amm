@@ -2,7 +2,10 @@
 **/target/
 /artifacts/
 
-# Ignore contract wrappers.
+# Ignore TypeScript contract wrappers.
+types/
+
+# Ignore Rust contract wrappers.
 e2e-tests/src/*_contract.rs
 e2e-tests/src/psp22_token.rs
 
@@ -24,7 +27,6 @@ node_modules/
 .next/
 
 target/
-# /types/
 
 .DS_Store
 
