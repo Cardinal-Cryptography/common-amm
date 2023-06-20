@@ -21,24 +21,18 @@ stop-node: ## Stops the local network.
 .PHONY: build-node
 # Build multi-CPU architecture images and publish them. rust alpine images support the linux/amd64 and linux/arm64/v8 architectures.
 build-node: build-node-${BUILDARCH} ## Detects local arch and builds docker image
-	@docker build --tag aleph-onenode-chain --file docker/aleph_node/Dockerfile docker/aleph_node
+	@docker build --tag aleph-onenode-chain --file docker/Dockerfile docker
 
 .PHONY: build-node-arm64
 build-node-arm64:
-	@docker buildx build --pull --platform linux/arm64/v8  -t aleph-onenode-chain-arm64 --load docker/aleph_node
+	@docker buildx build --pull --platform linux/arm64/v8  -t aleph-onenode-chain-arm64 --load docker
 
 .PHONY: build-node-x86_64
 build-node-x86_64:
-	@docker buildx build --pull --platform linux/amd64 -t aleph-onenode-chain-x86_64 --load docker/aleph_node
+	@docker buildx build --pull --platform linux/amd64 -t aleph-onenode-chain-x86_64 --load docker
 
 CONTRACTS = ./uniswap-v2/contracts
 CONTRACT_PATHS := $(shell find $(CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
-
-.PHONY: build-ink-dev
-build-ink-dev: ## Builds ink-dev image for contract generation and wrapping.
-	@docker build --tag ink-dev --file docker/ink_dev/Dockerfile \
-		--build-arg UID=$(shell id -u) --build-arg GID=$(shell id -g) \
-		docker/ink_dev
 
 .PHONY: build-all
 build-all: ## Builds all contracts.
@@ -89,28 +83,22 @@ build-and-wrap-all: build-all wrap-all ## Builds all contracts and generates cod
 .PHONY: build-and-wrap-all-for-e2e-tests
 build-and-wrap-all-for-e2e-tests: build-all-for-e2e-tests wrap-all ## Builds all contracts and generates code for contract interaction. E2E test version, do not use in production!
 
+INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.4.0
+
 .PHONY: check-all-dockerized
-check-all-dockerized: build-ink-dev ## Runs cargo checks and unit tests on all contracts in a container.
+check-all-dockerized: ## Runs cargo checks and unit tests on all contracts in a container.
 	@docker run --rm \
-    	--network host \
-    	--user "$(shell id -u):$(shell id -g)" \
     	--name ink-dev \
     	-v "$(shell pwd)":/code \
-    	-v ~/.cargo/git:/usr/local/cargo/git \
-    	-v ~/.cargo/registry:/usr/local/cargo/registry \
-    	ink-dev \
+    	$(INK_DEV_IMAGE) \
     	make check-all
 
 .PHONY: build-and-wrap-all-for-e2e-tests-dockerized
-build-and-wrap-all-for-e2e-tests-dockerized: build-ink-dev ## Builds all contracts and generates code for contract interaction. Run in a container. E2E test version, do not use in production!
+build-and-wrap-all-for-e2e-tests-dockerized: ## Builds all contracts and generates code for contract interaction. Run in a container. E2E test version, do not use in production!
 	@docker run --rm \
-    	--network host \
-    	--user "$(shell id -u):$(shell id -g)" \
     	--name ink-dev \
     	-v "$(shell pwd)":/code \
-    	-v ~/.cargo/git:/usr/local/cargo/git \
-    	-v ~/.cargo/registry:/usr/local/cargo/registry \
-    	ink-dev \
+    	$(INK_DEV_IMAGE) \
     	make build-and-wrap-all-for-e2e-tests
 
 .PHONY: e2e-tests-with-setup-and-teardown
