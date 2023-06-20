@@ -64,6 +64,8 @@ This will:
 ##### 💫 Deploy
 First start your local node. You can do that by running `make start-node` in the root directory of the project.
 
+To deploy contracts, execute `npm run deploy` in the root directory. Note that this requires rebuilding TypeScript wrappers first: `npm run compile:release`.
+
 ##### 💫 Help
 You can see a list of available `make` recipes by running:
 
