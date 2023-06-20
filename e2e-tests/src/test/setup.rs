@@ -27,7 +27,7 @@ pub use uniswap_v2::helpers::ZERO_ADDRESS;
 
 pub const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:9944";
 pub const WEALTHY_SEED: &str = "//Alice";
-const REGULAR_SEED: &str = "//0";
+pub const REGULAR_SEED: &str = "//0";
 
 pub const INITIAL_TRANSFER: Balance = 1_000_000_000_000;
 const PSP22_TOTAL_SUPPLY: Balance = 10_000_000;
@@ -47,24 +47,6 @@ where
         v.parse()
             .unwrap_or_else(|_| panic!("Failed to parse env var {name}"))
     })
-}
-
-pub fn set_up_key_pairs() -> (KeyPair, KeyPair) {
-    let wealthy = aleph_client::keypair_from_string(WEALTHY_SEED);
-    let regular = aleph_client::keypair_from_string(REGULAR_SEED);
-
-    (wealthy, regular)
-}
-
-pub async fn set_up_connections(
-    node_address: &str,
-    wealthy: KeyPair,
-    regular: KeyPair,
-) -> (SignedConnection, SignedConnection) {
-    let wealthy_connection = SignedConnection::new(node_address, wealthy).await;
-    let regular_connection = SignedConnection::new(node_address, regular).await;
-
-    (wealthy_connection, regular_connection)
 }
 
 pub async fn set_up_factory_contract(

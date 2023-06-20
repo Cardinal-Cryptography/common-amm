@@ -34,18 +34,18 @@ use crate::{
     test::setup::{
         get_env,
         replenish_account,
-        set_up_connections,
         set_up_factory_contract,
-        set_up_key_pairs,
         set_up_logger,
         set_up_psp22_token,
         upload_code_pair_contract,
         DEFAULT_NODE_ADDRESS,
         INITIAL_TRANSFER,
+        REGULAR_SEED,
         TOKEN_A_NAME,
         TOKEN_A_SYMBOL,
         TOKEN_B_NAME,
         TOKEN_B_SYMBOL,
+        WEALTHY_SEED,
         ZERO_ADDRESS,
     },
 };
@@ -78,9 +78,10 @@ struct PairTestTeardown {
 async fn set_up_pair_test() -> Result<PairTestSetup> {
     let node_address = get_env("NODE_ADDRESS").unwrap_or(DEFAULT_NODE_ADDRESS.to_string());
 
-    let (wealthy, regular) = set_up_key_pairs();
-    let (wealthy_connection, regular_connection) =
-        set_up_connections(&node_address, wealthy, regular.clone()).await;
+    let wealthy = aleph_client::keypair_from_string(WEALTHY_SEED);
+    let regular = aleph_client::keypair_from_string(REGULAR_SEED);
+    let wealthy_connection = SignedConnection::new(&node_address, wealthy).await;
+    let regular_connection = SignedConnection::new(&node_address, regular.clone()).await;
 
     let regular_account = regular.account_id().to_account_id();
 
