@@ -15,10 +15,6 @@ e2e-tests/src/psp22_token.rs
 # Dependency directory
 node_modules
 
-package-lock.json
-
-yarn.lock
-
 .vscode
 .idea
 
