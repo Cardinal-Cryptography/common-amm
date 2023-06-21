@@ -2,12 +2,17 @@ import fs from 'fs';
 import { ApiPromise } from '@polkadot/api';
 import { Abi } from '@polkadot/api-contract';
 import { WeightV2 } from '@polkadot/types/interfaces';
+import { KeyringPair } from '@polkadot/keyring/types';
+import { HexString } from '@polkadot/util/types';
 import { TOTAL_SUPPLY } from '../constants';
 
 /**
  * Estimates gas required to create a new instance of `PSP22_token` contract.
  *
  * NOTE: This shouldn't be necessary but `Contract::new()` doesn't estimate gas and uses a hardcoded value.
+ * @param api
+ * @param deployer
+ * @returns
  */
 export async function estimateInit(
   api: ApiPromise,
@@ -36,4 +41,38 @@ export async function estimateInit(
       '',
     )
   ).gasRequired;
+}
+
+/**
+ * Uploads the `PSP22_token` contract to the chain.
+ * @param api
+ * @param deployer
+ * @returns code hash of the deployed contract.
+ */
+export async function upload(
+  api: ApiPromise,
+  deployer: KeyringPair,
+): Promise<HexString> {
+  const tokenContractRaw = JSON.parse(
+    fs.readFileSync(
+      __dirname + `/../../artifacts/psp22_token.contract`,
+      'utf8',
+    ),
+  );
+  const tokenAbi = new Abi(tokenContractRaw);
+  await new Promise(async (resolve, reject) => {
+    const unsub = await api.tx.contracts
+      .uploadCode(tokenAbi.info.source.wasm, null, 0)
+      .signAndSend(deployer, (result) => {
+        if (result.isFinalized) {
+          unsub();
+          resolve(result.txHash);
+        }
+        if (result.isError) {
+          unsub();
+          reject(result);
+        }
+      });
+  });
+  return tokenAbi.info.source.wasmHash.toHex();
 }

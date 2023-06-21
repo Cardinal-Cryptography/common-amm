@@ -27,34 +27,8 @@ async function main(): Promise<void> {
   const api = await ApiPromise.create({ provider: wsProvider });
   const deployer = keyring.addFromUri(process.env.AUTHORITY_SEED);
   const tokenFactory = new Token_factory(api, deployer);
-  const tokenInitGas = await token.estimateInit(api, deployer.address);
-  const { address: aploAddress } = await tokenFactory.new(
-    TOTAL_SUPPLY,
-    'Apollo Token',
-    'APLO',
-    18,
-    { gasLimit: tokenInitGas },
-  );
-  console.log('aplo token address:', aploAddress);
-  const aplo = new Token(aploAddress, deployer, api);
-  const { address: usdcAddress } = await tokenFactory.new(
-    STABLE_TOTAL_SUPPLY,
-    'USD Coin',
-    'USDC',
-    6,
-    { gasLimit: tokenInitGas },
-  );
-  console.log('usdc token address:', usdcAddress);
-  const usdc = new Token(usdcAddress, deployer, api);
-  const { address: usdtAddress } = await tokenFactory.new(
-    STABLE_TOTAL_SUPPLY,
-    'Tether USD',
-    'USDT',
-    6,
-    { gasLimit: tokenInitGas },
-  );
-  console.log('usdt token address:', usdtAddress);
-  const usdt = new Token(usdtAddress, deployer, api);
+  const tokenCodeHash = await token.upload(api, deployer);
+  console.log('token code hash:', tokenCodeHash);
 
   const pairHash = await pair.upload(api, deployer);
   console.log('pair hash:', pairHash);
@@ -88,6 +62,40 @@ async function main(): Promise<void> {
   console.log('router address:', routerAddress);
   const router = new Router(routerAddress, deployer, api);
 
+  /// NOTE: what follows can be extracted to a separate script as it's not necessarily
+  /// part of the deployment process.
+  /// Create tokens
+
+  const tokenInitGas = await token.estimateInit(api, deployer.address);
+  const { address: aploAddress } = await tokenFactory.new(
+    TOTAL_SUPPLY,
+    'Apollo Token',
+    'APLO',
+    18,
+    { gasLimit: tokenInitGas },
+  );
+  console.log('aplo token address:', aploAddress);
+  const aplo = new Token(aploAddress, deployer, api);
+  const { address: usdcAddress } = await tokenFactory.new(
+    STABLE_TOTAL_SUPPLY,
+    'USD Coin',
+    'USDC',
+    6,
+    { gasLimit: tokenInitGas },
+  );
+  console.log('usdc token address:', usdcAddress);
+  const usdc = new Token(usdcAddress, deployer, api);
+  const { address: usdtAddress } = await tokenFactory.new(
+    STABLE_TOTAL_SUPPLY,
+    'Tether USD',
+    'USDT',
+    6,
+    { gasLimit: tokenInitGas },
+  );
+  console.log('usdt token address:', usdtAddress);
+  const usdt = new Token(usdtAddress, deployer, api);
+
+  /// Add liquidity
   const aploAmount = parseUnits(100).toString();
 
   await approveSpender(aplo, router.address, aploAmount);
@@ -121,6 +129,7 @@ async function main(): Promise<void> {
   );
   console.log('added usdt liquidity');
 
+  /// Query pair addresses
   const {
     value: { ok: aploSbyAddress },
   } = await factory.query.getPair(aplo.address, wnativeAddress);

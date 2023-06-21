@@ -4,6 +4,12 @@ import { KeyringPair } from '@polkadot/keyring/types';
 import { HexString } from '@polkadot/util/types';
 import { Abi } from '@polkadot/api-contract';
 
+/**
+ * Uploads the `pair_contract` contract to the chain.
+ * @param api
+ * @param deployer
+ * @returns code hash of the deployed contract.
+ */
 export async function upload(
   api: ApiPromise,
   deployer: KeyringPair,
