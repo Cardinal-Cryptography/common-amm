@@ -20,7 +20,6 @@ use crate::{
         get_env,
         replenish_account,
         set_up_factory_contract,
-        set_up_key_pairs,
         set_up_logger,
         upload_code_pair_contract,
         DEFAULT_NODE_ADDRESS,

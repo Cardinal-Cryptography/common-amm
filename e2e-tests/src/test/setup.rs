@@ -11,7 +11,6 @@ use aleph_client::{
         system::SystemApi,
     },
     Balance,
-    KeyPair,
     SignedConnection,
     TxStatus,
 };
