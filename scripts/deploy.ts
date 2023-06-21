@@ -13,7 +13,7 @@ import parseUnits from './shared';
 import * as token from './token';
 import * as pair from './pair';
 import * as factoryUtils from './factory';
-import * as wnativeUtils from './wnative'
+import * as wnativeUtils from './wnative';
 import * as routerUtils from './router';
 import 'dotenv/config';
 import '@polkadot/api-augment';
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
   });
   console.log('wnative address:', wnativeAddress);
   const wnative = new Wnative(wnativeAddress, deployer, api);
-  
+
   const routerInitGas = await routerUtils.estimateInit(api, deployer);
   const routerFactory = new Router_factory(api, deployer);
   const { address: routerAddress } = await routerFactory.new(
@@ -92,15 +92,33 @@ async function main(): Promise<void> {
 
   await approveSpender(aplo, router.address, aploAmount);
   console.log('approved aplo to spend by router');
-  await addLiquidityNative(router, aplo, aploAmount, aploAmount, deployer.address);
+  await addLiquidityNative(
+    router,
+    aplo,
+    aploAmount,
+    aploAmount,
+    deployer.address,
+  );
   console.log('added aplo liquidity');
   await approveSpender(usdc, router.address, ONE_STABLECOIN);
   console.log('approved usdc to spend by router');
-  await addLiquidityNative(router, usdc, ONE_STABLECOIN, ONE_STABLECOIN, deployer.address);
+  await addLiquidityNative(
+    router,
+    usdc,
+    ONE_STABLECOIN,
+    ONE_STABLECOIN,
+    deployer.address,
+  );
   console.log('added usdc liquidity');
   await approveSpender(usdt, router.address, ONE_STABLECOIN);
   console.log('approved usdt to spend by router');
-  await addLiquidityNative(router, usdt, ONE_STABLECOIN, ONE_STABLECOIN, deployer.address);
+  await addLiquidityNative(
+    router,
+    usdt,
+    ONE_STABLECOIN,
+    ONE_STABLECOIN,
+    deployer.address,
+  );
   console.log('added usdt liquidity');
 
   const {

@@ -1,18 +1,24 @@
 # DEX - UniswapV2
+
 This folder contains the line by line implementation of [uniswap-v2 core](https://github.com/Uniswap/v2-core) and [uniswap-v2 periphery](https://github.com/Uniswap/v2-periphery) with its tests.
 
 ### Purpose
+
 This is an unaudited full dex implementation ready to be used.
 
 ### Versions
-[ink! 4.0.0](https://github.com/paritytech/ink/tree/v4.0.0)   
+
+[ink! 4.0.0](https://github.com/paritytech/ink/tree/v4.0.0)  
 [openbrush 3.0.0](https://github.com/727-Ventures/openbrush-contracts/tree/3.0.0)
 
 ### License
+
 Apache 2.0
 
 ## 🏗️ How to use - Contracts
+
 ##### 💫 Build
+
 Use these [instructions](https://use.ink/getting-started/setup) to set up your ink!/Rust environment.
 To build all contracts, run this command from the project root directory:
 
@@ -21,6 +27,7 @@ make build-all
 ```
 
 ##### 💫 Wrap
+
 Use these [instructions](https://github.com/Cardinal-Cryptography/ink-wrapper#installation) to set up your `ink-wrapper` environment.
 Once you have built your contracts, you can wrap them by running this command from the project root directory:
 
@@ -35,6 +42,7 @@ make build-and-wrap-all
 ```
 
 ##### 💫 Run checks
+
 Rust code checks and unit tests can be run from the root directory of the project:
 
 ```sh
@@ -42,6 +50,7 @@ make check-all
 ```
 
 ##### 💫 Run unit test
+
 To manually run unit tests, use:
 
 ```sh
@@ -49,6 +58,7 @@ cargo test
 ```
 
 ##### 💫 Run E2E tests
+
 To run the E2E test suite, execute the following command from the root directory of the project.
 
 ```sh
@@ -62,11 +72,13 @@ This will:
 - Stop the node.
 
 ##### 💫 Deploy
+
 First start your local node. You can do that by running `make start-node` in the root directory of the project.
 
 To deploy contracts, execute `npm run deploy` in the root directory. Note that this requires rebuilding TypeScript wrappers first: `npm run compile:release`.
 
 ##### 💫 Help
+
 You can see a list of available `make` recipes by running:
 
 ```sh
