@@ -10,20 +10,21 @@ import Token from '../types/contracts/psp22_token';
 import Factory from '../types/contracts/factory_contract';
 import Wnative from '../types/contracts/wnative_contract';
 import Router from '../types/contracts/router_contract';
+import { TOTAL_SUPPLY, STABLE_TOTAL_SUPPLY, ONE_STABLECOIN } from './constants';
+import { approveSpender, addLiquidityNative } from './utils';
+import parseUnits from './shared';
 import 'dotenv/config';
 import '@polkadot/api-augment';
 
 // Create a new instance of contract
-const wsProvider = new WsProvider('ws://localhost:9944');
+const wsProvider = new WsProvider(process.env.WS_NODE);
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
 
 async function main(): Promise<void> {
   const api = await ApiPromise.create({ provider: wsProvider });
-  const deployer = keyring.addFromUri(process.env.PRIVATE_KEY);
+  const deployer = keyring.addFromUri(process.env.AUTHORITY_SEED);
   const tokenFactory = new Token_factory(api, deployer);
-  const totalSupply = parseUnits(1_000_000).toString();
-  const stableTotalSupply = parseUnits(1_000_000, 6).toString();
   const tokenContractRaw = JSON.parse(
     fs.readFileSync(__dirname + `/../artifacts/psp22_token.contract`, 'utf8'),
   );
@@ -34,11 +35,11 @@ async function main(): Promise<void> {
     null,
     null,
     { Upload: tokenAbi.info.source.wasm },
-    tokenAbi.constructors[0].toU8a([totalSupply, 'Apollo Token', 'APLO', 18]),
+    tokenAbi.constructors[0].toU8a([TOTAL_SUPPLY, 'Apollo Token', 'APLO', 18]),
     '',
   );
   const { address: aploAddress } = await tokenFactory.new(
-    totalSupply,
+    TOTAL_SUPPLY,
     'Apollo Token',
     'APLO',
     18,
@@ -47,7 +48,7 @@ async function main(): Promise<void> {
   console.log('aplo token address:', aploAddress);
   const aplo = new Token(aploAddress, deployer, api);
   const { address: usdcAddress } = await tokenFactory.new(
-    stableTotalSupply,
+    STABLE_TOTAL_SUPPLY,
     'USD Coin',
     'USDC',
     6,
@@ -56,7 +57,7 @@ async function main(): Promise<void> {
   console.log('usdc token address:', usdcAddress);
   const usdc = new Token(usdcAddress, deployer, api);
   const { address: usdtAddress } = await tokenFactory.new(
-    stableTotalSupply,
+    STABLE_TOTAL_SUPPLY,
     'Tether USD',
     'USDT',
     6,
@@ -161,99 +162,20 @@ async function main(): Promise<void> {
   console.log('router address:', routerAddress);
   const router = new Router(routerAddress, deployer, api);
 
-  const deadline = '111111111111111111';
   const aploAmount = parseUnits(100).toString();
-  const oneSby = parseUnits(1).toString();
-  const oneStableCoinAmount = parseUnits(100, 6).toString();
-  ({ gasRequired } = await aplo.query.approve(router.address, aploAmount));
-  await aplo.tx.approve(router.address, aploAmount, {
-    gasLimit: gasRequired,
-  });
-  ({ gasRequired } = await router.query.addLiquidityNative(
-    aplo.address,
-    aploAmount,
-    aploAmount,
-    oneSby,
-    deployer.address,
-    deadline,
-    {
-      value: oneSby,
-    },
-  ));
-  await router.tx.addLiquidityNative(
-    aplo.address,
-    aploAmount,
-    aploAmount,
-    oneSby,
-    deployer.address,
-    deadline,
-    {
-      gasLimit: gasRequired,
-      value: oneSby,
-    },
-  );
 
-  ({ gasRequired } = await usdc.query.approve(
-    router.address,
-    oneStableCoinAmount,
-  ));
-  await usdc.tx.approve(router.address, oneStableCoinAmount, {
-    gasLimit: gasRequired,
-  });
-  ({ gasRequired } = await router.query.addLiquidityNative(
-    usdc.address,
-    oneStableCoinAmount,
-    oneStableCoinAmount,
-    oneSby,
-    deployer.address,
-    deadline,
-    {
-      value: oneSby,
-    },
-  ));
-  await router.tx.addLiquidityNative(
-    usdc.address,
-    oneStableCoinAmount,
-    oneStableCoinAmount,
-    oneSby,
-    deployer.address,
-    deadline,
-    {
-      gasLimit: gasRequired,
-      value: oneSby,
-    },
-  );
-
-  ({ gasRequired } = await usdt.query.approve(
-    router.address,
-    oneStableCoinAmount,
-  ));
-  await usdt.tx.approve(router.address, oneStableCoinAmount, {
-    gasLimit: gasRequired,
-  });
-  ({ gasRequired } = await router.query.addLiquidityNative(
-    usdt.address,
-    oneStableCoinAmount,
-    oneStableCoinAmount,
-    oneSby,
-    deployer.address,
-    deadline,
-    {
-      value: oneSby,
-    },
-  ));
-  await router.tx.addLiquidityNative(
-    usdt.address,
-    oneStableCoinAmount,
-    oneStableCoinAmount,
-    oneSby,
-    deployer.address,
-    deadline,
-    {
-      gasLimit: gasRequired,
-      value: oneSby,
-    },
-  );
+  await approveSpender(aplo, router.address, aploAmount);
+  console.log('approved aplo to spend by router');
+  await addLiquidityNative(router, aplo, aploAmount, aploAmount, deployer.address);
+  console.log('added aplo liquidity');
+  await approveSpender(usdc, router.address, ONE_STABLECOIN);
+  console.log('approved usdc to spend by router');
+  await addLiquidityNative(router, usdc, ONE_STABLECOIN, ONE_STABLECOIN, deployer.address);
+  console.log('added usdc liquidity');
+  await approveSpender(usdt, router.address, ONE_STABLECOIN);
+  console.log('approved usdt to spend by router');
+  await addLiquidityNative(router, usdt, ONE_STABLECOIN, ONE_STABLECOIN, deployer.address);
+  console.log('added usdt liquidity');
 
   const {
     value: { ok: aploSbyAddress },
@@ -274,7 +196,3 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-
-function parseUnits(amount: bigint | number, decimals = 18): bigint {
-  return BigInt(amount) * 10n ** BigInt(decimals);
-}

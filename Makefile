@@ -18,6 +18,9 @@ stop-node: ## Stops the local network.
 	@echo "Stopping aleph-network."
 	@docker stop aleph-network
 
+.PHONY: restart-node
+restart-node: stop-node start-node ## Restarts the local network.
+
 .PHONY: build-node
 # Build multi-CPU architecture images and publish them. rust alpine images support the linux/amd64 and linux/arm64/v8 architectures.
 build-node: build-node-${BUILDARCH} ## Detects local arch and builds docker image
