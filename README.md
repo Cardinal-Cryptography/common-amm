@@ -75,7 +75,9 @@ This will:
 
 First start your local node. You can do that by running `make start-node` in the root directory of the project.
 
-To deploy contracts, execute `npm run deploy:local` in the root directory. 
+To deploy contracts, execute `npm run deploy:local` in the root directory.
+
+To create sample tokens and register them as pairs in the DEX, run `npm run example`.
 
 Note that this requires rebuilding TypeScript wrappers first: `npm run compile:release`.
 
