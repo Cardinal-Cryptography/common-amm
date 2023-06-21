@@ -8,8 +8,8 @@ This is an unaudited full dex implementation ready to be used.
 
 ### Versions
 
-[ink! 4.0.0](https://github.com/paritytech/ink/tree/v4.0.0)  
-[openbrush 3.0.0](https://github.com/727-Ventures/openbrush-contracts/tree/3.0.0)
+[ink! 4.2.1](https://github.com/paritytech/ink/tree/v4.2.1)  
+[openbrush 3.1.1](https://github.com/727-Ventures/openbrush-contracts/tree/3.1.1)
 
 ### License
 
@@ -75,7 +75,9 @@ This will:
 
 First start your local node. You can do that by running `make start-node` in the root directory of the project.
 
-To deploy contracts, execute `npm run deploy` in the root directory. Note that this requires rebuilding TypeScript wrappers first: `npm run compile:release`.
+To deploy contracts, execute `npm run deploy:local` in the root directory. 
+
+Note that this requires rebuilding TypeScript wrappers first: `npm run compile:release`.
 
 ##### 💫 Help
 
