@@ -20,14 +20,6 @@ To build all contracts, run this command from the project root directory:
 make build-all
 ```
 
-If you want to build the contracts for E2E tests, use:
-
-```sh
-make build-all-for-e2e-tests
-```
-
-This will include the `e2e-tests` feature, which will allow you to run E2E tests in sequence on one node. **Do not use this for production!**
-
 ##### 💫 Wrap
 Use these [instructions](https://github.com/Cardinal-Cryptography/ink-wrapper#installation) to set up your `ink-wrapper` environment.
 Once you have built your contracts, you can wrap them by running this command from the project root directory:
@@ -36,19 +28,11 @@ Once you have built your contracts, you can wrap them by running this command fr
 make wrap-all
 ```
 
-You can also build and wrap the contract in one step using:
+You can also build and wrap the contracts in one step using:
 
 ```sh
 make build-and-wrap-all
 ```
-
-In case you want to build and wrap the contracts for E2E tests, you can use:
-
-```sh
-make build-and-wrap-all-for-e2e-tests
-```
-
-This will make the use of the `e2e-tests` feature. **Do not use for production!**
 
 ##### 💫 Run checks
 Rust code checks and unit tests can be run from the root directory of the project:
@@ -72,9 +56,9 @@ make e2e-tests-with-setup-and-teardown
 ```
 
 This will:
-- Build and wrap your contracts for e2e tests (**not for production**).
+- Build and wrap your contracts.
 - Run a single node.
-- Sequentially run all the E2E test cases with setup and teardown.
+- Sequentially run all the E2E test cases with setup.
 - Stop the node.
 
 ##### 💫 Deploy

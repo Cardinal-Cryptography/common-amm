@@ -1,9 +1,14 @@
 use std::{
     env,
+    future::Future,
     str::FromStr,
 };
 
-use anyhow::Result;
+use anyhow::{
+    anyhow,
+    Result,
+};
+use tokio::sync::OnceCell;
 
 use aleph_client::{
     pallets::{
@@ -15,13 +20,6 @@ use aleph_client::{
     TxStatus,
 };
 
-use crate::{
-    factory_contract,
-    pair_contract,
-    psp22_token,
-    router_contract,
-    wnative_contract,
-};
 pub use uniswap_v2::helpers::ZERO_ADDRESS;
 
 pub const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:9944";
@@ -29,13 +27,6 @@ pub const WEALTHY_SEED: &str = "//Alice";
 pub const REGULAR_SEED: &str = "//0";
 
 pub const INITIAL_TRANSFER: Balance = 1_000_000_000_000;
-const PSP22_TOTAL_SUPPLY: Balance = 10_000_000;
-const PSP22_DECIMALS: u8 = 18;
-
-pub const TOKEN_A_NAME: &str = "TOKEN_A";
-pub const TOKEN_B_NAME: &str = "TOKEN_B";
-pub const TOKEN_A_SYMBOL: &str = "TKNA";
-pub const TOKEN_B_SYMBOL: &str = "TKNB";
 
 pub fn get_env<T>(name: &str) -> Option<T>
 where
@@ -48,54 +39,15 @@ where
     })
 }
 
-pub async fn set_up_factory_contract(
-    connection: &SignedConnection,
-    regular_account: ink_primitives::AccountId,
-    pair_code_hash: ink_primitives::Hash,
-) -> Result<factory_contract::Instance> {
-    factory_contract::upload(connection).await?;
-    factory_contract::Instance::new(connection, vec![], regular_account, pair_code_hash).await
-}
-
-/// Instances of the `Pair` contract are to be created indirectly via the `Factory` contract.
-pub async fn upload_code_pair_contract(connection: &SignedConnection) -> Result<()> {
-    pair_contract::upload(connection).await?;
+pub async fn try_upload_contract_code<F, Fut>(cell: &OnceCell<Result<()>>, upload: F) -> Result<()>
+where
+    F: Fn() -> Fut,
+    Fut: Future<Output = Result<()>>,
+{
+    if let Err(e) = cell.get_or_init(upload).await {
+        return Err(anyhow!("Failed to upload contract code: {:?}", e))
+    }
     Ok(())
-}
-
-pub async fn set_up_psp22_token(
-    connection: &SignedConnection,
-    name: &str,
-    symbol: &str,
-) -> Result<psp22_token::Instance> {
-    psp22_token::upload(connection).await?;
-    psp22_token::Instance::new(
-        connection,
-        vec![],
-        PSP22_TOTAL_SUPPLY,
-        Some(name.to_string()),
-        Some(symbol.to_string()),
-        PSP22_DECIMALS,
-    )
-    .await
-}
-
-#[allow(dead_code)]
-async fn set_up_wnative_contract(
-    connection: &SignedConnection,
-) -> Result<wnative_contract::Instance> {
-    wnative_contract::upload(connection).await?;
-    wnative_contract::Instance::new(connection, vec![]).await
-}
-
-#[allow(dead_code)]
-async fn set_up_router_contract(
-    connection: &SignedConnection,
-    factory: ink_primitives::AccountId,
-    wnative: ink_primitives::AccountId,
-) -> Result<router_contract::Instance> {
-    router_contract::upload(connection).await?;
-    router_contract::Instance::new(connection, vec![], factory, wnative).await
 }
 
 pub fn set_up_logger() {

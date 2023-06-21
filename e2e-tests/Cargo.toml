@@ -9,7 +9,7 @@ async-trait = "0.1.68"
 assert2 = "0.3.10"
 env_logger = "0.10.0"
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
-tokio = "1.28.1"
+tokio = { version = "1.28.2", features = ["parking_lot", "sync"] }
 
 aleph_client = "3.0.0"
 ink_primitives = "4.0.1"

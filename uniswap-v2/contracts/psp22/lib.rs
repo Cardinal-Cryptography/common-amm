@@ -86,13 +86,6 @@ pub mod token {
                 .expect("Should mint");
             instance
         }
-        /// For e2e testing purposes only. Do not use in production!
-        #[cfg(feature = "e2e-tests")]
-        #[ink(message)]
-        pub fn terminate(&mut self) -> Result<(), PSP22Error> {
-            let caller = self.env().caller();
-            self.env().terminate_contract(caller)
-        }
     }
 
     #[cfg(test)]

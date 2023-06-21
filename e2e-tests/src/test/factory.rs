@@ -3,12 +3,11 @@ use anyhow::{
     Result,
 };
 use assert2::assert;
+use tokio::sync::OnceCell;
 
 use aleph_client::{
-    pallets::contract::ContractsUserApi,
     KeyPair,
     SignedConnection,
-    TxStatus,
 };
 use ink_wrapper_types::util::ToAccountId;
 
@@ -19,9 +18,8 @@ use crate::{
     test::setup::{
         get_env,
         replenish_account,
-        set_up_factory_contract,
         set_up_logger,
-        upload_code_pair_contract,
+        try_upload_contract_code,
         DEFAULT_NODE_ADDRESS,
         INITIAL_TRANSFER,
         REGULAR_SEED,
@@ -30,6 +28,8 @@ use crate::{
     },
 };
 
+static FACTORY_TESTS_CODE_UPLOAD: OnceCell<Result<()>> = OnceCell::const_new();
+
 pub struct FactoryTestAccounts {
     wealthy_account: ink_primitives::AccountId,
     regular_account: ink_primitives::AccountId,
@@ -37,7 +37,6 @@ pub struct FactoryTestAccounts {
 }
 
 struct FactoryTestSetup {
-    factory_contract: factory_contract::Instance,
     wealthy_connection: SignedConnection,
     regular_connection: SignedConnection,
     wealthy_account: ink_primitives::AccountId,
@@ -57,6 +56,17 @@ pub fn set_up_accounts(wealthy: &KeyPair, regular: &KeyPair) -> FactoryTestAccou
     }
 }
 
+async fn factory_tests_code_upload() -> Result<()> {
+    let node_address = get_env("NODE_ADDRESS").unwrap_or(DEFAULT_NODE_ADDRESS.to_string());
+    let wealthy = aleph_client::keypair_from_string(WEALTHY_SEED);
+    let wealthy_connection = SignedConnection::new(&node_address, wealthy).await;
+
+    pair_contract::upload(&wealthy_connection).await?;
+    factory_contract::upload(&wealthy_connection).await?;
+
+    Ok(())
+}
+
 async fn set_up_factory_test() -> Result<FactoryTestSetup> {
     let node_address = get_env("NODE_ADDRESS").unwrap_or(DEFAULT_NODE_ADDRESS.to_string());
 
@@ -72,17 +82,7 @@ async fn set_up_factory_test() -> Result<FactoryTestSetup> {
     let wealthy_connection = SignedConnection::new(&node_address, wealthy).await;
     let regular_connection = SignedConnection::new(&node_address, regular).await;
 
-    upload_code_pair_contract(&wealthy_connection).await?;
-
-    let factory_contract = set_up_factory_contract(
-        &wealthy_connection,
-        regular_account,
-        pair_contract::CODE_HASH.into(),
-    )
-    .await?;
-
     let factory_test_setup = FactoryTestSetup {
-        factory_contract,
         wealthy_connection,
         regular_connection,
         wealthy_account,
@@ -93,32 +93,26 @@ async fn set_up_factory_test() -> Result<FactoryTestSetup> {
     Ok(factory_test_setup)
 }
 
-async fn tear_down_factory_test(
-    factory_contract: factory_contract::Instance,
-    connection: &SignedConnection,
-) -> Result<()> {
-    factory_contract.terminate(connection).await?;
-    connection
-        .remove_code(factory_contract::CODE_HASH.into(), TxStatus::InBlock)
-        .await?;
-    connection
-        .remove_code(pair_contract::CODE_HASH.into(), TxStatus::InBlock)
-        .await?;
-
-    Ok(())
-}
-
 #[tokio::test]
 pub async fn factory_contract_set_up_correctly() -> Result<()> {
     set_up_logger();
-
+    try_upload_contract_code(&FACTORY_TESTS_CODE_UPLOAD, factory_tests_code_upload).await?;
     let FactoryTestSetup {
-        factory_contract,
         wealthy_connection,
         regular_account,
         zero_account,
         ..
     } = set_up_factory_test().await?;
+
+    let salt = "factory_contract_set_up_correctly".as_bytes();
+
+    let factory_contract = factory_contract::Instance::new(
+        &wealthy_connection,
+        salt.into(),
+        regular_account,
+        pair_contract::CODE_HASH.into(),
+    )
+    .await?;
 
     let recipient = factory_contract.fee_to(&wealthy_connection).await??;
     let setter = factory_contract
@@ -132,23 +126,31 @@ pub async fn factory_contract_set_up_correctly() -> Result<()> {
     assert!(setter == regular_account);
     assert!(all_pairs_length == 0);
 
-    tear_down_factory_test(factory_contract, &wealthy_connection).await?;
-
     Ok(())
 }
 
 #[tokio::test]
 pub async fn set_fee() -> Result<()> {
     set_up_logger();
+    try_upload_contract_code(&FACTORY_TESTS_CODE_UPLOAD, factory_tests_code_upload).await?;
 
     let FactoryTestSetup {
-        factory_contract,
         wealthy_connection,
         regular_connection,
         regular_account,
         zero_account,
         ..
     } = set_up_factory_test().await?;
+
+    let salt = "set_fee".as_bytes();
+
+    let factory_contract = factory_contract::Instance::new(
+        &wealthy_connection,
+        salt.into(),
+        regular_account,
+        pair_contract::CODE_HASH.into(),
+    )
+    .await?;
 
     let fee_recipient = factory_contract.fee_to(&wealthy_connection).await??;
 
@@ -173,23 +175,31 @@ pub async fn set_fee() -> Result<()> {
 
     assert!(regular_recipient == regular_account);
 
-    tear_down_factory_test(factory_contract, &wealthy_connection).await?;
-
     Ok(())
 }
 
 #[tokio::test]
 pub async fn set_fee_setter() -> Result<()> {
     set_up_logger();
+    try_upload_contract_code(&FACTORY_TESTS_CODE_UPLOAD, factory_tests_code_upload).await?;
 
     let FactoryTestSetup {
-        factory_contract,
         wealthy_connection,
         regular_connection,
         wealthy_account,
         regular_account,
         ..
     } = set_up_factory_test().await?;
+
+    let salt = "set_fee_setter".as_bytes();
+
+    let factory_contract = factory_contract::Instance::new(
+        &wealthy_connection,
+        salt.into(),
+        regular_account,
+        pair_contract::CODE_HASH.into(),
+    )
+    .await?;
 
     let setter_before = factory_contract
         .fee_to_setter(&wealthy_connection)
@@ -217,8 +227,6 @@ pub async fn set_fee_setter() -> Result<()> {
         .await??;
 
     assert!(setter_after == wealthy_account);
-
-    tear_down_factory_test(factory_contract, &wealthy_connection).await?;
 
     Ok(())
 }
