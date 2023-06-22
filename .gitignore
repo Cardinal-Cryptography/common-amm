@@ -2,12 +2,12 @@
 **/target/
 /artifacts/
 
+# Ignore contract wrappers.
+e2e-tests/src/*_contract.rs
+e2e-tests/src/psp22_token.rs
+
 # Ignore backup files creates by cargo fmt.
 **/*.rs.bk
-
-# Remove Cargo.lock when creating an executable, leave it for libraries
-# More information here http://doc.crates.io/guide.html#cargotoml-vs-cargolock
-Cargo.lock
 
 # Dependency directory
 node_modules
