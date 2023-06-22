@@ -16,8 +16,8 @@ use crate::{
     factory_contract::Factory,
     pair_contract,
     test::setup::{
-        random_salt,
         get_env,
+        random_salt,
         replenish_account,
         set_up_logger,
         try_upload_contract_code,

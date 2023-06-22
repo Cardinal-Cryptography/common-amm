@@ -32,6 +32,7 @@ use crate::{
     psp22_token::PSP22 as TokenPSP22,
     test::setup::{
         get_env,
+        random_salt,
         replenish_account,
         set_up_logger,
         try_upload_contract_code,
@@ -42,7 +43,6 @@ use crate::{
         ZERO_ADDRESS,
     },
 };
-use crate::test::setup::random_salt;
 
 const PSP22_TOTAL_SUPPLY: Balance = 10_000_000;
 const PSP22_DECIMALS: u8 = 18;
