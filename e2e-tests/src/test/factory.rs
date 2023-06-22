@@ -104,7 +104,7 @@ pub async fn factory_contract_set_up_correctly() -> Result<()> {
         ..
     } = set_up_factory_test().await?;
 
-    let salt = "factory_contract_set_up_correctly".as_bytes();
+    let salt = 1u8.to_le_bytes();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
@@ -142,7 +142,7 @@ pub async fn set_fee() -> Result<()> {
         ..
     } = set_up_factory_test().await?;
 
-    let salt = "set_fee".as_bytes();
+    let salt = 1u8.to_le_bytes();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
@@ -191,7 +191,7 @@ pub async fn set_fee_setter() -> Result<()> {
         ..
     } = set_up_factory_test().await?;
 
-    let salt = "set_fee_setter".as_bytes();
+    let salt = 1u8.to_le_bytes();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,

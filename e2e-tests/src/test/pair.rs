@@ -110,7 +110,7 @@ pub async fn create_pair() -> Result<()> {
         ..
     } = set_up_pair_test().await?;
 
-    let salt = "create_pair".as_bytes();
+    let salt = 1u8.to_le_bytes();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
@@ -195,7 +195,7 @@ pub async fn mint_pair() -> Result<()> {
         ..
     } = set_up_pair_test().await?;
 
-    let salt = "mint_pair".as_bytes();
+    let salt = 1u8.to_le_bytes();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
@@ -284,7 +284,7 @@ pub async fn swap_tokens() -> Result<()> {
         ..
     } = set_up_pair_test().await?;
 
-    let salt = "swap_tokens".as_bytes();
+    let salt = 1u8.to_le_bytes();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
@@ -384,7 +384,7 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
         regular_account,
     } = set_up_pair_test().await?;
 
-    let salt = "burn_liquidity_provider_token".as_bytes();
+    let salt = 1u8.to_le_bytes();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
