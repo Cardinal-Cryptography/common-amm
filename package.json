@@ -17,7 +17,7 @@
   "scripts": {
     "compile": "typechain-compiler --toolchain nightly-2023-01-10",
     "compile:release": "typechain-compiler --release --toolchain nightly-2023-01-10",
-    "deploy:local": "source scripts/local && ts-node scripts/deploy.ts",
+    "deploy:local": "source scripts/local.env && ts-node scripts/deploy.ts",
     "example:local": "ts-node scripts/example_setup.ts",
     "deploy": "ts-node scripts/deploy.ts",
     "format": "prettier --write ."
