@@ -8,6 +8,7 @@ use anyhow::{
     anyhow,
     Result,
 };
+use rand::RngCore;
 use tokio::sync::OnceCell;
 
 use aleph_client::{
@@ -37,6 +38,12 @@ where
         v.parse()
             .unwrap_or_else(|_| panic!("Failed to parse env var {name}"))
     })
+}
+
+pub fn random_salt() -> Vec<u8> {
+    let mut salt = vec![0; 32];
+    rand::thread_rng().fill_bytes(&mut salt);
+    salt
 }
 
 pub async fn try_upload_contract_code<F, Fut>(cell: &OnceCell<Result<()>>, upload: F) -> Result<()>

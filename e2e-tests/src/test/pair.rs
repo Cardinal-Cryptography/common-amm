@@ -42,6 +42,7 @@ use crate::{
         ZERO_ADDRESS,
     },
 };
+use crate::test::setup::random_salt;
 
 const PSP22_TOTAL_SUPPLY: Balance = 10_000_000;
 const PSP22_DECIMALS: u8 = 18;
@@ -110,18 +111,18 @@ pub async fn create_pair() -> Result<()> {
         ..
     } = set_up_pair_test().await?;
 
-    let salt = 1u8.to_le_bytes();
+    let salt = random_salt();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt.clone(),
         regular_account,
         pair_contract::CODE_HASH.into(),
     )
     .await?;
     let token_a = psp22_token::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt.clone(),
         PSP22_TOTAL_SUPPLY,
         Some(TOKEN_A_NAME.to_string()),
         Some(TOKEN_A_SYMBOL.to_string()),
@@ -130,7 +131,7 @@ pub async fn create_pair() -> Result<()> {
     .await?;
     let token_b = psp22_token::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt,
         PSP22_TOTAL_SUPPLY,
         Some(TOKEN_B_NAME.to_string()),
         Some(TOKEN_B_SYMBOL.to_string()),
@@ -195,18 +196,18 @@ pub async fn mint_pair() -> Result<()> {
         ..
     } = set_up_pair_test().await?;
 
-    let salt = 1u8.to_le_bytes();
+    let salt = random_salt();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt.clone(),
         regular_account,
         pair_contract::CODE_HASH.into(),
     )
     .await?;
     let token_a = psp22_token::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt.clone(),
         PSP22_TOTAL_SUPPLY,
         Some(TOKEN_A_NAME.to_string()),
         Some(TOKEN_A_SYMBOL.to_string()),
@@ -215,7 +216,7 @@ pub async fn mint_pair() -> Result<()> {
     .await?;
     let token_b = psp22_token::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt,
         PSP22_TOTAL_SUPPLY,
         Some(TOKEN_B_NAME.to_string()),
         Some(TOKEN_B_SYMBOL.to_string()),
@@ -284,18 +285,18 @@ pub async fn swap_tokens() -> Result<()> {
         ..
     } = set_up_pair_test().await?;
 
-    let salt = 1u8.to_le_bytes();
+    let salt = random_salt();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt.clone(),
         regular_account,
         pair_contract::CODE_HASH.into(),
     )
     .await?;
     let token_a = psp22_token::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt.clone(),
         PSP22_TOTAL_SUPPLY,
         Some(TOKEN_A_NAME.to_string()),
         Some(TOKEN_A_SYMBOL.to_string()),
@@ -304,7 +305,7 @@ pub async fn swap_tokens() -> Result<()> {
     .await?;
     let token_b = psp22_token::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt,
         PSP22_TOTAL_SUPPLY,
         Some(TOKEN_B_NAME.to_string()),
         Some(TOKEN_B_SYMBOL.to_string()),
@@ -384,18 +385,18 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
         regular_account,
     } = set_up_pair_test().await?;
 
-    let salt = 1u8.to_le_bytes();
+    let salt = random_salt();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt.clone(),
         regular_account,
         pair_contract::CODE_HASH.into(),
     )
     .await?;
     let token_a = psp22_token::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt.clone(),
         PSP22_TOTAL_SUPPLY,
         Some(TOKEN_A_NAME.to_string()),
         Some(TOKEN_A_SYMBOL.to_string()),
@@ -404,7 +405,7 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
     .await?;
     let token_b = psp22_token::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt,
         PSP22_TOTAL_SUPPLY,
         Some(TOKEN_B_NAME.to_string()),
         Some(TOKEN_B_SYMBOL.to_string()),

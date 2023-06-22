@@ -16,6 +16,7 @@ use crate::{
     factory_contract::Factory,
     pair_contract,
     test::setup::{
+        random_salt,
         get_env,
         replenish_account,
         set_up_logger,
@@ -104,11 +105,11 @@ pub async fn factory_contract_set_up_correctly() -> Result<()> {
         ..
     } = set_up_factory_test().await?;
 
-    let salt = 1u8.to_le_bytes();
+    let salt = random_salt();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt,
         regular_account,
         pair_contract::CODE_HASH.into(),
     )
@@ -142,11 +143,11 @@ pub async fn set_fee() -> Result<()> {
         ..
     } = set_up_factory_test().await?;
 
-    let salt = 1u8.to_le_bytes();
+    let salt = random_salt();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt,
         regular_account,
         pair_contract::CODE_HASH.into(),
     )
@@ -191,11 +192,11 @@ pub async fn set_fee_setter() -> Result<()> {
         ..
     } = set_up_factory_test().await?;
 
-    let salt = 1u8.to_le_bytes();
+    let salt = random_salt();
 
     let factory_contract = factory_contract::Instance::new(
         &wealthy_connection,
-        salt.into(),
+        salt,
         regular_account,
         pair_contract::CODE_HASH.into(),
     )
