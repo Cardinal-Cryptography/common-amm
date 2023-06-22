@@ -1,7 +1,10 @@
 import fs from 'fs';
 import { ApiPromise } from '@polkadot/api';
 import { Abi } from '@polkadot/api-contract';
-import { WeightV2, ContractInstantiateResult } from '@polkadot/types/interfaces';
+import {
+  WeightV2,
+  ContractInstantiateResult,
+} from '@polkadot/types/interfaces';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { HexString } from '@polkadot/util/types';
 import { TOTAL_SUPPLY } from '../constants';
@@ -25,7 +28,7 @@ export async function estimateInit(
     ),
   );
   const tokenAbi = new Abi(tokenContractRaw);
-  const { gasRequired } = await api.call.contractsApi.instantiate(
+  const { gasRequired } = (await api.call.contractsApi.instantiate(
     deployer,
     0,
     null,
@@ -33,7 +36,7 @@ export async function estimateInit(
     { Upload: tokenAbi.info.source.wasm },
     tokenAbi.constructors[0].toU8a([TOTAL_SUPPLY, 'Apollo Token', 'APLO', 18]),
     '',
-  ) as unknown as ContractInstantiateResult;
+  )) as unknown as ContractInstantiateResult;
 
   return gasRequired;
 }

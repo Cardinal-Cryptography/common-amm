@@ -66,6 +66,7 @@ make e2e-tests-with-setup-and-teardown
 ```
 
 This will:
+
 - Build and wrap your contracts.
 - Run a single node.
 - Sequentially run all the E2E test cases with setup.

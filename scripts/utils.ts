@@ -4,14 +4,6 @@ import { ONE_WAZERO, DEADLINE } from './constants';
 import { Addresses } from './shared';
 import fs from 'fs';
 
-export const approveSpender = async (
-  token: Token,
-  spender: string,
-  amount: string,
-): Promise<void> => {
-  await token.tx.approve(spender, amount);
-};
-
 export const addLiquidityNative = async (
   router: Router,
   token: Token,

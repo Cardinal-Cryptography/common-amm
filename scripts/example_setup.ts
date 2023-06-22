@@ -6,7 +6,7 @@ import Router from '../types/contracts/router_contract';
 import Factory from '../types/contracts/factory_contract';
 import * as token from './token';
 import { TOTAL_SUPPLY, STABLE_TOTAL_SUPPLY, ONE_STABLECOIN } from './constants';
-import { approveSpender, addLiquidityNative } from './utils';
+import { addLiquidityNative } from './utils';
 import { parseUnits } from './shared';
 
 // Create a new instance of contract
@@ -58,7 +58,7 @@ async function main(): Promise<void> {
   /// Add liquidity
   const aploAmount = parseUnits(100).toString();
 
-  await approveSpender(aplo, router.address, aploAmount);
+  await aplo.tx.approve(router.address, aploAmount);
   console.log('approved aplo to spend by router');
   await addLiquidityNative(
     router,
@@ -68,7 +68,7 @@ async function main(): Promise<void> {
     deployer.address,
   );
   console.log('added aplo liquidity');
-  await approveSpender(usdc, router.address, ONE_STABLECOIN);
+  await usdc.tx.approve(router.address, ONE_STABLECOIN);
   console.log('approved usdc to spend by router');
   await addLiquidityNative(
     router,
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
     deployer.address,
   );
   console.log('added usdc liquidity');
-  await approveSpender(usdt, router.address, ONE_STABLECOIN);
+  usdt.tx.approve(router.address, ONE_STABLECOIN);
   console.log('approved usdt to spend by router');
   await addLiquidityNative(
     router,
