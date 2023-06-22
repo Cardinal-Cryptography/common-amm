@@ -2,6 +2,10 @@
 **/target/
 /artifacts/
 
+# Ignore contract wrappers.
+e2e-tests/src/*_contract.rs
+e2e-tests/src/psp22_token.rs
+
 # Ignore backup files creates by cargo fmt.
 **/*.rs.bk
 

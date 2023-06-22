@@ -22,9 +22,9 @@ pub trait Factory {
     #[ink(message)]
     fn pair_contract_code_hash(&self) -> Hash;
 
-    /// Creates instance of `Pair` contract for `(token_a, token_b)` pair.
-    /// Returns address of the contract instnace if successful.
-    /// Fails if `Pair` instance of the token pair already exists,
+    /// Creates an instance of the `Pair` contract for the `(token_a, token_b)` pair.
+    /// Returns the address of the contract instance if successful.
+    /// Fails if the `Pair` instance of the token pair already exists
     /// or the token pair is illegal.
     #[ink(message)]
     fn create_pair(

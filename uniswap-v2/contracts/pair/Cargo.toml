@@ -20,6 +20,7 @@ crate-type = [
     "cdylib",
     "rlib"
 ]
+doctest = false
 
 [features]
 default = ["std"]

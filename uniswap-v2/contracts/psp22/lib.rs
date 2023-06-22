@@ -87,4 +87,25 @@ pub mod token {
             instance
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[ink::test]
+        fn initialize_works() {
+            let name = "TOKEN_A".to_string();
+            let symbol = "TKNA".to_string();
+            let decimals = 18;
+            let token = MyPSP22::new(
+                1_000_000_000,
+                Some(name.clone()),
+                Some(symbol.clone()),
+                decimals,
+            );
+            assert_eq!(token.metadata.name.unwrap(), name);
+            assert_eq!(token.metadata.symbol.unwrap(), symbol);
+            assert_eq!(token.metadata.decimals, decimals);
+        }
+    }
 }
