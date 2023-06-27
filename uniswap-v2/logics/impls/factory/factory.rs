@@ -23,14 +23,11 @@ where
     T: Storage<data::Data>,
 {
     default fn all_pairs(&self, pid: u64) -> Option<AccountId> {
-        self.data::<data::Data>()
-            .all_pairs
-            .get(pid as usize)
-            .cloned()
+        self.data::<data::Data>().all_pairs.get(&pid)
     }
 
     default fn all_pairs_length(&self) -> u64 {
-        self.data::<data::Data>().all_pairs.len() as u64
+        self.data::<data::Data>().all_pairs_length
     }
 
     default fn pair_contract_code_hash(&self) -> Hash {
@@ -66,7 +63,12 @@ where
         self.data::<data::Data>()
             .get_pair
             .insert(&(token_pair.1, token_pair.0), &pair_contract);
-        self.data::<data::Data>().all_pairs.push(pair_contract);
+        let new_pair_index = self.data::<data::Data>().all_pairs_length;
+        self.data::<data::Data>()
+            .all_pairs
+            .insert(&new_pair_index, &pair_contract);
+        // Update the length of all pairs after the insertion so that the next pair is in correct index.
+        self.data::<data::Data>().all_pairs_length += 1;
 
         self._emit_create_pair_event(
             token_pair.0,
