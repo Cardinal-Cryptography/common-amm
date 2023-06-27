@@ -63,12 +63,8 @@ where
         self.data::<data::Data>()
             .get_pair
             .insert(&(token_pair.1, token_pair.0), &pair_contract);
-        let new_pair_index = self.data::<data::Data>().all_pairs_length;
-        self.data::<data::Data>()
-            .all_pairs
-            .insert(&new_pair_index, &pair_contract);
-        // Update the length of all pairs after the insertion so that the next pair is in correct index.
-        self.data::<data::Data>().all_pairs_length += 1;
+
+        self._add_new_pair(pair_contract);
 
         self._emit_create_pair_event(
             token_pair.0,
@@ -121,6 +117,9 @@ pub trait Internal {
         token_0: AccountId,
         token_1: AccountId,
     ) -> Result<AccountId, FactoryError>;
+
+    /// Adds a new pair to the contract's storage.
+    fn _add_new_pair(&mut self, pair: AccountId);
 }
 
 #[modifier_definition]
