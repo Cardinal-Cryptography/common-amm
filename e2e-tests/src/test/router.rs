@@ -106,14 +106,13 @@ pub async fn add_liquidity_via_router() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_a: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_a = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -121,15 +120,13 @@ pub async fn add_liquidity_via_router() -> Result<()> {
                 Some(TOKEN_A_SYMBOL.to_string()),
                 PSP22_DECIMALS,
             )
-                .with_salt(salt.clone()),
+            .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let wnative_contract: wnative_contract::Instance = wealthy_connection
+        .await?;
+    let wnative_contract = wealthy_connection
         .instantiate(wnative_contract::Instance::new().with_salt(salt.clone()))
-        .await?
-        .into();
-    let router_contract: router_contract::Instance = wealthy_connection
+        .await?;
+    let router_contract = wealthy_connection
         .instantiate(
             router_contract::Instance::new(factory_contract.into(), wnative_contract.into())
                 .with_salt(salt),
@@ -184,14 +181,13 @@ pub async fn swap_exact_native_for_tokens_via_router() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_a: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_a = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -199,15 +195,13 @@ pub async fn swap_exact_native_for_tokens_via_router() -> Result<()> {
                 Some(TOKEN_A_SYMBOL.to_string()),
                 PSP22_DECIMALS,
             )
-                .with_salt(salt.clone()),
+            .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let wnative_contract: wnative_contract::Instance = wealthy_connection
+        .await?;
+    let wnative_contract = wealthy_connection
         .instantiate(wnative_contract::Instance::new().with_salt(salt.clone()))
-        .await?
-        .into();
-    let router_contract: router_contract::Instance = wealthy_connection
+        .await?;
+    let router_contract = wealthy_connection
         .instantiate(
             router_contract::Instance::new(factory_contract.into(), wnative_contract.into())
                 .with_salt(salt),
@@ -245,14 +239,13 @@ pub async fn swap_native_for_exact_tokens_via_router() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_a: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_a = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -260,15 +253,13 @@ pub async fn swap_native_for_exact_tokens_via_router() -> Result<()> {
                 Some(TOKEN_A_SYMBOL.to_string()),
                 PSP22_DECIMALS,
             )
-                .with_salt(salt.clone()),
+            .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let wnative_contract: wnative_contract::Instance = wealthy_connection
+        .await?;
+    let wnative_contract = wealthy_connection
         .instantiate(wnative_contract::Instance::new().with_salt(salt.clone()))
-        .await?
-        .into();
-    let router_contract: router_contract::Instance = wealthy_connection
+        .await?;
+    let router_contract = wealthy_connection
         .instantiate(
             router_contract::Instance::new(factory_contract.into(), wnative_contract.into())
                 .with_salt(salt),
@@ -306,14 +297,13 @@ pub async fn swap_exact_tokens_for_tokens_via_router() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_a: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_a = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -321,15 +311,13 @@ pub async fn swap_exact_tokens_for_tokens_via_router() -> Result<()> {
                 Some(TOKEN_A_SYMBOL.to_string()),
                 PSP22_DECIMALS,
             )
-                .with_salt(salt.clone()),
+            .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let wnative_contract: wnative_contract::Instance = wealthy_connection
+        .await?;
+    let wnative_contract = wealthy_connection
         .instantiate(wnative_contract::Instance::new().with_salt(salt.clone()))
-        .await?
-        .into();
-    let router_contract: router_contract::Instance = wealthy_connection
+        .await?;
+    let router_contract = wealthy_connection
         .instantiate(
             router_contract::Instance::new(factory_contract.into(), wnative_contract.into())
                 .with_salt(salt),
@@ -376,14 +364,13 @@ pub async fn swap_tokens_for_exact_tokens_via_router() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_a: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_a = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -391,15 +378,13 @@ pub async fn swap_tokens_for_exact_tokens_via_router() -> Result<()> {
                 Some(TOKEN_A_SYMBOL.to_string()),
                 PSP22_DECIMALS,
             )
-                .with_salt(salt.clone()),
+            .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let wnative_contract: wnative_contract::Instance = wealthy_connection
+        .await?;
+    let wnative_contract = wealthy_connection
         .instantiate(wnative_contract::Instance::new().with_salt(salt.clone()))
-        .await?
-        .into();
-    let router_contract: router_contract::Instance = wealthy_connection
+        .await?;
+    let router_contract = wealthy_connection
         .instantiate(
             router_contract::Instance::new(factory_contract.into(), wnative_contract.into())
                 .with_salt(salt),
@@ -449,14 +434,13 @@ pub async fn add_more_liquidity_via_router() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_a: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_a = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -464,15 +448,13 @@ pub async fn add_more_liquidity_via_router() -> Result<()> {
                 Some(TOKEN_A_SYMBOL.to_string()),
                 PSP22_DECIMALS,
             )
-                .with_salt(salt.clone()),
+            .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let wnative_contract: wnative_contract::Instance = wealthy_connection
+        .await?;
+    let wnative_contract = wealthy_connection
         .instantiate(wnative_contract::Instance::new().with_salt(salt.clone()))
-        .await?
-        .into();
-    let router_contract: router_contract::Instance = wealthy_connection
+        .await?;
+    let router_contract = wealthy_connection
         .instantiate(
             router_contract::Instance::new(factory_contract.into(), wnative_contract.into())
                 .with_salt(salt),
