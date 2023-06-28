@@ -7,7 +7,6 @@
     "compile:release": "typechain-compiler --release --toolchain nightly-2023-01-10",
     "deploy:local": "source scripts/local_env && ts-node scripts/deploy.ts",
     "example:local": "source scripts/local_env && ts-node scripts/example_setup.ts",
-    "deploy": "ts-node scripts/deploy.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
