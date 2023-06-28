@@ -114,13 +114,12 @@ pub async fn factory_contract_set_up_correctly() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt),
         )
-        .await?
-        .into();
+        .await?;
 
     let recipient = wealthy_connection.read(factory_contract.fee_to()).await??;
     let setter = wealthy_connection
@@ -152,13 +151,12 @@ pub async fn set_fee() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt),
         )
-        .await?
-        .into();
+        .await?;
 
     let fee_recipient = wealthy_connection.read(factory_contract.fee_to()).await??;
 
@@ -201,13 +199,12 @@ pub async fn set_fee_setter() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt),
         )
-        .await?
-        .into();
+        .await?;
 
     let setter_before = wealthy_connection
         .read(factory_contract.fee_to_setter())

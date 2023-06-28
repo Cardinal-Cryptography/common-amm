@@ -115,14 +115,13 @@ pub async fn create_pair() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_a: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_a = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -132,9 +131,8 @@ pub async fn create_pair() -> Result<()> {
             )
             .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_b: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_b = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -144,8 +142,7 @@ pub async fn create_pair() -> Result<()> {
             )
             .with_salt(salt),
         )
-        .await?
-        .into();
+        .await?;
 
     let all_pairs_length_before = wealthy_connection
         .read(factory_contract.all_pairs_length())
@@ -206,14 +203,13 @@ pub async fn mint_pair() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_a: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_a = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -223,9 +219,8 @@ pub async fn mint_pair() -> Result<()> {
             )
             .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_b: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_b = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -235,8 +230,7 @@ pub async fn mint_pair() -> Result<()> {
             )
             .with_salt(salt),
         )
-        .await?
-        .into();
+        .await?;
 
     wealthy_connection
         .exec(factory_contract.create_pair(token_a.into(), token_b.into()))
@@ -301,14 +295,13 @@ pub async fn swap_tokens() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_a: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_a = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -318,9 +311,8 @@ pub async fn swap_tokens() -> Result<()> {
             )
             .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_b: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_b = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -330,8 +322,7 @@ pub async fn swap_tokens() -> Result<()> {
             )
             .with_salt(salt),
         )
-        .await?
-        .into();
+        .await?;
 
     wealthy_connection
         .exec(factory_contract.create_pair(token_a.into(), token_b.into()))
@@ -402,14 +393,13 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract: factory_contract::Instance = wealthy_connection
+    let factory_contract = wealthy_connection
         .instantiate(
             factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_a: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_a = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -419,9 +409,8 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
             )
             .with_salt(salt.clone()),
         )
-        .await?
-        .into();
-    let token_b: psp22_token::Instance = wealthy_connection
+        .await?;
+    let token_b = wealthy_connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -431,8 +420,7 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
             )
             .with_salt(salt),
         )
-        .await?
-        .into();
+        .await?;
 
     wealthy_connection
         .exec(factory_contract.create_pair(token_a.into(), token_b.into()))
