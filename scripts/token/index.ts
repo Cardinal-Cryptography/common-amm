@@ -8,6 +8,7 @@ import {
 import { KeyringPair } from '@polkadot/keyring/types';
 import { HexString } from '@polkadot/util/types';
 import { TOTAL_SUPPLY } from '../constants';
+import { uploadCode } from '../utils';
 
 /**
  * Estimates gas required to create a new instance of `PSP22_token` contract.
@@ -51,26 +52,5 @@ export async function upload(
   api: ApiPromise,
   deployer: KeyringPair,
 ): Promise<HexString> {
-  const tokenContractRaw = JSON.parse(
-    fs.readFileSync(
-      __dirname + `/../../artifacts/psp22_token.contract`,
-      'utf8',
-    ),
-  );
-  const tokenAbi = new Abi(tokenContractRaw);
-  await new Promise(async (resolve, reject) => {
-    const unsub = await api.tx.contracts
-      .uploadCode(tokenAbi.info.source.wasm, null, 0)
-      .signAndSend(deployer, (result) => {
-        if (result.isFinalized) {
-          unsub();
-          resolve(result.txHash);
-        }
-        if (result.isError) {
-          unsub();
-          reject(result);
-        }
-      });
-  });
-  return tokenAbi.info.source.wasmHash.toHex();
+  return uploadCode(api, deployer, 'psp22_token.contract');
 }
