@@ -78,7 +78,7 @@ async function main(): Promise<void> {
     deployer.address,
   );
   console.log('added usdc liquidity');
-  usdt.tx.approve(router.address, ONE_STABLECOIN);
+  await usdt.tx.approve(router.address, ONE_STABLECOIN);
   console.log('approved usdt to spend by router');
   await addLiquidityNative(
     router,
