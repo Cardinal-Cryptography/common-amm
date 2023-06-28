@@ -95,4 +95,4 @@ build-and-wrap-all-dockerized: ## Builds all contracts and generates code for co
     	make build-and-wrap-all
 
 .PHONY: e2e-tests-with-setup-and-teardown
-e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized start-node e2e-tests stop-node ## Runs the E2E test suite.
+e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized build-node start-node e2e-tests stop-node ## Runs the E2E test suite.
