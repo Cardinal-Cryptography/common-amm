@@ -8,7 +8,7 @@ help: # Show help for each of the Makefile recipes.
 BUILDARCH := $(shell uname -m)
 
 .PHONY: start-node
-start-node: build-node ## Runs a network consisting of a single Aleph node.
+start-node: ## Runs a network consisting of a single Aleph node.
 	@echo "Starting aleph-network."
 	@docker run --detach --rm --network host \
 		--name aleph-network aleph-onenode-chain-${BUILDARCH}
