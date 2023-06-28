@@ -73,6 +73,12 @@ pub mod factory {
                 },
             )
         }
+
+        fn _add_new_pair(&mut self, pair: AccountId) {
+            let pair_len = self.factory.all_pairs_length;
+            self.factory.all_pairs.insert(&pair_len, &pair);
+            self.factory.all_pairs_length += 1;
+        }
     }
 
     impl FactoryContract {
