@@ -8,6 +8,10 @@ import { ApiPromise } from '@polkadot/api';
 import { Abi } from '@polkadot/api-contract';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { HexString } from '@polkadot/util/types';
+import {
+  ContractInstantiateResult,
+  WeightV2,
+} from '@polkadot/types/interfaces';
 
 export const addLiquidityNative = async (
   router: Router,
@@ -81,4 +85,31 @@ export async function uploadCode(
       });
   });
   return tokenAbi.info.source.wasmHash.toHex();
+}
+
+/**
+ * Estimates gas required to create a new instance of the contract.
+ *
+ * NOTE: This shouldn't be necessary but `Contract::new()` doesn't estimate gas and uses a hardcoded value.
+ */
+export async function estimateContractInit(
+  api: ApiPromise,
+  deployer: KeyringPair,
+  contractName: string,
+  sampleArgs: unknown[],
+): Promise<WeightV2> {
+  const contractRaw = JSON.parse(
+    fs.readFileSync(__dirname + `/../artifacts/` + contractName, 'utf8'),
+  );
+  const contractAbi = new Abi(contractRaw);
+  const { gasRequired } = (await api.call.contractsApi.instantiate(
+    deployer.address,
+    0,
+    null,
+    null,
+    { Upload: contractAbi.info.source.wasm },
+    contractAbi.constructors[0].toU8a(sampleArgs),
+    '',
+  )) as unknown as ContractInstantiateResult;
+  return gasRequired;
 }

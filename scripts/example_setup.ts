@@ -26,7 +26,7 @@ async function main(): Promise<void> {
 
   /// Create tokens
 
-  const tokenInitGas = await token.estimateInit(api, deployer.address);
+  const tokenInitGas = await token.estimateInit(api, deployer);
   const { address: aploAddress } = await tokenFactory.new(
     TOTAL_SUPPLY,
     'Apollo Token',
