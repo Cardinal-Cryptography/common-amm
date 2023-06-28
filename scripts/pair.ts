@@ -1,7 +1,7 @@
 import { ApiPromise } from '@polkadot/api';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { HexString } from '@polkadot/util/types';
-import { uploadCode } from '../utils';
+import { uploadCode } from './utils';
 
 /**
  * Uploads the `pair_contract` contract to the chain.

@@ -7,8 +7,8 @@ import {
 } from '@polkadot/types/interfaces';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { HexString } from '@polkadot/util/types';
-import { TOTAL_SUPPLY } from '../constants';
-import { uploadCode } from '../utils';
+import { TOTAL_SUPPLY } from './constants';
+import { uploadCode } from './utils';
 
 /**
  * Estimates gas required to create a new instance of `PSP22_token` contract.
@@ -23,10 +23,7 @@ export async function estimateInit(
   deployer: string,
 ): Promise<WeightV2> {
   const tokenContractRaw = JSON.parse(
-    fs.readFileSync(
-      __dirname + `/../../artifacts/psp22_token.contract`,
-      'utf8',
-    ),
+    fs.readFileSync(__dirname + `/../artifacts/psp22_token.contract`, 'utf8'),
   );
   const tokenAbi = new Abi(tokenContractRaw);
   const { gasRequired } = (await api.call.contractsApi.instantiate(

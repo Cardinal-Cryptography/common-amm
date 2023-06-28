@@ -1,4 +1,4 @@
-import { parseUnits } from '../shared';
+import { parseUnits } from './shared';
 
 export const DEADLINE = '111111111111111111';
 export const ONE_WAZERO = parseUnits(1, 12).toString();

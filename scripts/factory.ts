@@ -3,7 +3,7 @@ import { ApiPromise } from '@polkadot/api';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { WeightV2 } from '@polkadot/types/interfaces';
 import { Abi } from '@polkadot/api-contract';
-import { DUMMY_ADDRESS } from '../constants';
+import { DUMMY_ADDRESS } from './constants';
 
 /**
  * Estimates gas required to create a new instance of `Factory` contract.
@@ -16,7 +16,7 @@ export async function estimateInit(
 ): Promise<WeightV2> {
   const factoryContractRaw = JSON.parse(
     fs.readFileSync(
-      __dirname + `/../../artifacts/factory_contract.contract`,
+      __dirname + `/../artifacts/factory_contract.contract`,
       'utf8',
     ),
   );
