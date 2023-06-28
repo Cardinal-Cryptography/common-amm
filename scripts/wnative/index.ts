@@ -20,7 +20,7 @@ export async function estimateInit(
     ),
   );
   const wnativeAbi = new Abi(wnativeContractRaw);
-  let { gasRequired } = await api.call.contractsApi.instantiate(
+  const { gasRequired } = await api.call.contractsApi.instantiate(
     deployer.address,
     0,
     null,

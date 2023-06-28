@@ -1,4 +1,4 @@
-export function parseUnits(amount: bigint | number, decimals = 18): bigint {
+export function parseUnits(amount: bigint | number, decimals): bigint {
   return BigInt(amount) * 10n ** BigInt(decimals);
 }
 

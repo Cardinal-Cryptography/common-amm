@@ -56,7 +56,7 @@ async function main(): Promise<void> {
   const usdt = new Token(usdtAddress, deployer, api);
 
   /// Add liquidity
-  const aploAmount = parseUnits(100).toString();
+  const aploAmount = parseUnits(100, 18).toString();
 
   await aplo.tx.approve(router.address, aploAmount);
   console.log('approved aplo to spend by router');
