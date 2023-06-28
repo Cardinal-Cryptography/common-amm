@@ -12,6 +12,8 @@ use aleph_client::{
 use ink_wrapper_types::{
     util::ToAccountId,
     Connection,
+    SignedConnection as _,
+    UploadConnection,
 };
 
 use crate::{
@@ -38,19 +40,17 @@ use crate::{
         try_upload_contract_code,
         DEFAULT_NODE_ADDRESS,
         INITIAL_TRANSFER,
+        PSP22_DECIMALS,
+        PSP22_TOTAL_SUPPLY,
         REGULAR_SEED,
+        TOKEN_A_NAME,
+        TOKEN_A_SYMBOL,
+        TOKEN_B_NAME,
+        TOKEN_B_SYMBOL,
         WEALTHY_SEED,
         ZERO_ADDRESS,
     },
 };
-
-const PSP22_TOTAL_SUPPLY: Balance = 10_000_000;
-const PSP22_DECIMALS: u8 = 18;
-
-const TOKEN_A_NAME: &str = "TOKEN_A";
-const TOKEN_B_NAME: &str = "TOKEN_B";
-const TOKEN_A_SYMBOL: &str = "TKNA";
-const TOKEN_B_SYMBOL: &str = "TKNB";
 
 const BALANCE: Balance = 10_000;
 const MIN_BALANCE: Balance = 1_000;
@@ -74,9 +74,11 @@ async fn pair_tests_code_upload() -> Result<()> {
     let wealthy_connection = SignedConnection::new(&node_address, wealthy).await;
 
     // Instances of the `Pair` contract are to be created indirectly via the `Factory` contract.
-    pair_contract::upload(&wealthy_connection).await?;
-    factory_contract::upload(&wealthy_connection).await?;
-    psp22_token::upload(&wealthy_connection).await?;
+    wealthy_connection.upload(pair_contract::upload()).await?;
+    wealthy_connection
+        .upload(factory_contract::upload())
+        .await?;
+    wealthy_connection.upload(psp22_token::upload()).await?;
 
     Ok(())
 }
@@ -113,40 +115,46 @@ pub async fn create_pair() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract = factory_contract::Instance::new(
-        &wealthy_connection,
-        salt.clone(),
-        regular_account,
-        pair_contract::CODE_HASH.into(),
-    )
-    .await?;
-    let token_a = psp22_token::Instance::new(
-        &wealthy_connection,
-        salt.clone(),
-        PSP22_TOTAL_SUPPLY,
-        Some(TOKEN_A_NAME.to_string()),
-        Some(TOKEN_A_SYMBOL.to_string()),
-        PSP22_DECIMALS,
-    )
-    .await?;
-    let token_b = psp22_token::Instance::new(
-        &wealthy_connection,
-        salt,
-        PSP22_TOTAL_SUPPLY,
-        Some(TOKEN_B_NAME.to_string()),
-        Some(TOKEN_B_SYMBOL.to_string()),
-        PSP22_DECIMALS,
-    )
-    .await?;
+    let factory_contract: factory_contract::Instance = wealthy_connection
+        .instantiate(
+            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
+                .with_salt(salt.clone()),
+        )
+        .await?
+        .into();
+    let token_a: psp22_token::Instance = wealthy_connection
+        .instantiate(
+            psp22_token::Instance::new(
+                PSP22_TOTAL_SUPPLY,
+                Some(TOKEN_A_NAME.to_string()),
+                Some(TOKEN_A_SYMBOL.to_string()),
+                PSP22_DECIMALS,
+            )
+            .with_salt(salt.clone()),
+        )
+        .await?
+        .into();
+    let token_b: psp22_token::Instance = wealthy_connection
+        .instantiate(
+            psp22_token::Instance::new(
+                PSP22_TOTAL_SUPPLY,
+                Some(TOKEN_B_NAME.to_string()),
+                Some(TOKEN_B_SYMBOL.to_string()),
+                PSP22_DECIMALS,
+            )
+            .with_salt(salt),
+        )
+        .await?
+        .into();
 
-    let all_pairs_length_before = factory_contract
-        .all_pairs_length(&wealthy_connection)
+    let all_pairs_length_before = wealthy_connection
+        .read(factory_contract.all_pairs_length())
         .await??;
 
     assert!(all_pairs_length_before == 0);
 
-    let tx_info = factory_contract
-        .create_pair(&wealthy_connection, token_a.into(), token_b.into())
+    let tx_info = wealthy_connection
+        .exec(factory_contract.create_pair(token_a.into(), token_b.into()))
         .await?;
 
     let all_events = wealthy_connection.get_contract_events(tx_info).await?;
@@ -176,8 +184,8 @@ pub async fn create_pair() -> Result<()> {
     assert!(actual_token_pair == expected_token_pair);
     assert!(pair_len == 1);
 
-    let all_pairs_length_after = factory_contract
-        .all_pairs_length(&wealthy_connection)
+    let all_pairs_length_after = wealthy_connection
+        .read(factory_contract.all_pairs_length())
         .await??;
 
     assert!(all_pairs_length_after == all_pairs_length_before + 1);
@@ -198,55 +206,61 @@ pub async fn mint_pair() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract = factory_contract::Instance::new(
-        &wealthy_connection,
-        salt.clone(),
-        regular_account,
-        pair_contract::CODE_HASH.into(),
-    )
-    .await?;
-    let token_a = psp22_token::Instance::new(
-        &wealthy_connection,
-        salt.clone(),
-        PSP22_TOTAL_SUPPLY,
-        Some(TOKEN_A_NAME.to_string()),
-        Some(TOKEN_A_SYMBOL.to_string()),
-        PSP22_DECIMALS,
-    )
-    .await?;
-    let token_b = psp22_token::Instance::new(
-        &wealthy_connection,
-        salt,
-        PSP22_TOTAL_SUPPLY,
-        Some(TOKEN_B_NAME.to_string()),
-        Some(TOKEN_B_SYMBOL.to_string()),
-        PSP22_DECIMALS,
-    )
-    .await?;
+    let factory_contract: factory_contract::Instance = wealthy_connection
+        .instantiate(
+            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
+                .with_salt(salt.clone()),
+        )
+        .await?
+        .into();
+    let token_a: psp22_token::Instance = wealthy_connection
+        .instantiate(
+            psp22_token::Instance::new(
+                PSP22_TOTAL_SUPPLY,
+                Some(TOKEN_A_NAME.to_string()),
+                Some(TOKEN_A_SYMBOL.to_string()),
+                PSP22_DECIMALS,
+            )
+            .with_salt(salt.clone()),
+        )
+        .await?
+        .into();
+    let token_b: psp22_token::Instance = wealthy_connection
+        .instantiate(
+            psp22_token::Instance::new(
+                PSP22_TOTAL_SUPPLY,
+                Some(TOKEN_B_NAME.to_string()),
+                Some(TOKEN_B_SYMBOL.to_string()),
+                PSP22_DECIMALS,
+            )
+            .with_salt(salt),
+        )
+        .await?
+        .into();
 
-    factory_contract
-        .create_pair(&wealthy_connection, token_a.into(), token_b.into())
+    wealthy_connection
+        .exec(factory_contract.create_pair(token_a.into(), token_b.into()))
         .await?;
-    let pair = factory_contract
-        .get_pair(&wealthy_connection, token_a.into(), token_b.into())
+    let pair = wealthy_connection
+        .read(factory_contract.get_pair(token_a.into(), token_b.into()))
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
-    token_a
-        .transfer(&wealthy_connection, pair, BALANCE, vec![])
+    wealthy_connection
+        .exec(token_a.transfer(pair, BALANCE, vec![]))
         .await?;
-    token_b
-        .transfer(&wealthy_connection, pair, BALANCE, vec![])
+    wealthy_connection
+        .exec(token_b.transfer(pair, BALANCE, vec![]))
         .await?;
 
     let pair_contract: pair_contract::Instance = pair.into();
-    let regular_balance_before = pair_contract
-        .balance_of(&wealthy_connection, regular_account)
+    let regular_balance_before = wealthy_connection
+        .read(pair_contract.balance_of(regular_account))
         .await??;
 
     assert!(regular_balance_before == EXPECTED_INITIAL_REGULAR_BALANCE);
 
-    let mint_tx_info = pair_contract
-        .mint(&wealthy_connection, regular_account)
+    let mint_tx_info = wealthy_connection
+        .exec(pair_contract.mint(regular_account))
         .await?;
 
     let all_pair_contract_events = wealthy_connection.get_contract_events(mint_tx_info).await?;
@@ -261,11 +275,11 @@ pub async fn mint_pair() -> Result<()> {
     );
 
     let expected_balance = BALANCE - MIN_BALANCE;
-    let regular_balance_after = pair_contract
-        .balance_of(&wealthy_connection, regular_account)
+    let regular_balance_after = wealthy_connection
+        .read(pair_contract.balance_of(regular_account))
         .await??;
-    let zero_address_balance_after = pair_contract
-        .balance_of(&wealthy_connection, ZERO_ADDRESS.into())
+    let zero_address_balance_after = wealthy_connection
+        .read(pair_contract.balance_of(ZERO_ADDRESS.into()))
         .await??;
 
     assert!(regular_balance_after == expected_balance);
@@ -287,67 +301,68 @@ pub async fn swap_tokens() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract = factory_contract::Instance::new(
-        &wealthy_connection,
-        salt.clone(),
-        regular_account,
-        pair_contract::CODE_HASH.into(),
-    )
-    .await?;
-    let token_a = psp22_token::Instance::new(
-        &wealthy_connection,
-        salt.clone(),
-        PSP22_TOTAL_SUPPLY,
-        Some(TOKEN_A_NAME.to_string()),
-        Some(TOKEN_A_SYMBOL.to_string()),
-        PSP22_DECIMALS,
-    )
-    .await?;
-    let token_b = psp22_token::Instance::new(
-        &wealthy_connection,
-        salt,
-        PSP22_TOTAL_SUPPLY,
-        Some(TOKEN_B_NAME.to_string()),
-        Some(TOKEN_B_SYMBOL.to_string()),
-        PSP22_DECIMALS,
-    )
-    .await?;
+    let factory_contract: factory_contract::Instance = wealthy_connection
+        .instantiate(
+            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
+                .with_salt(salt.clone()),
+        )
+        .await?
+        .into();
+    let token_a: psp22_token::Instance = wealthy_connection
+        .instantiate(
+            psp22_token::Instance::new(
+                PSP22_TOTAL_SUPPLY,
+                Some(TOKEN_A_NAME.to_string()),
+                Some(TOKEN_A_SYMBOL.to_string()),
+                PSP22_DECIMALS,
+            )
+            .with_salt(salt.clone()),
+        )
+        .await?
+        .into();
+    let token_b: psp22_token::Instance = wealthy_connection
+        .instantiate(
+            psp22_token::Instance::new(
+                PSP22_TOTAL_SUPPLY,
+                Some(TOKEN_B_NAME.to_string()),
+                Some(TOKEN_B_SYMBOL.to_string()),
+                PSP22_DECIMALS,
+            )
+            .with_salt(salt),
+        )
+        .await?
+        .into();
 
-    factory_contract
-        .create_pair(&wealthy_connection, token_a.into(), token_b.into())
+    wealthy_connection
+        .exec(factory_contract.create_pair(token_a.into(), token_b.into()))
         .await?;
-    let pair = factory_contract
-        .get_pair(&wealthy_connection, token_a.into(), token_b.into())
+    let pair = wealthy_connection
+        .read(factory_contract.get_pair(token_a.into(), token_b.into()))
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
-    token_a
-        .transfer(&wealthy_connection, pair, BALANCE, vec![])
+    wealthy_connection
+        .exec(token_a.transfer(pair, BALANCE, vec![]))
         .await?;
-    token_b
-        .transfer(&wealthy_connection, pair, BALANCE, vec![])
+    wealthy_connection
+        .exec(token_b.transfer(pair, BALANCE, vec![]))
         .await?;
     let pair_contract: pair_contract::Instance = pair.into();
-    pair_contract
-        .mint(&wealthy_connection, regular_account)
+    wealthy_connection
+        .exec(pair_contract.mint(regular_account))
         .await?;
 
     let (first_token, second_token) = sort_tokens(token_a, token_b);
-    first_token
-        .transfer(&wealthy_connection, pair, FIRST_AMOUNT_IN, vec![])
+    wealthy_connection
+        .exec(first_token.transfer(pair, FIRST_AMOUNT_IN, vec![]))
         .await?;
-    let regular_balance_before = second_token
-        .balance_of(&wealthy_connection, regular_account)
+    let regular_balance_before = wealthy_connection
+        .read(second_token.balance_of(regular_account))
         .await??;
 
     assert!(regular_balance_before == EXPECTED_INITIAL_REGULAR_BALANCE);
 
-    let swap_tx_info = pair_contract
-        .swap(
-            &wealthy_connection,
-            FIRST_AMOUNT_OUT,
-            SECOND_AMOUNT_OUT,
-            regular_account,
-        )
+    let swap_tx_info = wealthy_connection
+        .exec(pair_contract.swap(FIRST_AMOUNT_OUT, SECOND_AMOUNT_OUT, regular_account))
         .await?;
 
     let all_pair_contract_events = wealthy_connection.get_contract_events(swap_tx_info).await?;
@@ -361,8 +376,8 @@ pub async fn swap_tokens() -> Result<()> {
         swap_events_len
     );
 
-    let regular_balance_after = second_token
-        .balance_of(&wealthy_connection, regular_account)
+    let regular_balance_after = wealthy_connection
+        .read(second_token.balance_of(regular_account))
         .await??;
 
     assert!(regular_balance_after == SECOND_AMOUNT_OUT);
@@ -387,76 +402,77 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract = factory_contract::Instance::new(
-        &wealthy_connection,
-        salt.clone(),
-        regular_account,
-        pair_contract::CODE_HASH.into(),
-    )
-    .await?;
-    let token_a = psp22_token::Instance::new(
-        &wealthy_connection,
-        salt.clone(),
-        PSP22_TOTAL_SUPPLY,
-        Some(TOKEN_A_NAME.to_string()),
-        Some(TOKEN_A_SYMBOL.to_string()),
-        PSP22_DECIMALS,
-    )
-    .await?;
-    let token_b = psp22_token::Instance::new(
-        &wealthy_connection,
-        salt,
-        PSP22_TOTAL_SUPPLY,
-        Some(TOKEN_B_NAME.to_string()),
-        Some(TOKEN_B_SYMBOL.to_string()),
-        PSP22_DECIMALS,
-    )
-    .await?;
+    let factory_contract: factory_contract::Instance = wealthy_connection
+        .instantiate(
+            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
+                .with_salt(salt.clone()),
+        )
+        .await?
+        .into();
+    let token_a: psp22_token::Instance = wealthy_connection
+        .instantiate(
+            psp22_token::Instance::new(
+                PSP22_TOTAL_SUPPLY,
+                Some(TOKEN_A_NAME.to_string()),
+                Some(TOKEN_A_SYMBOL.to_string()),
+                PSP22_DECIMALS,
+            )
+            .with_salt(salt.clone()),
+        )
+        .await?
+        .into();
+    let token_b: psp22_token::Instance = wealthy_connection
+        .instantiate(
+            psp22_token::Instance::new(
+                PSP22_TOTAL_SUPPLY,
+                Some(TOKEN_B_NAME.to_string()),
+                Some(TOKEN_B_SYMBOL.to_string()),
+                PSP22_DECIMALS,
+            )
+            .with_salt(salt),
+        )
+        .await?
+        .into();
 
-    factory_contract
-        .create_pair(&wealthy_connection, token_a.into(), token_b.into())
+    wealthy_connection
+        .exec(factory_contract.create_pair(token_a.into(), token_b.into()))
         .await?;
-    let pair = factory_contract
-        .get_pair(&wealthy_connection, token_a.into(), token_b.into())
+    let pair = wealthy_connection
+        .read(factory_contract.get_pair(token_a.into(), token_b.into()))
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?;
-    token_a
-        .transfer(&wealthy_connection, pair, BALANCE, vec![])
+    wealthy_connection
+        .exec(token_a.transfer(pair, BALANCE, vec![]))
         .await?;
-    token_b
-        .transfer(&wealthy_connection, pair, BALANCE, vec![])
+    wealthy_connection
+        .exec(token_b.transfer(pair, BALANCE, vec![]))
         .await?;
     let pair_contract: pair_contract::Instance = pair.into();
-    pair_contract
-        .mint(&wealthy_connection, regular_account)
+    wealthy_connection
+        .exec(pair_contract.mint(regular_account))
         .await?;
     let (first_token, second_token) = sort_tokens(token_a, token_b);
-    first_token
-        .transfer(&wealthy_connection, pair, FIRST_AMOUNT_IN, vec![])
+    wealthy_connection
+        .exec(first_token.transfer(pair, FIRST_AMOUNT_IN, vec![]))
         .await?;
-    pair_contract
-        .swap(
-            &wealthy_connection,
-            FIRST_AMOUNT_OUT,
-            SECOND_AMOUNT_OUT,
-            regular_account,
-        )
+    wealthy_connection
+        .exec(pair_contract.swap(FIRST_AMOUNT_OUT, SECOND_AMOUNT_OUT, regular_account))
         .await?;
 
-    let first_token_balance_before = first_token
-        .balance_of(&wealthy_connection, regular_account)
+    let first_token_balance_before = wealthy_connection
+        .read(first_token.balance_of(regular_account))
         .await??;
-    let second_token_balance_before = second_token
-        .balance_of(&wealthy_connection, regular_account)
+    let second_token_balance_before = wealthy_connection
+        .read(second_token.balance_of(regular_account))
         .await??;
 
     let dest = aleph_client::AccountId::new(*regular_account.as_ref());
     replenish_account(&wealthy_connection, dest, INITIAL_TRANSFER).await?;
-    pair_contract
-        .transfer(&regular_connection, pair, PAIR_TRANSFER, vec![])
+    regular_connection
+        .exec(pair_contract.transfer(pair, PAIR_TRANSFER, vec![]))
         .await?;
-    let burn_tx_info = pair_contract
-        .burn(&regular_connection, regular_account)
+    let burn_tx_info = regular_connection
+        .exec(pair_contract.burn(regular_account))
         .await?;
 
     let all_pair_contract_events = wealthy_connection.get_contract_events(burn_tx_info).await?;
@@ -470,11 +486,11 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
         burn_events_len
     );
 
-    let first_token_balance_after = first_token
-        .balance_of(&wealthy_connection, regular_account)
+    let first_token_balance_after = wealthy_connection
+        .read(first_token.balance_of(regular_account))
         .await??;
-    let second_token_balance_after = second_token
-        .balance_of(&wealthy_connection, regular_account)
+    let second_token_balance_after = wealthy_connection
+        .read(second_token.balance_of(regular_account))
         .await??;
     let first_token_balance_diff = first_token_balance_after - first_token_balance_before;
     let second_token_balance_diff = second_token_balance_after - second_token_balance_before;
