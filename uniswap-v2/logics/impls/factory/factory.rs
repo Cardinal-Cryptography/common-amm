@@ -23,14 +23,11 @@ where
     T: Storage<data::Data>,
 {
     default fn all_pairs(&self, pid: u64) -> Option<AccountId> {
-        self.data::<data::Data>()
-            .all_pairs
-            .get(pid as usize)
-            .cloned()
+        self.data::<data::Data>().all_pairs.get(&pid)
     }
 
     default fn all_pairs_length(&self) -> u64 {
-        self.data::<data::Data>().all_pairs.len() as u64
+        self.data::<data::Data>().all_pairs_length
     }
 
     default fn pair_contract_code_hash(&self) -> Hash {
@@ -66,7 +63,8 @@ where
         self.data::<data::Data>()
             .get_pair
             .insert(&(token_pair.1, token_pair.0), &pair_contract);
-        self.data::<data::Data>().all_pairs.push(pair_contract);
+
+        self._add_new_pair(pair_contract);
 
         self._emit_create_pair_event(
             token_pair.0,
@@ -119,6 +117,9 @@ pub trait Internal {
         token_0: AccountId,
         token_1: AccountId,
     ) -> Result<AccountId, FactoryError>;
+
+    /// Adds a new pair to the contract's storage.
+    fn _add_new_pair(&mut self, pair: AccountId);
 }
 
 #[modifier_definition]
