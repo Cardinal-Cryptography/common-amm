@@ -17,6 +17,8 @@ const keyring = new Keyring({ type: 'sr25519' });
 async function main(): Promise<void> {
   const api = await ApiPromise.create({ provider: wsProvider });
   const deployer = keyring.addFromUri(process.env.AUTHORITY_SEED);
+  const tokenCodeHash = await token.upload(api, deployer);
+  console.log('token code hash:', tokenCodeHash);
 
   const { routerAddress, factoryAddress, wnativeAddress } = loadAddresses();
 
