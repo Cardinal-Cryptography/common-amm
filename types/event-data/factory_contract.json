@@ -1,3 +1,0 @@
-{
-"PairCreated": {"name":"PairCreated","body":{"token0":{"name":"AccountId","body":"string | number[]","isResult":false,"isPrimitive":true,"isConvertable":false},"token1":{"name":"AccountId","body":"string | number[]","isResult":false,"isPrimitive":true,"isConvertable":false},"pair":{"name":"AccountId","body":"string | number[]","isResult":false,"isPrimitive":true,"isConvertable":false},"pairLen":{"name":"number","isResult":false,"isPrimitive":true,"isConvertable":false}},"isResult":false,"isPrimitive":false,"isConvertable":false}
-}
