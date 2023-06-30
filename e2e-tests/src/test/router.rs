@@ -586,6 +586,7 @@ pub async fn add_more_liquidity() -> Result<()> {
 
     Ok(())
 }
+
 #[tokio::test]
 pub async fn remove_liquidity() -> Result<()> {
     set_up_logger();
