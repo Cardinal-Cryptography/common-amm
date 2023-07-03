@@ -9,7 +9,12 @@ use aleph_client::{
     KeyPair,
     SignedConnection,
 };
-use ink_wrapper_types::util::ToAccountId;
+use ink_wrapper_types::{
+    util::ToAccountId,
+    Connection,
+    SignedConnection as _,
+    UploadConnection,
+};
 
 use crate::{
     factory_contract,
@@ -62,8 +67,10 @@ async fn factory_tests_code_upload() -> Result<()> {
     let wealthy = aleph_client::keypair_from_string(WEALTHY_SEED);
     let wealthy_connection = SignedConnection::new(&node_address, wealthy).await;
 
-    pair_contract::upload(&wealthy_connection).await?;
-    factory_contract::upload(&wealthy_connection).await?;
+    wealthy_connection.upload(pair_contract::upload()).await?;
+    wealthy_connection
+        .upload(factory_contract::upload())
+        .await?;
 
     Ok(())
 }
@@ -107,20 +114,19 @@ pub async fn factory_contract_set_up_correctly() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract = factory_contract::Instance::new(
-        &wealthy_connection,
-        salt,
-        regular_account,
-        pair_contract::CODE_HASH.into(),
-    )
-    .await?;
+    let factory_contract = wealthy_connection
+        .instantiate(
+            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
+                .with_salt(salt),
+        )
+        .await?;
 
-    let recipient = factory_contract.fee_to(&wealthy_connection).await??;
-    let setter = factory_contract
-        .fee_to_setter(&wealthy_connection)
+    let recipient = wealthy_connection.read(factory_contract.fee_to()).await??;
+    let setter = wealthy_connection
+        .read(factory_contract.fee_to_setter())
         .await??;
-    let all_pairs_length = factory_contract
-        .all_pairs_length(&wealthy_connection)
+    let all_pairs_length = wealthy_connection
+        .read(factory_contract.all_pairs_length())
         .await??;
 
     assert!(recipient == zero_account);
@@ -145,21 +151,20 @@ pub async fn set_fee() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract = factory_contract::Instance::new(
-        &wealthy_connection,
-        salt,
-        regular_account,
-        pair_contract::CODE_HASH.into(),
-    )
-    .await?;
+    let factory_contract = wealthy_connection
+        .instantiate(
+            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
+                .with_salt(salt),
+        )
+        .await?;
 
-    let fee_recipient = factory_contract.fee_to(&wealthy_connection).await??;
+    let fee_recipient = wealthy_connection.read(factory_contract.fee_to()).await??;
 
     assert!(fee_recipient == zero_account);
 
     ensure!(
-        factory_contract
-            .set_fee_to(&wealthy_connection, zero_account)
+        wealthy_connection
+            .exec(factory_contract.set_fee_to(zero_account))
             .await
             .is_err(),
         "Call should have errored out - caller is not fee setter!"
@@ -168,11 +173,11 @@ pub async fn set_fee() -> Result<()> {
     let dest = aleph_client::AccountId::new(*regular_account.as_ref());
     replenish_account(&wealthy_connection, dest, INITIAL_TRANSFER).await?;
 
-    factory_contract
-        .set_fee_to(&regular_connection, regular_account)
+    regular_connection
+        .exec(factory_contract.set_fee_to(regular_account))
         .await?;
 
-    let regular_recipient = factory_contract.fee_to(&regular_connection).await??;
+    let regular_recipient = regular_connection.read(factory_contract.fee_to()).await??;
 
     assert!(regular_recipient == regular_account);
 
@@ -194,23 +199,22 @@ pub async fn set_fee_setter() -> Result<()> {
 
     let salt = random_salt();
 
-    let factory_contract = factory_contract::Instance::new(
-        &wealthy_connection,
-        salt,
-        regular_account,
-        pair_contract::CODE_HASH.into(),
-    )
-    .await?;
+    let factory_contract = wealthy_connection
+        .instantiate(
+            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
+                .with_salt(salt),
+        )
+        .await?;
 
-    let setter_before = factory_contract
-        .fee_to_setter(&wealthy_connection)
+    let setter_before = wealthy_connection
+        .read(factory_contract.fee_to_setter())
         .await??;
 
     assert!(setter_before == regular_account);
 
     ensure!(
-        factory_contract
-            .set_fee_to_setter(&wealthy_connection, wealthy_account)
+        wealthy_connection
+            .exec(factory_contract.set_fee_to_setter(wealthy_account))
             .await
             .is_err(),
         "Call should have errored out - caller is not fee setter!"
@@ -219,12 +223,12 @@ pub async fn set_fee_setter() -> Result<()> {
     let dest = aleph_client::AccountId::new(*regular_account.as_ref());
     replenish_account(&wealthy_connection, dest, INITIAL_TRANSFER).await?;
 
-    factory_contract
-        .set_fee_to_setter(&regular_connection, wealthy_account)
+    regular_connection
+        .exec(factory_contract.set_fee_to_setter(wealthy_account))
         .await?;
 
-    let setter_after = factory_contract
-        .fee_to_setter(&regular_connection)
+    let setter_after = regular_connection
+        .read(factory_contract.fee_to_setter())
         .await??;
 
     assert!(setter_after == wealthy_account);
