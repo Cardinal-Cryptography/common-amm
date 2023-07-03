@@ -159,13 +159,17 @@ pub mod pair {
         ) -> Result<(), PSP22Error> {
             let from_balance = self._balance_of(&from);
 
+            ink::env::debug_println!("from balance: {:?}", from_balance);
+            ink::env::debug_println!("amount: {:?}", amount);
             ensure!(from_balance >= amount, PSP22Error::InsufficientBalance);
+            ink::env::debug_println!("MAYBE HERE");
 
             self.psp22.balances.insert(&from, &(from_balance - amount));
             let to_balance = self._balance_of(&to);
             self.psp22.balances.insert(&to, &(to_balance + amount));
 
             self._emit_transfer_event(Some(from), Some(to), amount);
+            ink::env::debug_println!("TAIL END");
             Ok(())
         }
 
