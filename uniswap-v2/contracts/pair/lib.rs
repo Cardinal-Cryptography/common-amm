@@ -102,10 +102,15 @@ pub mod pair {
 
             // In uniswapv2 max allowance never decrease
             if allowance != u128::MAX {
+                // TODO: Remove `debug_print` throughout.
+                ink::env::debug_println!("allowance: {:?}", allowance);
+                ink::env::debug_println!("value: {:?}", value);
                 ensure!(allowance >= value, PSP22Error::InsufficientAllowance);
                 self._approve_from_to(from, caller, allowance - value)?;
             }
+            ink::env::debug_println!("HERE");
             self._transfer_from_to(from, to, value, data)?;
+            ink::env::debug_println!("THERE");
             Ok(())
         }
     }

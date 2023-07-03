@@ -37,11 +37,12 @@ build-node-x86_64:
 CONTRACTS = ./uniswap-v2/contracts
 CONTRACT_PATHS := $(shell find $(CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
+# TODO: Bring back `--release`.
 .PHONY: build-all
 build-all: ## Builds all contracts.
 	@for d in $(CONTRACT_PATHS); do \
 		echo "cargo contract build --quiet --manifest-path $$d/Cargo.toml --release" ; \
-		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
+		cargo contract build --quiet --manifest-path $$d/Cargo.toml ; \
 	done
 
 .PHONY: check-all
