@@ -97,12 +97,9 @@ impl<T: Storage<data::Data> + Storage<psp22::Data> + Storage<reentrancy_guard::D
     #[modifiers(non_reentrant)]
     default fn mint(&mut self, to: AccountId) -> Result<Balance, PairError> {
         let reserves = self.get_reserves();
-        ink::env::debug_println!("reserves: {:?}", reserves);
         let contract = Self::env().account_id();
         let balance_0 = PSP22Ref::balance_of(&self.data::<data::Data>().token_0, contract);
         let balance_1 = PSP22Ref::balance_of(&self.data::<data::Data>().token_1, contract);
-        ink::env::debug_println!("balance_0: {:?}", balance_0);
-        ink::env::debug_println!("balance_1: {:?}", balance_1);
         let amount_0_transferred = balance_0
             .checked_sub(reserves.0)
             .ok_or(PairError::SubUnderFlow1)?;
@@ -153,7 +150,6 @@ impl<T: Storage<data::Data> + Storage<psp22::Data> + Storage<reentrancy_guard::D
             amount_1_transferred,
         );
 
-        ink::env::debug_println!("HERE: {:?}", liquidity);
         Ok(liquidity)
     }
 
