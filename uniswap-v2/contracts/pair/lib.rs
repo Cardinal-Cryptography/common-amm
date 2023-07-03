@@ -107,10 +107,11 @@ pub mod pair {
                 ink::env::debug_println!("value: {:?}", value);
                 ensure!(allowance >= value, PSP22Error::InsufficientAllowance);
                 self._approve_from_to(from, caller, allowance - value)?;
+                ink::env::debug_println!("HERE");
             }
-            ink::env::debug_println!("HERE");
-            self._transfer_from_to(from, to, value, data)?;
             ink::env::debug_println!("THERE");
+            self._transfer_from_to(from, to, value, data)?;
+            ink::env::debug_println!("EVERYWHERE");
             Ok(())
         }
     }
