@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), no_std, no_main)]
 #![feature(min_specialization)]
 
 #[openbrush::contract]
@@ -72,6 +72,12 @@ pub mod factory {
                     pair_len,
                 },
             )
+        }
+
+        fn _add_new_pair(&mut self, pair: AccountId) {
+            let pair_len = self.factory.all_pairs_length;
+            self.factory.all_pairs.insert(&pair_len, &pair);
+            self.factory.all_pairs_length += 1;
         }
     }
 

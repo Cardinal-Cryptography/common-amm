@@ -7,8 +7,8 @@ help: # Show help for each of the Makefile recipes.
 # Native arch
 BUILDARCH := $(shell uname -m)
 
-.PHONY: run-node
-run-node: build-node ## Runs a network consisting of a single Aleph node.
+.PHONY: start-node
+start-node: ## Runs a network consisting of a single Aleph node.
 	@echo "Starting aleph-network."
 	@docker run --detach --rm --network host \
 		--name aleph-network aleph-onenode-chain-${BUILDARCH}
@@ -17,6 +17,9 @@ run-node: build-node ## Runs a network consisting of a single Aleph node.
 stop-node: ## Stops the local network.
 	@echo "Stopping aleph-network."
 	@docker stop aleph-network
+
+.PHONY: restart-node
+restart-node: stop-node start-node ## Restarts the local network.
 
 .PHONY: build-node
 # Build multi-CPU architecture images and publish them. rust alpine images support the linux/amd64 and linux/arm64/v8 architectures.
@@ -73,7 +76,7 @@ e2e-tests: ## Runs all the e2e tests in sequence.
 .PHONY: build-and-wrap-all
 build-and-wrap-all: build-all wrap-all ## Builds all contracts and generates code for contract interaction.
 
-INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.4.0
+INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.6.0
 
 .PHONY: check-all-dockerized
 check-all-dockerized: ## Runs cargo checks and unit tests on all contracts in a container.
@@ -92,4 +95,4 @@ build-and-wrap-all-dockerized: ## Builds all contracts and generates code for co
     	make build-and-wrap-all
 
 .PHONY: e2e-tests-with-setup-and-teardown
-e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized run-node e2e-tests stop-node ## Runs the E2E test suite.
+e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized build-node start-node e2e-tests stop-node ## Runs the E2E test suite.

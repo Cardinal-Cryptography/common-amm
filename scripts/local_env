@@ -1,0 +1,9 @@
+export WS_NODE=ws://127.0.0.1:9944
+
+# authority is a joint name for the account that is an INITIALIZER, OWNER and ADMIN of the game contracts for the purposes of the deployment
+export AUTHORITY=5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+export AUTHORITY_SEED=//Alice
+
+export TOKEN_A_TOTAL_SUPPLY=1000000
+
+export STABLE_TOTAL_SUPPLY=1000000

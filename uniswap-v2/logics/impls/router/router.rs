@@ -125,8 +125,6 @@ impl<T: Storage<data::Data>> Router for T {
             amount_token_min,
             amount_native_min,
         )?;
-        ink::env::debug_println!("amount_a: {:?}", amount_a);
-        ink::env::debug_println!("amount_native: {:?}", amount_native);
 
         let pair_contract = pair_for_on_chain(&self.data().factory, token, wnative)
             .ok_or(RouterError::PairNotFound)?;
@@ -137,7 +135,6 @@ impl<T: Storage<data::Data>> Router for T {
         safe_transfer(wnative, pair_contract, amount_native)?;
 
         let liquidity = PairRef::mint(&pair_contract, to)?;
-        ink::env::debug_println!("HERE");
 
         if received_value > amount_native {
             safe_transfer_native(caller, received_value - amount_native)?
