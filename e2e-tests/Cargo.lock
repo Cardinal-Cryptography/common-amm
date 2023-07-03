@@ -1284,8 +1284,9 @@ dependencies = [
 
 [[package]]
 name = "ink-wrapper-types"
-version = "0.4.0"
-source = "git+https://github.com/Cardinal-Cryptography/ink-wrapper.git#7a9b6ebf4bd7603c5b23c50086fd9677aab6bdd9"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1066bf287565fb7a80da556ca2021c2cd082acd9e47cc32a198f2ad53accd9e0"
 dependencies = [
  "aleph_client",
  "anyhow",

@@ -15,7 +15,6 @@ openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", versi
 [lib]
 name = "psp22_token"
 path = "lib.rs"
-crate-type = ["cdylib"]
 
 [features]
 default = ["std"]
