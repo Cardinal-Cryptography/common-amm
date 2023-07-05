@@ -4,7 +4,6 @@ export function parseUnits(amount: bigint | number, decimals): bigint {
 
 export type Addresses = {
   pairCodeHash: string;
-  tokenCodeHash: string;
   factoryAddress: string;
   wnativeAddress: string;
   routerAddress: string;
