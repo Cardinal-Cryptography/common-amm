@@ -66,6 +66,15 @@ struct PairTestSetup {
     wealthy_connection: SignedConnection,
     regular_connection: SignedConnection,
     regular_account: ink_primitives::AccountId,
+    factory_contract: factory_contract::Instance,
+    token_a: psp22_token::Instance,
+    token_b: psp22_token::Instance,
+}
+
+struct PairContractsSetup {
+    factory_contract: factory_contract::Instance,
+    token_a: psp22_token::Instance,
+    token_b: psp22_token::Instance,
 }
 
 async fn pair_tests_code_upload() -> Result<()> {
@@ -83,45 +92,19 @@ async fn pair_tests_code_upload() -> Result<()> {
     Ok(())
 }
 
-async fn set_up_pair_test() -> Result<PairTestSetup> {
-    let node_address = get_env("NODE_ADDRESS").unwrap_or(DEFAULT_NODE_ADDRESS.to_string());
-
-    let wealthy = aleph_client::keypair_from_string(WEALTHY_SEED);
-    let regular = aleph_client::keypair_from_string(REGULAR_SEED);
-    let wealthy_connection = SignedConnection::new(&node_address, wealthy).await;
-    let regular_connection = SignedConnection::new(&node_address, regular.clone()).await;
-
-    let regular_account = regular.account_id().to_account_id();
-
-    let pair_test_setup = PairTestSetup {
-        wealthy_connection,
-        regular_connection,
-        regular_account,
-    };
-
-    Ok(pair_test_setup)
-}
-
-#[tokio::test]
-pub async fn create_pair() -> Result<()> {
-    set_up_logger();
-    try_upload_contract_code(&PAIR_TESTS_CODE_UPLOAD, pair_tests_code_upload).await?;
-
-    let PairTestSetup {
-        wealthy_connection,
-        regular_account,
-        ..
-    } = set_up_pair_test().await?;
-
+async fn set_up_contracts(
+    connection: &SignedConnection,
+    fee_to_setter: ink_primitives::AccountId,
+) -> Result<PairContractsSetup> {
     let salt = random_salt();
 
-    let factory_contract = wealthy_connection
+    let factory_contract = connection
         .instantiate(
-            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
+            factory_contract::Instance::new(fee_to_setter, pair_contract::CODE_HASH.into())
                 .with_salt(salt.clone()),
         )
         .await?;
-    let token_a = wealthy_connection
+    let token_a = connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -132,7 +115,7 @@ pub async fn create_pair() -> Result<()> {
             .with_salt(salt.clone()),
         )
         .await?;
-    let token_b = wealthy_connection
+    let token_b = connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -143,6 +126,57 @@ pub async fn create_pair() -> Result<()> {
             .with_salt(salt),
         )
         .await?;
+
+    let pair_contracts_setup = PairContractsSetup {
+        factory_contract,
+        token_a,
+        token_b,
+    };
+
+    Ok(pair_contracts_setup)
+}
+
+async fn set_up_pair_test() -> Result<PairTestSetup> {
+    let node_address = get_env("NODE_ADDRESS").unwrap_or(DEFAULT_NODE_ADDRESS.to_string());
+
+    let wealthy = aleph_client::keypair_from_string(WEALTHY_SEED);
+    let regular = aleph_client::keypair_from_string(REGULAR_SEED);
+    let wealthy_connection = SignedConnection::new(&node_address, wealthy).await;
+    let regular_connection = SignedConnection::new(&node_address, regular.clone()).await;
+
+    let regular_account = regular.account_id().to_account_id();
+
+    try_upload_contract_code(&PAIR_TESTS_CODE_UPLOAD, pair_tests_code_upload).await?;
+
+    let PairContractsSetup {
+        factory_contract,
+        token_a,
+        token_b,
+    } = set_up_contracts(&wealthy_connection, regular_account).await?;
+
+    let pair_test_setup = PairTestSetup {
+        wealthy_connection,
+        regular_connection,
+        regular_account,
+        factory_contract,
+        token_a,
+        token_b,
+    };
+
+    Ok(pair_test_setup)
+}
+
+#[tokio::test]
+pub async fn create_pair() -> Result<()> {
+    set_up_logger();
+
+    let PairTestSetup {
+        wealthy_connection,
+        factory_contract,
+        token_a,
+        token_b,
+        ..
+    } = set_up_pair_test().await?;
 
     let all_pairs_length_before = wealthy_connection
         .read(factory_contract.all_pairs_length())
@@ -193,44 +227,15 @@ pub async fn create_pair() -> Result<()> {
 #[tokio::test]
 pub async fn mint_pair() -> Result<()> {
     set_up_logger();
-    try_upload_contract_code(&PAIR_TESTS_CODE_UPLOAD, pair_tests_code_upload).await?;
 
     let PairTestSetup {
         wealthy_connection,
         regular_account,
+        factory_contract,
+        token_a,
+        token_b,
         ..
     } = set_up_pair_test().await?;
-
-    let salt = random_salt();
-
-    let factory_contract = wealthy_connection
-        .instantiate(
-            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
-                .with_salt(salt.clone()),
-        )
-        .await?;
-    let token_a = wealthy_connection
-        .instantiate(
-            psp22_token::Instance::new(
-                PSP22_TOTAL_SUPPLY,
-                Some(TOKEN_A_NAME.to_string()),
-                Some(TOKEN_A_SYMBOL.to_string()),
-                PSP22_DECIMALS,
-            )
-            .with_salt(salt.clone()),
-        )
-        .await?;
-    let token_b = wealthy_connection
-        .instantiate(
-            psp22_token::Instance::new(
-                PSP22_TOTAL_SUPPLY,
-                Some(TOKEN_B_NAME.to_string()),
-                Some(TOKEN_B_SYMBOL.to_string()),
-                PSP22_DECIMALS,
-            )
-            .with_salt(salt),
-        )
-        .await?;
 
     wealthy_connection
         .exec(factory_contract.create_pair(token_a.into(), token_b.into()))
@@ -285,44 +290,15 @@ pub async fn mint_pair() -> Result<()> {
 #[tokio::test]
 pub async fn swap_tokens() -> Result<()> {
     set_up_logger();
-    try_upload_contract_code(&PAIR_TESTS_CODE_UPLOAD, pair_tests_code_upload).await?;
 
     let PairTestSetup {
         wealthy_connection,
         regular_account,
+        factory_contract,
+        token_a,
+        token_b,
         ..
     } = set_up_pair_test().await?;
-
-    let salt = random_salt();
-
-    let factory_contract = wealthy_connection
-        .instantiate(
-            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
-                .with_salt(salt.clone()),
-        )
-        .await?;
-    let token_a = wealthy_connection
-        .instantiate(
-            psp22_token::Instance::new(
-                PSP22_TOTAL_SUPPLY,
-                Some(TOKEN_A_NAME.to_string()),
-                Some(TOKEN_A_SYMBOL.to_string()),
-                PSP22_DECIMALS,
-            )
-            .with_salt(salt.clone()),
-        )
-        .await?;
-    let token_b = wealthy_connection
-        .instantiate(
-            psp22_token::Instance::new(
-                PSP22_TOTAL_SUPPLY,
-                Some(TOKEN_B_NAME.to_string()),
-                Some(TOKEN_B_SYMBOL.to_string()),
-                PSP22_DECIMALS,
-            )
-            .with_salt(salt),
-        )
-        .await?;
 
     wealthy_connection
         .exec(factory_contract.create_pair(token_a.into(), token_b.into()))
@@ -379,7 +355,6 @@ pub async fn swap_tokens() -> Result<()> {
 #[tokio::test]
 pub async fn burn_liquidity_provider_token() -> Result<()> {
     set_up_logger();
-    try_upload_contract_code(&PAIR_TESTS_CODE_UPLOAD, pair_tests_code_upload).await?;
 
     const FIRST_BALANCE_LOCKED: Balance = 2_204;
     const SECOND_BALANCE_LOCKED: Balance = 1_820;
@@ -389,38 +364,10 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
         wealthy_connection,
         regular_connection,
         regular_account,
+        factory_contract,
+        token_a,
+        token_b,
     } = set_up_pair_test().await?;
-
-    let salt = random_salt();
-
-    let factory_contract = wealthy_connection
-        .instantiate(
-            factory_contract::Instance::new(regular_account, pair_contract::CODE_HASH.into())
-                .with_salt(salt.clone()),
-        )
-        .await?;
-    let token_a = wealthy_connection
-        .instantiate(
-            psp22_token::Instance::new(
-                PSP22_TOTAL_SUPPLY,
-                Some(TOKEN_A_NAME.to_string()),
-                Some(TOKEN_A_SYMBOL.to_string()),
-                PSP22_DECIMALS,
-            )
-            .with_salt(salt.clone()),
-        )
-        .await?;
-    let token_b = wealthy_connection
-        .instantiate(
-            psp22_token::Instance::new(
-                PSP22_TOTAL_SUPPLY,
-                Some(TOKEN_B_NAME.to_string()),
-                Some(TOKEN_B_SYMBOL.to_string()),
-                PSP22_DECIMALS,
-            )
-            .with_salt(salt),
-        )
-        .await?;
 
     wealthy_connection
         .exec(factory_contract.create_pair(token_a.into(), token_b.into()))

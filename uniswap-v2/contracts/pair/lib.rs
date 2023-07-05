@@ -102,16 +102,10 @@ pub mod pair {
 
             // In uniswapv2 max allowance never decrease
             if allowance != u128::MAX {
-                // TODO: Remove `debug_print` throughout.
-                ink::env::debug_println!("allowance: {:?}", allowance);
-                ink::env::debug_println!("value: {:?}", value);
                 ensure!(allowance >= value, PSP22Error::InsufficientAllowance);
                 self._approve_from_to(from, caller, allowance - value)?;
-                ink::env::debug_println!("HERE");
             }
-            ink::env::debug_println!("THERE");
             self._transfer_from_to(from, to, value, data)?;
-            ink::env::debug_println!("EVERYWHERE");
             Ok(())
         }
     }
@@ -159,17 +153,13 @@ pub mod pair {
         ) -> Result<(), PSP22Error> {
             let from_balance = self._balance_of(&from);
 
-            ink::env::debug_println!("from balance: {:?}", from_balance);
-            ink::env::debug_println!("amount: {:?}", amount);
             ensure!(from_balance >= amount, PSP22Error::InsufficientBalance);
-            ink::env::debug_println!("MAYBE HERE");
 
             self.psp22.balances.insert(&from, &(from_balance - amount));
             let to_balance = self._balance_of(&to);
             self.psp22.balances.insert(&to, &(to_balance + amount));
 
             self._emit_transfer_event(Some(from), Some(to), amount);
-            ink::env::debug_println!("TAIL END");
             Ok(())
         }
 
