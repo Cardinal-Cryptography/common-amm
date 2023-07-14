@@ -40,7 +40,7 @@ CONTRACT_PATHS := $(shell find $(CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 .PHONY: build-all
 build-all: ## Builds all contracts.
 	@for d in $(CONTRACT_PATHS); do \
-		echo "cargo contract build --quiet --manifest-path $$d/Cargo.toml --release" ; \
+		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
 
