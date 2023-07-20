@@ -94,15 +94,15 @@ pub fn quote(
 
 /// Returns amount of `B` tokens received
 /// for `amount_in` of `A` tokens that maintains
-/// the constant product of `k = reserve_in * reserve_out`.
+/// the constant product of `k = reserve_a * reserve_b`.
 pub fn get_amount_out(
     amount_in: Balance,
-    reserve_in: Balance,
-    reserve_out: Balance,
+    reserve_a: Balance,
+    reserve_b: Balance,
 ) -> Result<Balance, HelperError> {
     ensure!(amount_in > 0, HelperError::InsufficientAmount);
     ensure!(
-        reserve_in > 0 && reserve_out > 0,
+        reserve_a > 0 && reserve_b > 0,
         HelperError::InsufficientLiquidity
     );
 
@@ -110,10 +110,10 @@ pub fn get_amount_out(
     let amount_in_with_fee = casted_mul(amount_in, 997);
 
     let numerator = amount_in_with_fee
-        .checked_mul(reserve_out.into())
+        .checked_mul(reserve_b.into())
         .ok_or(HelperError::MulOverFlow)?;
 
-    let denominator = casted_mul(reserve_in, 1000)
+    let denominator = casted_mul(reserve_a, 1000)
         .checked_add(amount_in_with_fee)
         .ok_or(HelperError::AddOverFlow)?;
 
@@ -128,24 +128,24 @@ pub fn get_amount_out(
 
 /// Returns amount of `A` tokens user has to supply
 /// to get exactly `amount_out` of `B` token while maintaining
-/// the constant product of `k = reserve_in * reserve_out`.
+/// the constant product of `k = reserve_a * reserve_b`.
 pub fn get_amount_in(
     amount_out: Balance,
-    reserve_in: Balance,
-    reserve_out: Balance,
+    reserve_a: Balance,
+    reserve_b: Balance,
 ) -> Result<Balance, HelperError> {
     ensure!(amount_out > 0, HelperError::InsufficientAmount);
     ensure!(
-        reserve_in > 0 && reserve_out > 0,
+        reserve_a > 0 && reserve_b > 0,
         HelperError::InsufficientLiquidity
     );
 
-    let numerator = casted_mul(reserve_in, amount_out)
+    let numerator = casted_mul(reserve_a, amount_out)
         .checked_mul(1000.into())
         .ok_or(HelperError::MulOverFlow)?;
 
     let denominator = casted_mul(
-        reserve_out
+        reserve_b
             .checked_sub(amount_out)
             .ok_or(HelperError::SubUnderFlow)?,
         997,
@@ -178,8 +178,8 @@ pub fn get_amounts_out(
     let mut amounts = Vec::with_capacity(path.len());
     amounts.push(amount_in);
     for i in 0..path.len() - 1 {
-        let (reserve_in, reserve_out) = get_reserves(factory, path[i], path[i + 1])?;
-        amounts.push(get_amount_out(amounts[i], reserve_in, reserve_out)?);
+        let (reserve_a, reserve_b) = get_reserves(factory, path[i], path[i + 1])?;
+        amounts.push(get_amount_out(amounts[i], reserve_a, reserve_b)?);
     }
 
     Ok(amounts)
@@ -201,8 +201,8 @@ pub fn get_amounts_in(
     }
     amounts[path.len() - 1] = amount_out;
     for i in (0..path.len() - 1).rev() {
-        let (reserve_in, reserve_out) = get_reserves(factory, path[i], path[i + 1])?;
-        amounts[i] = get_amount_in(amounts[i + 1], reserve_in, reserve_out)?;
+        let (reserve_a, reserve_b) = get_reserves(factory, path[i], path[i + 1])?;
+        amounts[i] = get_amount_in(amounts[i + 1], reserve_a, reserve_b)?;
     }
 
     Ok(amounts)

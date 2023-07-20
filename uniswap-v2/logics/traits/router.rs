@@ -207,13 +207,13 @@ pub trait Router {
 
     /// Returns amount of `B` tokens received
     /// for `amount_in` of `A` tokens that maintains
-    /// the constant product of `reserve_in / reserve_out`.
+    /// the constant product of `reserve_a * reserve_b`.
     #[ink(message)]
     fn get_amount_out(
         &self,
         amount_in: Balance,
-        reserve_in: Balance,
-        reserve_out: Balance,
+        reserve_a: Balance,
+        reserve_b: Balance,
     ) -> Result<Balance, RouterError>;
 
     /// Returns amount of `A` tokens user has to supply
@@ -223,8 +223,8 @@ pub trait Router {
     fn get_amount_in(
         &self,
         amount_out: Balance,
-        reserve_in: Balance,
-        reserve_out: Balance,
+        reserve_a: Balance,
+        reserve_b: Balance,
     ) -> Result<Balance, RouterError>;
 
     /// Returns amounts of tokens received for `amount_in`.
