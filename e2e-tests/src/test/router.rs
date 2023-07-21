@@ -1,3 +1,9 @@
+use std::time::{
+    Duration,
+    SystemTime,
+    UNIX_EPOCH,
+};
+
 use anyhow::{
     anyhow,
     Result,
@@ -49,7 +55,6 @@ use crate::{
     },
 };
 
-const DEADLINE: u64 = 111_111_111_111_111_111;
 const AMOUNT_TOKEN_DESIRED: Balance = 10_000;
 const AMOUNT_OUT: Balance = 1_000;
 
@@ -180,6 +185,8 @@ pub async fn add_liquidity() -> Result<()> {
         ..
     } = set_up_router_test().await?;
 
+    let deadline = timestamp_one_hour_forward_millis();
+
     wealthy_connection
         .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
@@ -197,7 +204,7 @@ pub async fn add_liquidity() -> Result<()> {
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
-                    DEADLINE,
+                    deadline.try_into().unwrap(),
                 )
                 .with_value(AMOUNT_TOKEN_DESIRED),
         )
@@ -238,6 +245,8 @@ pub async fn swap_exact_native_for_tokens() -> Result<()> {
         ..
     } = set_up_router_test().await?;
 
+    let deadline = timestamp_one_hour_forward_millis();
+
     wealthy_connection
         .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
@@ -250,7 +259,7 @@ pub async fn swap_exact_native_for_tokens() -> Result<()> {
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
-                    DEADLINE,
+                    deadline,
                 )
                 .with_value(AMOUNT_TOKEN_DESIRED),
         )
@@ -267,7 +276,7 @@ pub async fn swap_exact_native_for_tokens() -> Result<()> {
     wealthy_connection
         .exec(
             router_contract
-                .swap_exact_native_for_tokens(AMOUNT_OUT, path, regular_account, DEADLINE)
+                .swap_exact_native_for_tokens(AMOUNT_OUT, path, regular_account, deadline)
                 .with_value(amounts_in[0]),
         )
         .await?;
@@ -295,6 +304,8 @@ pub async fn swap_native_for_exact_tokens() -> Result<()> {
         ..
     } = set_up_router_test().await?;
 
+    let deadline = timestamp_one_hour_forward_millis();
+
     wealthy_connection
         .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
@@ -307,7 +318,7 @@ pub async fn swap_native_for_exact_tokens() -> Result<()> {
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
-                    DEADLINE,
+                    deadline,
                 )
                 .with_value(AMOUNT_TOKEN_DESIRED),
         )
@@ -324,7 +335,7 @@ pub async fn swap_native_for_exact_tokens() -> Result<()> {
     wealthy_connection
         .exec(
             router_contract
-                .swap_native_for_exact_tokens(AMOUNT_OUT, path, regular_account, DEADLINE)
+                .swap_native_for_exact_tokens(AMOUNT_OUT, path, regular_account, deadline)
                 .with_value(amounts_in[0]),
         )
         .await?;
@@ -352,6 +363,8 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
         ..
     } = set_up_router_test().await?;
 
+    let deadline = timestamp_one_hour_forward_millis();
+
     wealthy_connection
         .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
@@ -364,7 +377,7 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
-                    DEADLINE,
+                    deadline,
                 )
                 .with_value(AMOUNT_TOKEN_DESIRED),
         )
@@ -386,7 +399,7 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
             AMOUNT_OUT,
             vec![wnative_contract.into(), token_a.into()],
             regular_account,
-            DEADLINE,
+            deadline,
         ))
         .await?;
     let regular_account_balance_after = wealthy_connection
@@ -413,6 +426,8 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
         ..
     } = set_up_router_test().await?;
 
+    let deadline = timestamp_one_hour_forward_millis();
+
     wealthy_connection
         .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
@@ -425,7 +440,7 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
-                    DEADLINE,
+                    deadline,
                 )
                 .with_value(AMOUNT_TOKEN_DESIRED),
         )
@@ -451,7 +466,7 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
             AMOUNT_FOR_SWAP,
             vec![wnative_contract.into(), token_a.into()],
             regular_account,
-            DEADLINE,
+            deadline,
         ))
         .await?;
 
@@ -478,6 +493,8 @@ pub async fn add_more_liquidity() -> Result<()> {
         ..
     } = set_up_router_test().await?;
 
+    let deadline = timestamp_one_hour_forward_millis();
+
     let all_pairs_length_before = wealthy_connection
         .read(factory_contract.all_pairs_length())
         .await??;
@@ -495,7 +512,7 @@ pub async fn add_more_liquidity() -> Result<()> {
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
-                    DEADLINE,
+                    deadline,
                 )
                 .with_value(AMOUNT_TOKEN_DESIRED),
         )
@@ -516,7 +533,7 @@ pub async fn add_more_liquidity() -> Result<()> {
                     0,
                     0,
                     wealthy_account,
-                    DEADLINE,
+                    deadline,
                 )
                 .with_value(LARGE_AMOUNT),
         )
@@ -552,6 +569,8 @@ pub async fn remove_liquidity() -> Result<()> {
         router_contract,
     } = set_up_router_test().await?;
 
+    let deadline = timestamp_one_hour_forward_millis();
+
     wealthy_connection
         .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
@@ -569,7 +588,7 @@ pub async fn remove_liquidity() -> Result<()> {
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
-                    DEADLINE,
+                    deadline,
                 )
                 .with_value(AMOUNT_TOKEN_DESIRED),
         )
@@ -598,7 +617,7 @@ pub async fn remove_liquidity() -> Result<()> {
             0,
             0,
             regular_account,
-            DEADLINE,
+            deadline,
         ))
         .await?;
 
@@ -620,4 +639,16 @@ pub async fn remove_liquidity() -> Result<()> {
     assert!(all_pairs_length_after == all_pairs_length_before + 1);
 
     Ok(())
+}
+
+fn timestamp_one_hour_forward_millis() -> u64 {
+    let now = SystemTime::now();
+    let one_hour = Duration::from_secs(3600);
+    let one_hour_forward = now + one_hour;
+    one_hour_forward
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+        .try_into()
+        .unwrap()
 }
