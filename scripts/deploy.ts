@@ -6,7 +6,6 @@ import Factory from '../types/contracts/factory_contract';
 import Wnative from '../types/contracts/wnative_contract';
 import { storeAddresses } from './utils';
 import { Addresses } from './shared';
-import * as token from './token';
 import * as pair from './pair';
 import * as factoryUtils from './factory';
 import * as wnativeUtils from './wnative';
@@ -22,9 +21,6 @@ const keyring = new Keyring({ type: 'sr25519' });
 async function main(): Promise<void> {
   const api = await ApiPromise.create({ provider: wsProvider });
   const deployer = keyring.addFromUri(process.env.AUTHORITY_SEED);
-  const tokenCodeHash = await token.upload(api, deployer);
-
-  console.log('token code hash:', tokenCodeHash);
 
   const pairHash = await pair.upload(api, deployer);
   console.log('pair code hash:', pairHash);
@@ -61,7 +57,6 @@ async function main(): Promise<void> {
 
   const addresses: Addresses = {
     pairCodeHash: pairHash,
-    tokenCodeHash: tokenCodeHash,
     factoryAddress: factoryAddress,
     wnativeAddress: wnativeAddress,
     routerAddress: routerAddress,

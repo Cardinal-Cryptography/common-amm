@@ -405,19 +405,19 @@ impl<T: Storage<data::Data>> Router for T {
     default fn get_amount_out(
         &self,
         amount_in: Balance,
-        reserve_in: Balance,
-        reserve_out: Balance,
+        reserve_a: Balance,
+        reserve_b: Balance,
     ) -> Result<Balance, RouterError> {
-        Ok(get_amount_out(amount_in, reserve_in, reserve_out)?)
+        Ok(get_amount_out(amount_in, reserve_a, reserve_b)?)
     }
 
     default fn get_amount_in(
         &self,
         amount_out: Balance,
-        reserve_in: Balance,
-        reserve_out: Balance,
+        reserve_a: Balance,
+        reserve_b: Balance,
     ) -> Result<Balance, RouterError> {
-        Ok(get_amount_in(amount_out, reserve_in, reserve_out)?)
+        Ok(get_amount_in(amount_out, reserve_a, reserve_b)?)
     }
 
     default fn get_amounts_out(
