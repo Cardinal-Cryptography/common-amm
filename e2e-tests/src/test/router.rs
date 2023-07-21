@@ -50,7 +50,7 @@ use crate::{
 };
 
 const DEADLINE: u64 = 111_111_111_111_111_111;
-const AMOUNT_AVAILABLE_FOR_WITHDRAWAL: Balance = 10_000;
+const AMOUNT_TOKEN_DESIRED: Balance = 10_000;
 const AMOUNT_OUT: Balance = 1_000;
 
 static ROUTER_TESTS_CODE_UPLOAD: OnceCell<Result<()>> = OnceCell::const_new();
@@ -176,11 +176,12 @@ pub async fn add_liquidity() -> Result<()> {
         factory_contract,
         token_a,
         router_contract,
+        wnative_contract,
         ..
     } = set_up_router_test().await?;
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_AVAILABLE_FOR_WITHDRAWAL))
+        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
 
     let all_pairs_length_before = wealthy_connection
@@ -192,13 +193,13 @@ pub async fn add_liquidity() -> Result<()> {
             router_contract
                 .add_liquidity_native(
                     token_a.into(),
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
                     DEADLINE,
                 )
-                .with_value(AMOUNT_AVAILABLE_FOR_WITHDRAWAL),
+                .with_value(AMOUNT_TOKEN_DESIRED),
         )
         .await?;
 
@@ -207,6 +208,18 @@ pub async fn add_liquidity() -> Result<()> {
         .await??;
 
     assert!(all_pairs_length_after == all_pairs_length_before + 1);
+
+    let pair_contract: pair_contract::Instance = wealthy_connection
+        .read(factory_contract.get_pair(wnative_contract.into(), token_a.into()))
+        .await??
+        .ok_or(anyhow!("Specified token pair does not exist!"))?
+        .into();
+
+    let wealthy_account_pair_balance = wealthy_connection
+        .read(pair_contract.balance_of(wealthy_account))
+        .await??;
+
+    assert!(wealthy_account_pair_balance == AMOUNT_TOKEN_DESIRED - MINIMUM_LIQUIDITY);
 
     Ok(())
 }
@@ -226,20 +239,20 @@ pub async fn swap_exact_native_for_tokens() -> Result<()> {
     } = set_up_router_test().await?;
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_AVAILABLE_FOR_WITHDRAWAL))
+        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
     wealthy_connection
         .exec(
             router_contract
                 .add_liquidity_native(
                     token_a.into(),
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
                     DEADLINE,
                 )
-                .with_value(AMOUNT_AVAILABLE_FOR_WITHDRAWAL),
+                .with_value(AMOUNT_TOKEN_DESIRED),
         )
         .await?;
 
@@ -283,20 +296,20 @@ pub async fn swap_native_for_exact_tokens() -> Result<()> {
     } = set_up_router_test().await?;
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_AVAILABLE_FOR_WITHDRAWAL))
+        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
     wealthy_connection
         .exec(
             router_contract
                 .add_liquidity_native(
                     token_a.into(),
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
                     DEADLINE,
                 )
-                .with_value(AMOUNT_AVAILABLE_FOR_WITHDRAWAL),
+                .with_value(AMOUNT_TOKEN_DESIRED),
         )
         .await?;
 
@@ -340,32 +353,28 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
     } = set_up_router_test().await?;
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_AVAILABLE_FOR_WITHDRAWAL))
+        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
     wealthy_connection
         .exec(
             router_contract
                 .add_liquidity_native(
                     token_a.into(),
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
                     DEADLINE,
                 )
-                .with_value(AMOUNT_AVAILABLE_FOR_WITHDRAWAL),
+                .with_value(AMOUNT_TOKEN_DESIRED),
         )
         .await?;
     wealthy_connection
-        .exec(
-            wnative_contract
-                .deposit()
-                .with_value(AMOUNT_AVAILABLE_FOR_WITHDRAWAL),
-        )
+        .exec(wnative_contract.deposit().with_value(AMOUNT_TOKEN_DESIRED))
         .await?;
 
     wealthy_connection
-        .exec(wnative_contract.approve(router_contract.into(), AMOUNT_AVAILABLE_FOR_WITHDRAWAL))
+        .exec(wnative_contract.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
 
     let regular_account_balance_before = wealthy_connection
@@ -373,7 +382,7 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
         .await??;
     wealthy_connection
         .exec(router_contract.swap_exact_tokens_for_tokens(
-            AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
+            AMOUNT_TOKEN_DESIRED,
             AMOUNT_OUT,
             vec![wnative_contract.into(), token_a.into()],
             regular_account,
@@ -405,20 +414,20 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
     } = set_up_router_test().await?;
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_AVAILABLE_FOR_WITHDRAWAL))
+        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
     wealthy_connection
         .exec(
             router_contract
                 .add_liquidity_native(
                     token_a.into(),
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
                     DEADLINE,
                 )
-                .with_value(AMOUNT_AVAILABLE_FOR_WITHDRAWAL),
+                .with_value(AMOUNT_TOKEN_DESIRED),
         )
         .await?;
 
@@ -432,6 +441,10 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
         .exec(wnative_contract.approve(router_contract.into(), AMOUNT_FOR_SWAP))
         .await?;
 
+    let regular_account_balance_before = wealthy_connection
+        .read(token_a.balance_of(regular_account))
+        .await??;
+
     wealthy_connection
         .exec(router_contract.swap_tokens_for_exact_tokens(
             AMOUNT_OUT,
@@ -441,6 +454,13 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
             DEADLINE,
         ))
         .await?;
+
+    let regular_account_balance_after = wealthy_connection
+        .read(token_a.balance_of(regular_account))
+        .await??;
+    let balance_diff = regular_account_balance_after - regular_account_balance_before;
+
+    assert!(balance_diff == AMOUNT_OUT);
 
     Ok(())
 }
@@ -462,12 +482,28 @@ pub async fn add_more_liquidity() -> Result<()> {
         .read(factory_contract.all_pairs_length())
         .await??;
 
-    let wealthy_account_balance_before = wealthy_connection
+    wealthy_connection
+        .exec(token_a.approve(router_contract.into(), 2 * AMOUNT_TOKEN_DESIRED))
+        .await?;
+
+    wealthy_connection
+        .exec(
+            router_contract
+                .add_liquidity_native(
+                    token_a.into(),
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
+                    wealthy_account,
+                    DEADLINE,
+                )
+                .with_value(AMOUNT_TOKEN_DESIRED),
+        )
+        .await?;
+
+    let wealthy_account_balance_before_second_liquidity_addition = wealthy_connection
         .read(token_a.balance_of(wealthy_account))
         .await??;
-    wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_AVAILABLE_FOR_WITHDRAWAL))
-        .await?;
 
     const LARGE_AMOUNT: Balance = 1_000_000_000_000_000;
 
@@ -476,7 +512,7 @@ pub async fn add_more_liquidity() -> Result<()> {
             router_contract
                 .add_liquidity_native(
                     token_a.into(),
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
+                    AMOUNT_TOKEN_DESIRED,
                     0,
                     0,
                     wealthy_account,
@@ -490,10 +526,11 @@ pub async fn add_more_liquidity() -> Result<()> {
         .read(factory_contract.all_pairs_length())
         .await??;
 
-    let wealthy_account_balance_after = wealthy_connection
+    let wealthy_account_balance_after_second_liquidity_addition = wealthy_connection
         .read(token_a.balance_of(wealthy_account))
         .await??;
-    let balance_diff = wealthy_account_balance_before - wealthy_account_balance_after;
+    let balance_diff = wealthy_account_balance_before_second_liquidity_addition
+        - wealthy_account_balance_after_second_liquidity_addition;
 
     assert!(balance_diff < LARGE_AMOUNT);
     assert!(all_pairs_length_after == all_pairs_length_before + 1);
@@ -516,7 +553,7 @@ pub async fn remove_liquidity() -> Result<()> {
     } = set_up_router_test().await?;
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_AVAILABLE_FOR_WITHDRAWAL))
+        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
 
     let all_pairs_length_before = wealthy_connection
@@ -528,13 +565,13 @@ pub async fn remove_liquidity() -> Result<()> {
             router_contract
                 .add_liquidity_native(
                     token_a.into(),
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
-                    AMOUNT_AVAILABLE_FOR_WITHDRAWAL,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
+                    AMOUNT_TOKEN_DESIRED,
                     wealthy_account,
                     DEADLINE,
                 )
-                .with_value(AMOUNT_AVAILABLE_FOR_WITHDRAWAL),
+                .with_value(AMOUNT_TOKEN_DESIRED),
         )
         .await?;
 
@@ -544,7 +581,7 @@ pub async fn remove_liquidity() -> Result<()> {
         .ok_or(anyhow!("Specified token pair does not exist!"))?
         .into();
     wealthy_connection
-        .exec(pair_contract.approve(router_contract.into(), AMOUNT_AVAILABLE_FOR_WITHDRAWAL))
+        .exec(pair_contract.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
 
     let regular_account_balance_before = wealthy_connection
