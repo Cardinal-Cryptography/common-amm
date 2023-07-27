@@ -1,6 +1,10 @@
-# DEX - UniswapV2
+# Common AMM
 
-This folder contains the line by line implementation of [uniswap-v2 core](https://github.com/Uniswap/v2-core) and [uniswap-v2 periphery](https://github.com/Uniswap/v2-periphery) with its tests.
+This repository contains implementations of AMM DEXes written for Common product. 
+
+There will be multiple AMM models implemented, each being the most suitable model for a certain token pair (stablecoin pairs being created in a CFM based on Curve StableSwap, PSP22 token pair on UniswapV2, etc.)
+
+Currently, this repository contains the line by line implementation of [uniswap-v2 core](https://github.com/Uniswap/v2-core) and [uniswap-v2 periphery](https://github.com/Uniswap/v2-periphery). Code was adapted to match Subatrate platform and ink! language.
 
 ### Purpose
 
@@ -78,7 +82,7 @@ First start your local node. You can do that by running `make start-node` in the
 
 To deploy contracts, execute `npm run deploy:local` in the root directory.
 
-To create sample tokens and register them as pairs in the DEX, run `npm run example`.
+To create sample tokens and register them as pairs in the DEX, run `npm run example:local`.
 
 Note that this requires rebuilding TypeScript wrappers first: `npm run compile:release`.
 
