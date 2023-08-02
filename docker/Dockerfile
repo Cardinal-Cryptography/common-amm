@@ -1,4 +1,4 @@
-FROM public.ecr.aws/p6e8q1z1/aleph-node:r-10.0
+FROM public.ecr.aws/p6e8q1z1/aleph-node:r-11.4
 
 # 1. Save node and sudo account ids for convenience
 # 2. Prepare the chainspec
