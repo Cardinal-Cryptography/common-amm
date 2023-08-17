@@ -16,6 +16,7 @@ pub enum FarmError {
     NothingToClaim,
     StateMissing,
     SubUnderFlow1,
+    ReentrancyLockTaken,
 }
 
 impl From<PSP22Error> for FarmError {

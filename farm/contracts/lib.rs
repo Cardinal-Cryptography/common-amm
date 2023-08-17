@@ -4,12 +4,9 @@ mod error;
 mod farm_state;
 
 // TODO:
-// Emit events
-// Add reentrancy guards
 // Add upper bound on farm length.
-// Consider separating constructor's errors from the rest
-// Make sure no unchecked math
-// Refactor to make staking logic reusable in different contracts.
+// ? Consider separating constructor's errors from the rest
+// ? Refactor to make staking logic reusable in different contracts.
 
 // Tests:
 // Deposit:
@@ -83,7 +80,11 @@ mod farm {
         user_uncollected_rewards: Mapping<AccountId, Vec<u128>>,
         /// Farm state.
         state: Lazy<Option<RunningState>>,
+        reentrancy_guard: u8,
     }
+
+    const REENTRANCY_GUARD_LOCKED: u8 = 1u8;
+    const REENTRANCY_GUARD_FREE: u8 = 0u8;
 
     impl Farm {
         #[ink(constructor)]
@@ -97,6 +98,7 @@ mod farm {
                 user_reward_per_token_paid: Mapping::new(),
                 user_uncollected_rewards: Mapping::new(),
                 state: Lazy::new(),
+                reentrancy_guard: REENTRANCY_GUARD_FREE,
             }
         }
 
@@ -220,7 +222,7 @@ mod farm {
         }
 
         #[ink(message)]
-        #[modifiers(ensure_running(true), non_zero_amount(amount))]
+        #[modifiers(ensure_running(true), non_zero_amount(amount), non_reentrant)]
         pub fn deposit(&mut self, amount: u128) -> Result<(), FarmError> {
             self.update_reward_index()?;
 
@@ -241,7 +243,7 @@ mod farm {
         }
 
         #[ink(message)]
-        #[modifiers(non_zero_amount(amount))]
+        #[modifiers(non_zero_amount(amount), non_reentrant)]
         pub fn withdraw(&mut self, amount: u128) -> Result<(), FarmError> {
             let caller = self.env().caller();
 
@@ -267,6 +269,7 @@ mod farm {
         }
 
         #[ink(message)]
+        #[modifiers(non_reentrant)]
         pub fn claim(&mut self) -> Result<(), FarmError> {
             self.update_reward_index()?;
 
@@ -463,6 +466,20 @@ mod farm {
             return Err(FarmError::InvalidAmountArgument)
         }
         body(instance)
+    }
+
+    #[modifier_definition]
+    pub fn non_reentrant<F, T>(instance: &mut Farm, body: F) -> Result<T, FarmError>
+    where
+        F: FnOnce(&mut Farm) -> Result<T, FarmError>,
+    {
+        if instance.reentrancy_guard == REENTRANCY_GUARD_LOCKED {
+            return Err(FarmError::ReentrancyLockTaken)
+        }
+        instance.reentrancy_guard = REENTRANCY_GUARD_LOCKED;
+        let res = body(instance);
+        instance.reentrancy_guard = REENTRANCY_GUARD_FREE;
+        res
     }
 
     #[cfg(test)]
