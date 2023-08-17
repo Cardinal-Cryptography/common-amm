@@ -221,6 +221,7 @@ mod farm {
             Ok(())
         }
 
+        /// Deposits the given amount of tokens into the farm.
         #[ink(message)]
         #[modifiers(ensure_running(true), non_zero_amount(amount), non_reentrant)]
         pub fn deposit(&mut self, amount: u128) -> Result<(), FarmError> {
@@ -242,6 +243,7 @@ mod farm {
             Ok(())
         }
 
+        /// Withdraws the given amount of shares from the farm.
         #[ink(message)]
         #[modifiers(non_zero_amount(amount), non_reentrant)]
         pub fn withdraw(&mut self, amount: u128) -> Result<(), FarmError> {
@@ -268,6 +270,7 @@ mod farm {
             Ok(())
         }
 
+        /// Claim all rewards for the caller.
         #[ink(message)]
         #[modifiers(non_reentrant)]
         pub fn claim(&mut self) -> Result<(), FarmError> {
@@ -297,11 +300,13 @@ mod farm {
             Ok(())
         }
 
+        /// Returns how much reward tokens the caller account has accumulated.
+        // We're using the `account` as an argument, instead of `&self.env().caller()`,
+        // for easier frontend integration.
         #[ink(message)]
-        pub fn claimmable(&self) -> Result<Vec<u128>, FarmError> {
-            let caller = Self::env().caller();
+        pub fn claimmable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
             let rewards_per_token = self.rewards_per_token()?;
-            let user_rewards = self.rewards_earned(caller, &rewards_per_token)?;
+            let user_rewards = self.rewards_earned(account, &rewards_per_token)?;
 
             Ok(user_rewards)
         }
