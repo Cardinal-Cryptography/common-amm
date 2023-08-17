@@ -49,6 +49,20 @@ mod farm {
         vec::Vec,
     };
 
+    #[ink(event)]
+    pub struct Deposit {
+        #[ink(topic)]
+        account: AccountId,
+        amount: u128,
+    }
+
+    #[ink(event)]
+    pub struct Withdraw {
+        #[ink(topic)]
+        account: AccountId,
+        amount: u128,
+    }
+
     #[ink(storage)]
     pub struct Farm {
         /// Address of the token pool for which this farm is created.
@@ -218,6 +232,11 @@ mod farm {
             self.total_shares += amount;
 
             self.pool.transfer_from(caller, contract, amount, vec![])?;
+
+            self.env().emit_event(Deposit {
+                account: caller,
+                amount,
+            });
             Ok(())
         }
 
@@ -238,6 +257,11 @@ mod farm {
             self.total_shares -= amount;
 
             self.pool.transfer(caller, amount, vec![])?;
+
+            self.env().emit_event(Withdraw {
+                account: caller,
+                amount,
+            });
 
             Ok(())
         }
