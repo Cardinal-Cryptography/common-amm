@@ -195,6 +195,7 @@ mod farm {
             };
 
             self.state.set(&Some(state));
+            self.is_stopped = false;
 
             Ok(())
         }
