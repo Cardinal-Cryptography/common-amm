@@ -6,7 +6,6 @@ mod reentrancy_guard;
 
 // TODO:
 // Add upper bound on farm length.
-// ? Consider separating constructor's errors from the rest
 // ? Refactor to make staking logic reusable in different contracts.
 
 // Tests:
@@ -26,7 +25,10 @@ mod reentrancy_guard;
 #[ink::contract]
 mod farm {
     use crate::{
-        error::FarmError,
+        error::{
+            FarmError,
+            FarmStartError,
+        },
         farm_state::RunningState,
         reentrancy_guard::*,
     };
@@ -116,30 +118,33 @@ mod farm {
         /// NOTE:
         /// Current block's timestamp is used as the start time.
         /// Farm can be started only if it's in `Stopped` state.
-        #[modifiers(ensure_running(false))]
         #[ink(message)]
         pub fn start(
             &mut self,
             end: Timestamp,
             reward_amounts: Vec<u128>,
             reward_tokens: Vec<AccountId>,
-        ) -> Result<(), FarmError> {
+        ) -> Result<(), FarmStartError> {
+            if !self.is_stopped {
+                return Err(FarmStartError::StillRunning)
+            }
+
             let farm_owner = self.owner;
             if Self::env().caller() != farm_owner {
-                return Err(FarmError::CallerNotOwner)
+                return Err(FarmStartError::CallerNotOwner)
             }
 
             let now = Self::env().block_timestamp();
 
             if now >= end {
-                return Err(FarmError::InvalidInitParams)
+                return Err(FarmStartError::FarmEndBeforeStart)
             }
 
             let duration = end as u128 - now as u128;
             // TODO: check that farm lenght is not too long. Like that it doesn't last a year.
 
             if reward_amounts.len() != reward_tokens.len() {
-                return Err(FarmError::InvalidInitParams)
+                return Err(FarmStartError::RewardAmountsAndTokenLengthDiffer)
             }
 
             let tokens_len = reward_tokens.len();
@@ -150,19 +155,21 @@ mod farm {
                 let reward_amount = reward_amounts[i];
 
                 if reward_amount == 0 {
-                    return Err(FarmError::InvalidInitParams)
+                    return Err(FarmStartError::ZeroRewardAmount)
                 }
                 let rate = reward_amount
                     .checked_div(duration)
-                    .ok_or(FarmError::ArithmeticError)?;
+                    .ok_or(FarmStartError::ArithmeticError)?;
 
                 if rate == 0 {
-                    return Err(FarmError::InvalidInitParams)
+                    return Err(FarmStartError::ZeroRewardRate)
                 }
 
                 // Double-check we have enough to cover the whole farm.
-                if duration * rate <= reward_amount {
-                    return Err(FarmError::InvalidInitParams)
+                if duration * rate < reward_amount {
+                    ink::env::debug_println!("duration * rate <= reward_amount");
+                    ink::env::debug_println!("{:?} * {:?} <= {:?}", duration, rate, reward_amount);
+                    return Err(FarmStartError::InsufficientRewardAmount)
                 }
 
                 let mut psp22_ref: ink::contract_ref!(PSP22) = reward_tokens[i].into();
@@ -488,6 +495,8 @@ mod farm {
 
     #[cfg(test)]
     mod tests {
+        use ink::env::DefaultEnvironment;
+
         use super::*;
 
         #[ink::test]
@@ -496,5 +505,29 @@ mod farm {
             let farm = Farm::new(pool_id);
             assert_eq!(farm.is_stopped, true);
         }
+
+        #[ink::test]
+        fn start_farm() {
+            let pool_id = AccountId::from([0x01; 32]);
+            let mut farm = Farm::new(pool_id);
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(1);
+            let reward_tokens = vec![AccountId::from([0x02; 32])];
+            let r = farm.start(5, vec![300], reward_tokens);
+            println!("{:?}", r);
+        }
+
+        // Tests:
+        // Deposit:
+        // - deposit with 0 balance fails
+        // - deposit with 0 amount fails
+        // - deposit with non-zero balance succeeds
+        // - deposit as first farmer takes all shares
+        // - deposit triggers claim
+        // - deposit as second farmer splits shares and updates reward counter properly
+        // - multiple, repeated deposits by the same farmer update reward counter properly
+        //
+        // Withdraw:
+        // Stop:
+        // Create & Start farm:
     }
 }
