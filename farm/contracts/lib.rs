@@ -92,7 +92,7 @@ mod farm {
     impl Farm {
         #[ink(constructor)]
         pub fn new(pair_address: AccountId) -> Self {
-            return Farm {
+            Farm {
                 pool: pair_address.into(),
                 owner: Self::env().caller(),
                 is_stopped: true,
@@ -151,32 +151,32 @@ mod farm {
                     return Err(FarmError::InvalidInitParams)
                 }
                 let rate = reward_amounts[i]
-                    .checked_div(duration as u128)
+                    .checked_div(duration)
                     .ok_or(FarmError::ArithmeticError)?;
 
                 if rate == 0 {
                     return Err(FarmError::InvalidInitParams)
                 }
-                reward_rates.push(rate);
-            }
 
-            // It is expected that creator of the farm won't start it if there are no rewards.
-            for i in 0..tokens_len {
                 let psp22_ref: ink::contract_ref!(PSP22) = reward_tokens[i].into();
+
                 // Alternatively, we could call psp22_ref.transfer_from here.
                 let balance: Balance = psp22_ref.balance_of(Self::env().account_id());
                 // A reward of 0 is a spam.
                 if balance == 0 {
                     return Err(FarmError::InvalidInitParams)
                 }
+
                 // Validate assumptions made earlier.
                 if balance != reward_amounts[i] {
                     return Err(FarmError::InvalidInitParams)
                 }
                 // Double-check we have enough to cover the whole farm.
-                if duration * reward_rates[i] <= reward_amounts[i] {
+                if duration * rate <= reward_amounts[i] {
                     return Err(FarmError::InvalidInitParams)
                 }
+
+                reward_rates.push(rate);
             }
 
             let state = RunningState {
@@ -233,7 +233,7 @@ mod farm {
             let contract = self.env().account_id();
             let caller = self.env().caller();
 
-            let prev_share = self.shares.get(&caller).unwrap_or(0);
+            let prev_share = self.shares.get(caller).unwrap_or(0);
             self.shares.insert(caller, &(prev_share + amount));
             self.total_shares += amount;
 
@@ -252,7 +252,7 @@ mod farm {
         pub fn withdraw(&mut self, amount: u128) -> Result<(), FarmError> {
             let caller = self.env().caller();
 
-            let shares = self.shares.get(&caller).ok_or(FarmError::CallerNotFarmer)?;
+            let shares = self.shares.get(caller).ok_or(FarmError::CallerNotFarmer)?;
 
             if shares < amount {
                 return Err(FarmError::InvalidWithdrawAmount)
@@ -283,7 +283,7 @@ mod farm {
 
             let user_rewards = self
                 .user_uncollected_rewards
-                .get(&caller)
+                .get(caller)
                 .ok_or(FarmError::CallerNotFarmer)?;
 
             // Reset state before calling PSP22 methods.
@@ -371,19 +371,16 @@ mod farm {
             account: AccountId,
             rewards_per_token: &[u128],
         ) -> Result<Vec<u128>, FarmError> {
-            let shares = self
-                .shares
-                .get(&account)
-                .ok_or(FarmError::CallerNotFarmer)?;
+            let shares = self.shares.get(account).ok_or(FarmError::CallerNotFarmer)?;
 
             let rewards_per_token_paid_so_far = self
                 .user_reward_per_token_paid
-                .get(&account)
+                .get(account)
                 .unwrap_or(vec![0; rewards_per_token.len()]);
 
             let uncollected_user_rewards = self
                 .user_uncollected_rewards
-                .get(&account)
+                .get(account)
                 .unwrap_or(vec![0; rewards_per_token.len()]);
 
             let mut unclaimed_user_rewards = vec![];
@@ -459,7 +456,7 @@ mod farm {
     where
         F: FnOnce(&mut Farm) -> Result<T, FarmError>,
     {
-        if !instance.is_stopped == expected {
+        if instance.is_stopped != expected {
             return Err(FarmError::StillRunning)
         }
         body(instance)
