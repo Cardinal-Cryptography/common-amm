@@ -6,7 +6,10 @@ type AccountId = <ink::env::DefaultEnvironment as Environment>::AccountId;
 type Timestamp = <ink::env::DefaultEnvironment as Environment>::Timestamp;
 
 #[derive(Clone, Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[cfg_attr(
+    feature = "std",
+    derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout)
+)]
 pub struct RunningState {
     // Creator(owner) of the farm.
     pub owner: AccountId,
