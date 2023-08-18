@@ -1,5 +1,7 @@
 use psp22_traits::PSP22Error;
 
+use crate::reentrancy_guard::ReentrancyGuardError;
+
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum FarmError {
@@ -15,12 +17,18 @@ pub enum FarmError {
     InvalidWithdrawAmount,
     NothingToClaim,
     StateMissing,
-    SubUnderFlow1,
-    ReentrancyLockTaken,
+    SubUnderFlow,
+    ReentrancyError(ReentrancyGuardError),
 }
 
 impl From<PSP22Error> for FarmError {
     fn from(e: PSP22Error) -> Self {
         FarmError::PSP22Error(e)
+    }
+}
+
+impl From<ReentrancyGuardError> for FarmError {
+    fn from(e: ReentrancyGuardError) -> Self {
+        FarmError::ReentrancyError(e)
     }
 }

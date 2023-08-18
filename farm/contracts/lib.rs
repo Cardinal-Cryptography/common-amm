@@ -2,6 +2,7 @@
 
 mod error;
 mod farm_state;
+mod reentrancy_guard;
 
 // TODO:
 // Add upper bound on farm length.
@@ -27,6 +28,7 @@ mod farm {
     use crate::{
         error::FarmError,
         farm_state::RunningState,
+        reentrancy_guard::*,
     };
 
     use openbrush::modifiers;
@@ -80,6 +82,7 @@ mod farm {
         user_uncollected_rewards: Mapping<AccountId, Vec<u128>>,
         /// Farm state.
         state: Lazy<Option<RunningState>>,
+        /// Flag to prevent reentrancy attacks.
         reentrancy_guard: u8,
     }
 
@@ -473,18 +476,19 @@ mod farm {
         body(instance)
     }
 
-    #[modifier_definition]
-    pub fn non_reentrant<F, T>(instance: &mut Farm, body: F) -> Result<T, FarmError>
-    where
-        F: FnOnce(&mut Farm) -> Result<T, FarmError>,
-    {
-        if instance.reentrancy_guard == REENTRANCY_GUARD_LOCKED {
-            return Err(FarmError::ReentrancyLockTaken)
+    impl ReentrancyGuardT for Farm {
+        fn lock(&mut self) -> Result<(), ReentrancyGuardError> {
+            if self.reentrancy_guard == REENTRANCY_GUARD_LOCKED {
+                return Err(ReentrancyGuardError::ReentrancyError)
+            }
+            self.reentrancy_guard = REENTRANCY_GUARD_LOCKED;
+            Ok(())
         }
-        instance.reentrancy_guard = REENTRANCY_GUARD_LOCKED;
-        let res = body(instance);
-        instance.reentrancy_guard = REENTRANCY_GUARD_FREE;
-        res
+
+        fn unlock(&mut self) {
+            // It's safe to "unlock" already unlocked guard.
+            self.reentrancy_guard = REENTRANCY_GUARD_FREE;
+        }
     }
 
     #[cfg(test)]
