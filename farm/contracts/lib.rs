@@ -147,10 +147,12 @@ mod farm {
             let mut reward_rates = Vec::with_capacity(tokens_len);
 
             for i in 0..tokens_len {
-                if reward_amounts[i] == 0 {
+                let reward_amount = reward_amounts[i];
+
+                if reward_amount == 0 {
                     return Err(FarmError::InvalidInitParams)
                 }
-                let rate = reward_amounts[i]
+                let rate = reward_amount
                     .checked_div(duration)
                     .ok_or(FarmError::ArithmeticError)?;
 
@@ -158,23 +160,19 @@ mod farm {
                     return Err(FarmError::InvalidInitParams)
                 }
 
-                let psp22_ref: ink::contract_ref!(PSP22) = reward_tokens[i].into();
-
-                // Alternatively, we could call psp22_ref.transfer_from here.
-                let balance: Balance = psp22_ref.balance_of(Self::env().account_id());
-                // A reward of 0 is a spam.
-                if balance == 0 {
-                    return Err(FarmError::InvalidInitParams)
-                }
-
-                // Validate assumptions made earlier.
-                if balance != reward_amounts[i] {
-                    return Err(FarmError::InvalidInitParams)
-                }
                 // Double-check we have enough to cover the whole farm.
-                if duration * rate <= reward_amounts[i] {
+                if duration * rate <= reward_amount {
                     return Err(FarmError::InvalidInitParams)
                 }
+
+                let mut psp22_ref: ink::contract_ref!(PSP22) = reward_tokens[i].into();
+
+                psp22_ref.transfer_from(
+                    farm_owner,
+                    Self::env().account_id(),
+                    reward_amount,
+                    vec![],
+                )?;
 
                 reward_rates.push(rate);
             }
