@@ -449,12 +449,12 @@ mod farm {
     pub fn ensure_running<F, T>(
         instance: &mut Farm,
         body: F,
-        expected: bool,
+        should_be_running: bool,
     ) -> Result<T, FarmError>
     where
         F: FnOnce(&mut Farm) -> Result<T, FarmError>,
     {
-        if instance.is_stopped != expected {
+        if !should_be_running && !instance.is_stopped {
             return Err(FarmError::StillRunning)
         }
         body(instance)
