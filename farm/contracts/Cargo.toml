@@ -22,10 +22,6 @@ sp-arithmetic = { git = "https://github.com/paritytech/substrate", default-featu
 
 psp22-traits = { path = "../psp22-traits", default-features = false }
 
-[dev-dependencies]
-curve25519-dalek = { version = "4.0.0-rc.2", features = ["digest"] }
-sha2 = "0.10.6"
-
 [lib]
 name = "univ2_farm"
 path = "lib.rs"
