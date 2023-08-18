@@ -494,7 +494,7 @@ mod farm {
         fn new_creates_stopped_farm() {
             let pool_id = AccountId::from([0x01; 32]);
             let farm = Farm::new(pool_id);
-            assert_eq!(farm.is_stopped, false);
+            assert_eq!(farm.is_stopped, true);
         }
     }
 }

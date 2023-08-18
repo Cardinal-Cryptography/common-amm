@@ -23,7 +23,6 @@ sp-arithmetic = { git = "https://github.com/paritytech/substrate", default-featu
 psp22-traits = { path = "../psp22-traits", default-features = false }
 
 [lib]
-name = "univ2_farm"
 path = "lib.rs"
 
 [features]
