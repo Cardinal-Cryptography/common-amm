@@ -83,7 +83,7 @@ mod farm {
         /// Rewards that have not been collected (withdrawn) by the user yet.
         user_uncollected_rewards: Mapping<AccountId, Vec<u128>>,
         /// Farm state.
-        state: Lazy<Option<RunningState>>,
+        state: Lazy<RunningState>,
         /// Flag to prevent reentrancy attacks.
         reentrancy_guard: u8,
     }
@@ -194,7 +194,7 @@ mod farm {
                 timestamp_at_last_update: now,
             };
 
-            self.state.set(&Some(state));
+            self.state.set(&state);
             self.is_stopped = false;
 
             Ok(())
@@ -333,7 +333,7 @@ mod farm {
 
             let mut running = self.get_state()?;
             running.reward_per_token_stored = rewards_per_token;
-            self.state.set(&Some(running));
+            self.state.set(&running);
 
             Ok(user_rewards)
         }
@@ -405,7 +405,7 @@ mod farm {
         }
 
         fn get_state(&self) -> Result<RunningState, FarmError> {
-            self.state.get().flatten().ok_or(FarmError::StateMissing)
+            self.state.get().ok_or(FarmError::StateMissing)
         }
     }
 
