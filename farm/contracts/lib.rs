@@ -1,7 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
 mod error;
-mod farm_state;
 mod reentrancy_guard;
 
 // TODO:
@@ -29,7 +28,6 @@ mod farm {
             FarmError,
             FarmStartError,
         },
-        farm_state::RunningState,
         reentrancy_guard::*,
     };
 
@@ -40,6 +38,7 @@ mod farm {
     use ink::{
         contract_ref,
         storage::{
+            traits::ManualKey,
             Lazy,
             Mapping,
         },
@@ -72,18 +71,8 @@ mod farm {
         owner: AccountId,
         /// Whether the farm is stopped.
         is_stopped: bool,
-        /// How many shares each user has in the farm.
-        shares: Mapping<AccountId, u128>,
-        /// Total shares in the farm after the last action.
-        total_shares: u128,
-        /// Reward per token paid to the user for each reward token.
-        // We need to track this separately for each reward token as each can have different reward rate.
-        // Vectors should be relatively small (probably < 5).
-        user_reward_per_token_paid: Mapping<AccountId, Vec<u128>>,
-        /// Rewards that have not been collected (withdrawn) by the user yet.
-        user_uncollected_rewards: Mapping<AccountId, Vec<u128>>,
         /// Farm state.
-        state: Lazy<RunningState>,
+        state: Lazy<State, ManualKey<0x4641524d>>,
         /// Flag to prevent reentrancy attacks.
         reentrancy_guard: u8,
     }
@@ -98,10 +87,6 @@ mod farm {
                 pool: pair_address.into(),
                 owner: Self::env().caller(),
                 is_stopped: true,
-                total_shares: 0,
-                shares: Mapping::new(),
-                user_reward_per_token_paid: Mapping::new(),
-                user_uncollected_rewards: Mapping::new(),
                 state: Lazy::new(),
                 reentrancy_guard: REENTRANCY_GUARD_FREE,
             }
@@ -184,7 +169,7 @@ mod farm {
                 reward_rates.push(rate);
             }
 
-            let state = RunningState {
+            let state = State {
                 owner: farm_owner,
                 start: now,
                 end,
@@ -192,6 +177,10 @@ mod farm {
                 reward_tokens,
                 reward_per_token_stored: vec![0; tokens_len],
                 timestamp_at_last_update: now,
+                total_shares: 0,
+                shares: Mapping::new(),
+                user_reward_per_token_paid: Mapping::new(),
+                user_uncollected_rewards: Mapping::new(),
             };
 
             self.state.set(&state);
@@ -239,9 +228,13 @@ mod farm {
             let contract = self.env().account_id();
             let caller = self.env().caller();
 
-            let prev_share = self.shares.get(caller).unwrap_or(0);
-            self.shares.insert(caller, &(prev_share + amount));
-            self.total_shares += amount;
+            let mut running_state = self.get_state()?;
+
+            let prev_share = running_state.shares.get(caller).unwrap_or(0);
+            running_state.shares.insert(caller, &(prev_share + amount));
+            running_state.total_shares += amount;
+
+            self.state.set(&running_state);
 
             self.pool.transfer_from(caller, contract, amount, vec![])?;
 
@@ -258,7 +251,9 @@ mod farm {
         pub fn withdraw(&mut self, amount: u128) -> Result<(), FarmError> {
             let caller = self.env().caller();
 
-            let shares = self.shares.get(caller).ok_or(FarmError::CallerNotFarmer)?;
+            let mut state = self.get_state()?;
+
+            let shares = state.shares.get(caller).ok_or(FarmError::CallerNotFarmer)?;
 
             if shares < amount {
                 return Err(FarmError::InvalidWithdrawAmount)
@@ -266,8 +261,10 @@ mod farm {
 
             self.update_reward_index()?;
 
-            self.shares.insert(caller, &(shares - amount));
-            self.total_shares -= amount;
+            state.shares.insert(caller, &(shares - amount));
+            state.total_shares -= amount;
+
+            self.state.set(&state);
 
             self.pool.transfer(caller, amount, vec![])?;
 
@@ -287,19 +284,23 @@ mod farm {
 
             let caller = Self::env().caller();
 
-            let user_rewards = self
+            let mut state = self.get_state()?;
+
+            let user_rewards = state
                 .user_uncollected_rewards
                 .get(caller)
                 .ok_or(FarmError::CallerNotFarmer)?;
 
             // Reset state before calling PSP22 methods.
             // Reentrancy protection.
-            self.user_uncollected_rewards
+            state
+                .user_uncollected_rewards
                 .insert(caller, &vec![0; user_rewards.len()]);
 
-            for (user_reward, reward_token) in user_rewards
-                .into_iter()
-                .zip(self.get_state()?.reward_tokens.iter())
+            self.state.set(&state);
+
+            for (user_reward, reward_token) in
+                user_rewards.into_iter().zip(state.reward_tokens.iter())
             {
                 if user_reward > 0 {
                     let mut psp22_ref: ink::contract_ref!(PSP22) = (*reward_token).into();
@@ -314,8 +315,9 @@ mod farm {
         // for easier frontend integration.
         #[ink(message)]
         pub fn claimmable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
-            let rewards_per_token = self.rewards_per_token()?;
-            let user_rewards = self.rewards_earned(account, &rewards_per_token)?;
+            let state = self.get_state()?;
+            let rewards_per_token = state.rewards_per_token(self.env().block_timestamp())?;
+            let user_rewards = state.rewards_earned(account, &rewards_per_token)?;
 
             Ok(user_rewards)
         }
@@ -324,45 +326,76 @@ mod farm {
         fn update_reward_index(&mut self) -> Result<Vec<u128>, FarmError> {
             let account = self.env().caller();
 
-            let rewards_per_token = self.rewards_per_token()?;
-            let user_rewards = self.rewards_earned(account, &rewards_per_token)?;
+            let mut state = self.get_state()?;
 
-            self.user_reward_per_token_paid
+            let rewards_per_token = state.rewards_per_token(self.env().block_timestamp())?;
+            let user_rewards = state.rewards_earned(account, &rewards_per_token)?;
+
+            state
+                .user_reward_per_token_paid
                 .insert(account, &rewards_per_token);
-            self.user_uncollected_rewards.insert(account, &user_rewards);
+            state
+                .user_uncollected_rewards
+                .insert(account, &user_rewards);
+            state.reward_per_token_stored = rewards_per_token;
 
-            let mut running = self.get_state()?;
-            running.reward_per_token_stored = rewards_per_token;
-            self.state.set(&running);
+            self.state.set(&state);
 
             Ok(user_rewards)
         }
 
-        /// Returns the timestamp at which the last update is applicable.
-        /// When the farm is running, this is the current block timestamp.
-        /// When the farm is stopped, this is the farm's end timestamp.
-        fn last_timestamp_applicable(&self) -> Result<Timestamp, FarmError> {
-            let running = self.get_state()?;
-            Ok(core::cmp::min(Self::env().block_timestamp(), running.end))
+        fn get_state(&self) -> Result<State, FarmError> {
+            self.state.get().ok_or(FarmError::StateMissing)
         }
+    }
 
+    #[ink::storage_item]
+    pub struct State {
+        // Creator(owner) of the farm.
+        pub owner: AccountId,
+        // The timestamp when the farm was created.
+        pub start: Timestamp,
+        // The timestamp when the farm will stop.
+        pub end: Timestamp,
+        // How many rewards to pay out for the smallest unit of time.
+        pub reward_rates: Vec<u128>,
+        // Tokens deposited as rewards for providing LP to the farm.
+        pub reward_tokens: Vec<AccountId>,
+        // Reward counter at the last farm change.
+        pub reward_per_token_stored: Vec<u128>,
+        // Timestamp of the last farm change.
+        pub timestamp_at_last_update: Timestamp,
+        /// Total shares in the farm after the last action.
+        pub total_shares: u128,
+        /// How many shares each user has in the farm.
+        pub shares: Mapping<AccountId, u128>,
+        /// Reward per token paid to the user for each reward token.
+        // We need to track this separately for each reward token as each can have different reward rate.
+        // Vectors should be relatively small (probably < 5).
+        pub user_reward_per_token_paid: Mapping<AccountId, Vec<u128>>,
+        /// Rewards that have not been collected (withdrawn) by the user yet.
+        pub user_uncollected_rewards: Mapping<AccountId, Vec<u128>>,
+    }
+
+    impl State {
         /// Calculates rewards per token due for providing liquidity to the farm
         /// since the last update until `last_timestamp_applicable`.
         ///
         /// Returned value is a vector of numbers, one for each reward token in the farm.
-        fn rewards_per_token(&self) -> Result<Vec<u128>, FarmError> {
-            let running = self.get_state()?;
+        pub fn rewards_per_token(
+            &self,
+            current_timestamp: Timestamp,
+        ) -> Result<Vec<u128>, FarmError> {
+            let mut rewards_per_token: Vec<u128> = Vec::with_capacity(self.reward_tokens.len());
 
-            let mut rewards_per_token: Vec<u128> = Vec::with_capacity(running.reward_tokens.len());
-
-            for i in 0..running.reward_tokens.len() {
-                let reward_rate = running.reward_rates[i];
+            for i in 0..self.reward_tokens.len() {
+                let reward_rate: u128 = self.reward_rates[i];
                 let rpr = reward_per_token(
-                    running.reward_per_token_stored[i],
+                    self.reward_per_token_stored[i],
                     reward_rate,
                     self.total_shares,
-                    running.timestamp_at_last_update as u128,
-                    self.last_timestamp_applicable()? as u128,
+                    self.timestamp_at_last_update as u128,
+                    core::cmp::min(current_timestamp, self.end) as u128,
                 )
                 .ok_or(FarmError::ArithmeticError)?;
                 rewards_per_token.push(rpr);
@@ -372,7 +405,7 @@ mod farm {
         }
 
         /// Returns the amount of rewards earned by the given account.
-        fn rewards_earned(
+        pub fn rewards_earned(
             &self,
             account: AccountId,
             rewards_per_token: &[u128],
@@ -402,10 +435,6 @@ mod farm {
             }
 
             Ok(unclaimed_user_rewards)
-        }
-
-        fn get_state(&self) -> Result<RunningState, FarmError> {
-            self.state.get().ok_or(FarmError::StateMissing)
         }
     }
 
