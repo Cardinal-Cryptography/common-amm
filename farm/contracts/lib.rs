@@ -37,17 +37,24 @@ mod farm {
     };
 
     #[ink(event)]
-    pub struct Deposit {
+    pub struct Deposited {
         #[ink(topic)]
         account: AccountId,
         amount: u128,
     }
 
     #[ink(event)]
-    pub struct Withdraw {
+    pub struct Withdrawn {
         #[ink(topic)]
         account: AccountId,
         amount: u128,
+    }
+
+    #[ink(event)]
+    pub struct RewardsClaimed {
+        #[ink(topic)]
+        account: AccountId,
+        amounts: Vec<u128>,
     }
 
     #[ink(storage)]
@@ -225,7 +232,7 @@ mod farm {
 
             self.pool.transfer_from(caller, contract, amount, vec![])?;
 
-            self.env().emit_event(Deposit {
+            self.env().emit_event(Deposited {
                 account: caller,
                 amount,
             });
@@ -255,7 +262,7 @@ mod farm {
 
             self.pool.transfer(caller, amount, vec![])?;
 
-            self.env().emit_event(Withdraw {
+            self.env().emit_event(Withdrawn {
                 account: caller,
                 amount,
             });
@@ -286,14 +293,20 @@ mod farm {
 
             self.state.set(&state);
 
-            for (user_reward, reward_token) in
-                user_rewards.into_iter().zip(state.reward_tokens.iter())
+            for (user_reward, reward_token) in user_rewards
+                .clone()
+                .into_iter()
+                .zip(state.reward_tokens.iter())
             {
                 if user_reward > 0 {
                     let mut psp22_ref: ink::contract_ref!(PSP22) = (*reward_token).into();
                     psp22_ref.transfer(caller, user_reward, vec![])?;
                 }
             }
+            self.env().emit_event(RewardsClaimed {
+                account: caller,
+                amounts: user_rewards,
+            });
             Ok(())
         }
 
