@@ -115,7 +115,7 @@ mod farm {
             }
 
             let duration = end as u128 - now as u128;
-            // TODO: check that farm lenght is not too long. Like that it doesn't last a year.
+            // TODO: check that farm length is not too long, e.g. that it doesn't last a year.
 
             if reward_amounts.len() != reward_tokens.len() {
                 return Err(FarmStartError::RewardAmountsAndTokenLengthDiffer)
@@ -301,7 +301,7 @@ mod farm {
         // We're using the `account` as an argument, instead of `&self.env().caller()`,
         // for easier frontend integration.
         #[ink(message)]
-        pub fn claimmable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
+        pub fn claimable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
             let state = self.get_state()?;
             let rewards_per_token = state.rewards_per_token(self.env().block_timestamp())?;
             let user_rewards = state.rewards_earned(account, &rewards_per_token)?;
@@ -338,19 +338,19 @@ mod farm {
 
     #[ink::storage_item]
     pub struct State {
-        // Creator(owner) of the farm.
+        /// Creator(owner) of the farm.
         pub owner: AccountId,
-        // The timestamp when the farm was created.
+        /// The timestamp when the farm was created.
         pub start: Timestamp,
-        // The timestamp when the farm will stop.
+        /// The timestamp when the farm will stop.
         pub end: Timestamp,
-        // How many rewards to pay out for the smallest unit of time.
+        /// How many rewards to pay out for the smallest unit of time.
         pub reward_rates: Vec<u128>,
-        // Tokens deposited as rewards for providing LP to the farm.
+        /// Tokens deposited as rewards for providing LP to the farm.
         pub reward_tokens: Vec<AccountId>,
-        // Reward counter at the last farm change.
+        /// Reward counter at the last farm change.
         pub reward_per_token_stored: Vec<u128>,
-        // Timestamp of the last farm change.
+        /// Timestamp of the last farm change.
         pub timestamp_at_last_update: Timestamp,
         /// Total shares in the farm after the last action.
         pub total_shares: u128,
@@ -843,7 +843,6 @@ mod farm {
         }
 
         #[cfg(test)]
-
         mod farm_start {
             use super::*;
 

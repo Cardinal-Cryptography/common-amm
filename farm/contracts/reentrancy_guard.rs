@@ -14,11 +14,11 @@ where
 }
 
 pub trait ReentrancyGuardT {
-    /// Sets the reentrnacy lock flag to `true` (conceptually, as it's implementation-dependent).
+    /// Sets the reentrancy lock flag to `true` (conceptually, as it's implementation-dependent).
     /// Must fail if lock is already taken.
     fn lock(&mut self) -> Result<(), ReentrancyGuardError>;
 
-    /// Sets the reentrnacy lock flag to `false` (conceptually, as it's implementation-dependent).
+    /// Sets the reentrancy lock flag to `false` (conceptually, as it's implementation-dependent).
     fn unlock(&mut self);
 }
 
