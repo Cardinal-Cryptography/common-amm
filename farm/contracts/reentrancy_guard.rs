@@ -27,3 +27,15 @@ pub trait ReentrancyGuardT {
 pub enum ReentrancyGuardError {
     ReentrancyError,
 }
+
+/// Simple enum representing reentrancy lock state.
+#[derive(scale::Encode, scale::Decode, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "std",
+    derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout)
+)]
+#[repr(u8)]
+pub enum ReentrancyLock {
+    Locked,
+    Unlocked,
+}

@@ -68,11 +68,8 @@ mod farm {
         /// Farm state.
         state: Lazy<State, ManualKey<0x4641524d>>,
         /// Flag to prevent reentrancy attacks.
-        reentrancy_guard: u8,
+        reentrancy_guard: ReentrancyLock,
     }
-
-    const REENTRANCY_GUARD_LOCKED: u8 = 1u8;
-    const REENTRANCY_GUARD_FREE: u8 = 0u8;
 
     const SCALING_FACTOR: u128 = 10_u128.pow(18);
 
@@ -84,7 +81,7 @@ mod farm {
                 owner: Self::env().caller(),
                 is_stopped: true,
                 state: Lazy::new(),
-                reentrancy_guard: REENTRANCY_GUARD_FREE,
+                reentrancy_guard: ReentrancyLock::Unlocked,
             }
         }
 
@@ -511,16 +508,16 @@ mod farm {
 
     impl ReentrancyGuardT for Farm {
         fn lock(&mut self) -> Result<(), ReentrancyGuardError> {
-            if self.reentrancy_guard == REENTRANCY_GUARD_LOCKED {
+            if self.reentrancy_guard == ReentrancyLock::Locked {
                 return Err(ReentrancyGuardError::ReentrancyError)
             }
-            self.reentrancy_guard = REENTRANCY_GUARD_LOCKED;
+            self.reentrancy_guard = ReentrancyLock::Locked;
             Ok(())
         }
 
         fn unlock(&mut self) {
             // It's safe to "unlock" already unlocked guard.
-            self.reentrancy_guard = REENTRANCY_GUARD_FREE;
+            self.reentrancy_guard = ReentrancyLock::Unlocked;
         }
     }
 
