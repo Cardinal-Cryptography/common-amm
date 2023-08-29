@@ -27,6 +27,8 @@ pub enum FarmStartError {
     CallerNotOwner,
     InvalidInitParams,
     FarmEndBeforeStart,
+    FarmTooLong,
+    TooManyRewardTokens,
     RewardAmountsAndTokenLengthDiffer,
     ZeroRewardAmount,
     ZeroRewardRate,

@@ -73,6 +73,11 @@ mod farm {
 
     const SCALING_FACTOR: u128 = 10_u128.pow(18);
 
+    // 3 months; assumes a month has 30 days.
+    const MAX_FARM_LENGTH_SECONDS: u64 = 3 * 30 * 24 * 60 * 60;
+
+    const MAX_REWARD_TOKENS: u32 = 10;
+
     impl Farm {
         #[ink(constructor)]
         pub fn new(pair_address: AccountId) -> Self {
@@ -107,6 +112,10 @@ mod farm {
                 return Err(FarmStartError::StillRunning)
             }
 
+            if reward_tokens.len() > MAX_REWARD_TOKENS as usize {
+                return Err(FarmStartError::TooManyRewardTokens)
+            }
+
             let farm_owner = self.owner;
             if Self::env().caller() != farm_owner {
                 return Err(FarmStartError::CallerNotOwner)
@@ -119,7 +128,10 @@ mod farm {
             }
 
             let duration = end as u128 - now as u128;
-            // TODO: check that farm length is not too long, e.g. that it doesn't last a year.
+
+            if duration > MAX_FARM_LENGTH_SECONDS as u128 {
+                return Err(FarmStartError::FarmTooLong)
+            }
 
             if reward_amounts.len() != reward_tokens.len() {
                 return Err(FarmStartError::RewardAmountsAndTokenLengthDiffer)
@@ -899,6 +911,35 @@ mod farm {
                 assert_eq!(
                     farm.start(2, reward_amounts, reward_tokens),
                     Err(FarmStartError::FarmEndBeforeStart)
+                );
+            }
+
+            #[ink::test]
+            fn farm_too_long_fails() {
+                let mut farm = farm();
+                let now: u64 = 1;
+                set_block_timestamp::<DefaultEnvironment>(now);
+                let reward_tokens = single_reward_token();
+                let reward_amounts = vec![300];
+                let farm_end = now as u64 + super::MAX_FARM_LENGTH_SECONDS + 1;
+                assert_eq!(
+                    farm.start(farm_end, reward_amounts, reward_tokens),
+                    Err(FarmStartError::FarmTooLong)
+                );
+            }
+
+            #[ink::test]
+            fn farm_too_many_tokens_fails() {
+                let mut farm = farm();
+                set_block_timestamp::<DefaultEnvironment>(1);
+                let reward_tokens = (0..super::MAX_REWARD_TOKENS + 10)
+                    .into_iter()
+                    .map(|i| AccountId::from([i as u8; 32]))
+                    .collect::<Vec<_>>();
+                let reward_amounts = vec![300];
+                assert_eq!(
+                    farm.start(1000, reward_amounts, reward_tokens),
+                    Err(FarmStartError::TooManyRewardTokens)
                 );
             }
 
