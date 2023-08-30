@@ -5,12 +5,19 @@ authors = ["Stake Technologies <devops@stake.co.jp>"]
 edition = "2021"
 
 [dependencies]
-ink = { version = "=4.2.1", default-features = false}
+ink = { version = "=4.3.0", default-features = false }
 
-scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
-scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
+scale = { package = "parity-scale-codec", version = "3", default-features = false, features = [
+    "derive",
+] }
+scale-info = { version = "2.3", default-features = false, features = [
+    "derive",
+], optional = true }
 
-openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", tag = "3.1.1", default-features = false, features = ["psp22", "reentrancy_guard"] }
+openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", tag = "3.1.1", default-features = false, features = [
+    "psp22",
+    "reentrancy_guard",
+] }
 uniswap_v2 = { path = "../../logics", default-features = false }
 
 [lib]
@@ -25,7 +32,7 @@ std = [
     "scale/std",
     "scale-info/std",
     "openbrush/std",
-    "uniswap_v2/std"
+    "uniswap_v2/std",
 ]
 ink-as-dependency = []
 
