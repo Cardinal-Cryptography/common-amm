@@ -112,6 +112,11 @@ mod farm {
                 return Err(FarmStartError::StillRunning)
             }
 
+            // (For now) we don't allow for "restarting" the farm.
+            if self.state.get().is_some() {
+                return Err(FarmStartError::FarmAlreadyFinished)
+            }
+
             if reward_tokens.len() > MAX_REWARD_TOKENS as usize {
                 return Err(FarmStartError::TooManyRewardTokens)
             }
