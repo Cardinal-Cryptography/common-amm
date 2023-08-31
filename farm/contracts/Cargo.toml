@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
 
+[workspace]
+resolver = "2"
+
 [dependencies]
 ink = { version = "=4.3.0", default-features = false }
 
@@ -14,7 +17,7 @@ scale-info = { version = "2.3", default-features = false, features = [
     "derive",
 ], optional = true }
 
-openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", tag = "3.1.0", default-features = false }
+openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", tag = "4.0.0-beta.1", default-features = false }
 primitive-types = { version = "=0.12.1", default-features = false, features = [
     "codec",
 ] }
@@ -38,3 +41,7 @@ std = [
     "sp-arithmetic/std",
 ]
 ink-as-dependency = []
+
+[profile.release]
+overflow-checks = false # Disable integer overflow checks.
+lto = false             # Enable full link-time optimization.
