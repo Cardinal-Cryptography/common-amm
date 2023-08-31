@@ -797,6 +797,18 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "openbrush"
+version = "3.0.0"
+source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.0#107348d75ba40d5abeee4978fd2c70ead0122d3b"
+dependencies = [
+ "ink",
+ "openbrush_contracts 3.0.0",
+ "openbrush_lang 3.0.0",
+ "parity-scale-codec",
+ "scale-info",
+]
+
+[[package]]
+name = "openbrush"
 version = "3.1.1"
 source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.1#13e82f3f02e8ea65a95ea02c381106ea738e1fb8"
 dependencies = [
@@ -808,13 +820,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "openbrush"
-version = "4.0.0-beta.1"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=4.0.0-beta.1#ae8e9535e9e93ccac146352f32fac4e4f6b5a63c"
+name = "openbrush_contracts"
+version = "3.0.0"
+source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.0#107348d75ba40d5abeee4978fd2c70ead0122d3b"
 dependencies = [
  "ink",
- "openbrush_contracts 4.0.0-beta.1",
- "openbrush_lang 4.0.0-beta.1",
+ "openbrush_lang 3.0.0",
+ "pallet-assets-chain-extension",
  "parity-scale-codec",
  "scale-info",
 ]
@@ -826,21 +838,22 @@ source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.1#13e8
 dependencies = [
  "ink",
  "openbrush_lang 3.1.1",
- "pallet-assets-chain-extension 0.1.1 (git+https://github.com/727-ventures/pallet-assets-chain-extension?branch=polkadot-v0.9.37)",
+ "pallet-assets-chain-extension",
  "parity-scale-codec",
  "scale-info",
 ]
 
 [[package]]
-name = "openbrush_contracts"
-version = "4.0.0-beta.1"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=4.0.0-beta.1#ae8e9535e9e93ccac146352f32fac4e4f6b5a63c"
+name = "openbrush_lang"
+version = "3.0.0"
+source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.0#107348d75ba40d5abeee4978fd2c70ead0122d3b"
 dependencies = [
+ "const_format",
  "ink",
- "openbrush_lang 4.0.0-beta.1",
- "pallet-assets-chain-extension 0.1.1 (git+https://github.com/Brushfam/pallet-assets-chain-extension?branch=polkadot-v0.9.37)",
+ "openbrush_lang_macro 3.0.0",
  "parity-scale-codec",
  "scale-info",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -857,16 +870,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "openbrush_lang"
-version = "4.0.0-beta.1"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=4.0.0-beta.1#ae8e9535e9e93ccac146352f32fac4e4f6b5a63c"
+name = "openbrush_lang_codegen"
+version = "3.0.0"
+source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.0#107348d75ba40d5abeee4978fd2c70ead0122d3b"
 dependencies = [
- "const_format",
- "ink",
- "openbrush_lang_macro 4.0.0-beta.1",
- "parity-scale-codec",
- "scale-info",
- "xxhash-rust",
+ "blake2 0.9.2",
+ "cargo_metadata",
+ "fs2",
+ "heck 0.3.3",
+ "ink_ir",
+ "ink_primitives",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 1.0.109",
+ "synstructure 0.12.6",
+ "unwrap",
 ]
 
 [[package]]
@@ -890,23 +910,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "openbrush_lang_codegen"
-version = "4.0.0-beta.1"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=4.0.0-beta.1#ae8e9535e9e93ccac146352f32fac4e4f6b5a63c"
+name = "openbrush_lang_macro"
+version = "3.0.0"
+source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.0#107348d75ba40d5abeee4978fd2c70ead0122d3b"
 dependencies = [
- "blake2 0.9.2",
- "cargo_metadata",
- "fs2",
- "heck 0.3.3",
- "ink_ir",
- "ink_primitives",
+ "openbrush_lang_codegen 3.0.0",
  "proc-macro2",
- "quote",
- "serde",
- "serde_json",
  "syn 1.0.109",
  "synstructure 0.12.6",
- "unwrap",
 ]
 
 [[package]]
@@ -915,17 +926,6 @@ version = "3.1.1"
 source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.1#13e82f3f02e8ea65a95ea02c381106ea738e1fb8"
 dependencies = [
  "openbrush_lang_codegen 3.1.1",
- "proc-macro2",
- "syn 1.0.109",
- "synstructure 0.12.6",
-]
-
-[[package]]
-name = "openbrush_lang_macro"
-version = "4.0.0-beta.1"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=4.0.0-beta.1#ae8e9535e9e93ccac146352f32fac4e4f6b5a63c"
-dependencies = [
- "openbrush_lang_codegen 4.0.0-beta.1",
  "proc-macro2",
  "syn 1.0.109",
  "synstructure 0.12.6",
@@ -946,17 +946,6 @@ dependencies = [
 name = "pallet-assets-chain-extension"
 version = "0.1.1"
 source = "git+https://github.com/727-ventures/pallet-assets-chain-extension?branch=polkadot-v0.9.37#f8ea374186df2a3fc139c8d585719e58d83df582"
-dependencies = [
- "ink",
- "obce",
- "parity-scale-codec",
- "scale-info",
-]
-
-[[package]]
-name = "pallet-assets-chain-extension"
-version = "0.1.1"
-source = "git+https://github.com/Brushfam/pallet-assets-chain-extension?branch=polkadot-v0.9.37#f8ea374186df2a3fc139c8d585719e58d83df582"
 dependencies = [
  "ink",
  "obce",
@@ -1569,7 +1558,7 @@ name = "uniswap_v2_farm"
 version = "0.1.0"
 dependencies = [
  "ink",
- "openbrush 4.0.0-beta.1",
+ "openbrush 3.0.0",
  "parity-scale-codec",
  "primitive-types 0.12.1",
  "psp22-traits",
