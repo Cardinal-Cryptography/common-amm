@@ -34,8 +34,6 @@ pub mod factory {
         factory: data::Data,
     }
 
-    impl Factory for FactoryContract {}
-
     impl factory::Internal for FactoryContract {
         fn _instantiate_pair(
             &mut self,

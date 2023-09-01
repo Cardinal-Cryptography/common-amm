@@ -42,8 +42,6 @@ pub mod token {
         metadata: metadata::Data,
     }
 
-    impl PSP22 for MyPSP22 {}
-
     impl psp22::Internal for MyPSP22 {
         fn _emit_transfer_event(
             &self,
@@ -66,8 +64,6 @@ pub mod token {
             });
         }
     }
-
-    impl PSP22Metadata for MyPSP22 {}
 
     impl MyPSP22 {
         #[ink(constructor)]

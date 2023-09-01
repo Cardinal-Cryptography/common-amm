@@ -16,8 +16,6 @@ pub mod router {
         router: data::Data,
     }
 
-    impl Router for RouterContract {}
-
     impl RouterContract {
         #[ink(constructor)]
         pub fn new(factory: AccountId, wnative: AccountId) -> Self {

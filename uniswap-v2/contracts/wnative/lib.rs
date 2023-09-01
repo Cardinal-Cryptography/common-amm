@@ -43,8 +43,6 @@ pub mod wnative {
         metadata: metadata::Data,
     }
 
-    impl PSP22 for WnativeContract {}
-
     impl psp22::Internal for WnativeContract {
         fn _emit_transfer_event(
             &self,
@@ -67,10 +65,6 @@ pub mod wnative {
             });
         }
     }
-
-    impl Wnative for WnativeContract {}
-
-    impl PSP22Metadata for WnativeContract {}
 
     impl WnativeContract {
         #[ink(constructor)]

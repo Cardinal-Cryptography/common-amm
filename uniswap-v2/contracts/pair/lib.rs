@@ -236,8 +236,6 @@ pub mod pair {
         }
     }
 
-    impl Pair for PairContract {}
-
     impl PairContract {
         #[ink(constructor)]
         pub fn new(token_a: AccountId, token_b: AccountId) -> Self {
