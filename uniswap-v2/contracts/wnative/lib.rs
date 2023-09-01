@@ -3,9 +3,12 @@
 
 #[openbrush::contract]
 pub mod wnative {
-    use ink::codegen::{
-        EmitEvent,
-        Env,
+    use ink::{
+        codegen::{
+            EmitEvent,
+            Env,
+        },
+        prelude::vec::Vec,
     };
     use openbrush::{
         contracts::psp22::extensions::metadata::*,
@@ -14,7 +17,10 @@ pub mod wnative {
             String,
         },
     };
-    use uniswap_v2::impls::wnative::*;
+    use uniswap_v2::traits::wnative::{
+        wnative_external,
+        Wnative,
+    };
 
     #[ink(event)]
     pub struct Transfer {
@@ -41,6 +47,127 @@ pub mod wnative {
         psp22: psp22::Data,
         #[storage_field]
         metadata: metadata::Data,
+    }
+
+    impl Wnative for WnativeContract {
+        #[ink(message)]
+        fn deposit(&mut self) -> Result<(), PSP22Error> {
+            let transfer_value = self.env().transferred_value();
+            let caller = self.env().caller();
+            self._mint_to(caller, transfer_value)
+        }
+
+        #[ink(message)]
+        fn withdraw(&mut self, amount: Balance) -> Result<(), PSP22Error> {
+            let caller = self.env().caller();
+            self._burn_from(caller, amount)?;
+            self.env()
+                .transfer(caller, amount)
+                .map_err(|_| PSP22Error::Custom(String::from("WNATIVE: transfer failed")))
+        }
+    }
+
+    impl PSP22Metadata for WnativeContract {
+        #[ink(message)]
+        fn token_name(&self) -> Option<String> {
+            self.metadata.name.clone()
+        }
+
+        #[ink(message)]
+        fn token_symbol(&self) -> Option<String> {
+            self.metadata.symbol.clone()
+        }
+
+        #[ink(message)]
+        fn token_decimals(&self) -> u8 {
+            self.metadata.decimals.clone()
+        }
+    }
+
+    impl PSP22 for WnativeContract {
+        #[ink(message)]
+        fn total_supply(&self) -> Balance {
+            self._total_supply()
+        }
+
+        #[ink(message)]
+        fn balance_of(&self, owner: AccountId) -> Balance {
+            self._balance_of(&owner)
+        }
+
+        #[ink(message)]
+        fn allowance(&self, owner: AccountId, spender: AccountId) -> Balance {
+            self._allowance(&owner, &spender)
+        }
+
+        #[ink(message)]
+        fn transfer(
+            &mut self,
+            to: AccountId,
+            value: Balance,
+            data: Vec<u8>,
+        ) -> Result<(), PSP22Error> {
+            let from = self.env().caller();
+            self._transfer_from_to(from, to, value, data)?;
+            Ok(())
+        }
+
+        #[ink(message)]
+        fn transfer_from(
+            &mut self,
+            from: AccountId,
+            to: AccountId,
+            value: Balance,
+            data: Vec<u8>,
+        ) -> Result<(), PSP22Error> {
+            let caller = self.env().caller();
+            let allowance = self._allowance(&from, &caller);
+
+            if allowance < value {
+                return Err(PSP22Error::InsufficientAllowance)
+            }
+
+            self._approve_from_to(from, caller, allowance - value)?;
+            self._transfer_from_to(from, to, value, data)?;
+            Ok(())
+        }
+
+        #[ink(message)]
+        fn approve(&mut self, spender: AccountId, value: Balance) -> Result<(), PSP22Error> {
+            let owner = self.env().caller();
+            self._approve_from_to(owner, spender, value)?;
+            Ok(())
+        }
+
+        #[ink(message)]
+        fn increase_allowance(
+            &mut self,
+            spender: AccountId,
+            delta_value: Balance,
+        ) -> Result<(), PSP22Error> {
+            let owner = self.env().caller();
+            self._approve_from_to(
+                owner,
+                spender,
+                self._allowance(&owner, &spender) + delta_value,
+            )
+        }
+
+        #[ink(message)]
+        fn decrease_allowance(
+            &mut self,
+            spender: AccountId,
+            delta_value: Balance,
+        ) -> Result<(), PSP22Error> {
+            let owner = self.env().caller();
+            let allowance = self._allowance(&owner, &spender);
+
+            if allowance < delta_value {
+                return Err(PSP22Error::InsufficientAllowance)
+            }
+
+            self._approve_from_to(owner, spender, allowance - delta_value)
+        }
     }
 
     impl psp22::Internal for WnativeContract {
