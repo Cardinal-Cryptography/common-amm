@@ -100,7 +100,7 @@ pub mod token {
 
         #[ink(message)]
         fn token_decimals(&self) -> u8 {
-            self.metadata.decimals.clone()
+            self.metadata.decimals
         }
     }
 
