@@ -858,7 +858,9 @@ dependencies = [
  "ink",
  "openbrush",
  "parity-scale-codec",
+ "primitive-types",
  "scale-info",
+ "sp-arithmetic",
  "uniswap_v2",
 ]
 

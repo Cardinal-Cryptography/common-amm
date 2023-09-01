@@ -1,10 +1,6 @@
 use crate::{
     ensure,
-    helpers::{
-        math::casted_mul,
-        transfer_helper::safe_transfer,
-        ZERO_ADDRESS,
-    },
+    helpers::math::casted_mul,
     traits::{
         factory::FactoryRef,
         types::WrappedU256,
@@ -15,23 +11,16 @@ pub use crate::{
     traits::pair::*,
 };
 use openbrush::{
-    contracts::{
-        psp22::*,
-        reentrancy_guard::*,
-        traits::psp22::PSP22Ref,
-    },
-    modifiers,
+    contracts::psp22::*,
     traits::{
         AccountId,
         AccountIdExt,
         Balance,
         Storage,
-        Timestamp,
     },
 };
 use primitive_types::U256;
 use sp_arithmetic::{
-    traits::IntegerSquareRoot,
     FixedPointNumber,
     FixedU128,
 };
@@ -78,288 +67,8 @@ pub trait Internal {
     fn _emit_sync_event(&self, reserve_0: Balance, reserve_1: Balance);
 }
 
-impl<T: Storage<data::Data> + Storage<psp22::Data> + Storage<reentrancy_guard::Data>> Pair for T {
-    default fn get_reserves(&self) -> (Balance, Balance, Timestamp) {
-        (
-            self.data::<data::Data>().reserve_0,
-            self.data::<data::Data>().reserve_1,
-            self.data::<data::Data>().block_timestamp_last,
-        )
-    }
-    default fn price_0_cumulative_last(&self) -> WrappedU256 {
-        self.data::<data::Data>().price_0_cumulative_last
-    }
-
-    default fn price_1_cumulative_last(&self) -> WrappedU256 {
-        self.data::<data::Data>().price_1_cumulative_last
-    }
-
-    #[modifiers(non_reentrant)]
-    default fn mint(&mut self, to: AccountId) -> Result<Balance, PairError> {
-        let reserves = self.get_reserves();
-        let contract = Self::env().account_id();
-        let balance_0 = PSP22Ref::balance_of(&self.data::<data::Data>().token_0, contract);
-        let balance_1 = PSP22Ref::balance_of(&self.data::<data::Data>().token_1, contract);
-        let amount_0_transferred = balance_0
-            .checked_sub(reserves.0)
-            .ok_or(PairError::SubUnderFlow1)?;
-        let amount_1_transferred = balance_1
-            .checked_sub(reserves.1)
-            .ok_or(PairError::SubUnderFlow2)?;
-
-        let fee_on = self._mint_fee(reserves.0, reserves.1)?;
-        let total_supply = self.data::<psp22::Data>().supply;
-
-        let liquidity;
-        if total_supply == 0 {
-            let liq = amount_0_transferred
-                .checked_mul(amount_1_transferred)
-                .ok_or(PairError::MulOverFlow1)?;
-            liquidity = liq
-                .integer_sqrt()
-                .checked_sub(MINIMUM_LIQUIDITY)
-                .ok_or(PairError::SubUnderFlow3)?;
-            self._mint_to(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
-        } else {
-            let liquidity_1 = amount_0_transferred
-                .checked_mul(total_supply)
-                .ok_or(PairError::MulOverFlow2)?
-                .checked_div(reserves.0)
-                .ok_or(PairError::DivByZero1)?;
-            let liquidity_2 = amount_1_transferred
-                .checked_mul(total_supply)
-                .ok_or(PairError::MulOverFlow3)?
-                .checked_div(reserves.1)
-                .ok_or(PairError::DivByZero2)?;
-            liquidity = min(liquidity_1, liquidity_2);
-        }
-
-        ensure!(liquidity > 0, PairError::InsufficientLiquidityMinted);
-
-        self._mint_to(to, liquidity)?;
-
-        self._update(balance_0, balance_1, reserves.0, reserves.1)?;
-
-        if fee_on {
-            self.data::<data::Data>().k_last = casted_mul(reserves.0, reserves.1).into();
-        }
-
-        self._emit_mint_event(
-            Self::env().caller(),
-            amount_0_transferred,
-            amount_1_transferred,
-        );
-
-        Ok(liquidity)
-    }
-
-    #[modifiers(non_reentrant)]
-    default fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError> {
-        let reserves = self.get_reserves();
-        let contract = Self::env().account_id();
-        let token_0 = self.data::<data::Data>().token_0;
-        let token_1 = self.data::<data::Data>().token_1;
-        let balance_0_before = PSP22Ref::balance_of(&token_0, contract);
-        let balance_1_before = PSP22Ref::balance_of(&token_1, contract);
-        let liquidity = self._balance_of(&contract);
-
-        let fee_on = self._mint_fee(reserves.0, reserves.1)?;
-        let total_supply = self.data::<psp22::Data>().supply;
-        let amount_0 = liquidity
-            .checked_mul(balance_0_before)
-            .ok_or(PairError::MulOverFlow5)?
-            .checked_div(total_supply)
-            .ok_or(PairError::DivByZero3)?;
-        let amount_1 = liquidity
-            .checked_mul(balance_1_before)
-            .ok_or(PairError::MulOverFlow6)?
-            .checked_div(total_supply)
-            .ok_or(PairError::DivByZero4)?;
-
-        ensure!(
-            amount_0 > 0 && amount_1 > 0,
-            PairError::InsufficientLiquidityBurned
-        );
-
-        self._burn_from(contract, liquidity)?;
-
-        safe_transfer(token_0, to, amount_0)?;
-        safe_transfer(token_1, to, amount_1)?;
-
-        let balance_0_after = PSP22Ref::balance_of(&token_0, contract);
-        let balance_1_after = PSP22Ref::balance_of(&token_1, contract);
-
-        self._update(balance_0_after, balance_1_after, reserves.0, reserves.1)?;
-
-        if fee_on {
-            self.data::<data::Data>().k_last = casted_mul(reserves.0, reserves.1).into();
-        }
-
-        self._emit_burn_event(Self::env().caller(), amount_0, amount_1, to);
-
-        Ok((amount_0, amount_1))
-    }
-
-    #[modifiers(non_reentrant)]
-    default fn swap(
-        &mut self,
-        amount_0_out: Balance,
-        amount_1_out: Balance,
-        to: AccountId,
-    ) -> Result<(), PairError> {
-        ensure!(
-            amount_0_out > 0 || amount_1_out > 0,
-            PairError::InsufficientOutputAmount
-        );
-        let reserves = self.get_reserves();
-        ensure!(
-            amount_0_out < reserves.0 && amount_1_out < reserves.1,
-            PairError::InsufficientLiquidity
-        );
-
-        let token_0 = self.data::<data::Data>().token_0;
-        let token_1 = self.data::<data::Data>().token_1;
-
-        ensure!(to != token_0 && to != token_1, PairError::InvalidTo);
-        if amount_0_out > 0 {
-            safe_transfer(token_0, to, amount_0_out)?;
-        }
-        if amount_1_out > 0 {
-            safe_transfer(token_1, to, amount_1_out)?;
-        }
-        let contract = Self::env().account_id();
-        let balance_0 = PSP22Ref::balance_of(&token_0, contract);
-        let balance_1 = PSP22Ref::balance_of(&token_1, contract);
-
-        let amount_0_in = if balance_0
-            > reserves
-                .0
-                .checked_sub(amount_0_out)
-                .ok_or(PairError::SubUnderFlow4)?
-        {
-            balance_0
-                .checked_sub(
-                    reserves
-                        .0
-                        .checked_sub(amount_0_out)
-                        .ok_or(PairError::SubUnderFlow5)?,
-                )
-                .ok_or(PairError::SubUnderFlow6)?
-        } else {
-            0
-        };
-        let amount_1_in = if balance_1
-            > reserves
-                .1
-                .checked_sub(amount_1_out)
-                .ok_or(PairError::SubUnderFlow7)?
-        {
-            balance_1
-                .checked_sub(
-                    reserves
-                        .1
-                        .checked_sub(amount_1_out)
-                        .ok_or(PairError::SubUnderFlow8)?,
-                )
-                .ok_or(PairError::SubUnderFlow9)?
-        } else {
-            0
-        };
-
-        ensure!(
-            amount_0_in > 0 || amount_1_in > 0,
-            PairError::InsufficientInputAmount
-        );
-
-        let balance_0_adjusted = balance_0
-            .checked_mul(1000)
-            .ok_or(PairError::MulOverFlow7)?
-            .checked_sub(amount_0_in.checked_mul(3).ok_or(PairError::MulOverFlow8)?)
-            .ok_or(PairError::SubUnderFlow10)?;
-        let balance_1_adjusted = balance_1
-            .checked_mul(1000)
-            .ok_or(PairError::MulOverFlow9)?
-            .checked_sub(amount_1_in.checked_mul(3).ok_or(PairError::MulOverFlow10)?)
-            .ok_or(PairError::SubUnderFlow11)?;
-
-        // Cast to U256 to prevent Overflow
-        ensure!(
-            casted_mul(balance_0_adjusted, balance_1_adjusted)
-                >= casted_mul(reserves.0, reserves.1)
-                    .checked_mul(1000u128.pow(2).into())
-                    .ok_or(PairError::MulOverFlow14)?,
-            PairError::K
-        );
-
-        self._update(balance_0, balance_1, reserves.0, reserves.1)?;
-
-        self._emit_swap_event(
-            Self::env().caller(),
-            amount_0_in,
-            amount_1_in,
-            amount_0_out,
-            amount_1_out,
-            to,
-        );
-        Ok(())
-    }
-
-    #[modifiers(non_reentrant)]
-    default fn skim(&mut self, to: AccountId) -> Result<(), PairError> {
-        let contract = Self::env().account_id();
-        let reserve_0 = self.data::<data::Data>().reserve_0;
-        let reserve_1 = self.data::<data::Data>().reserve_1;
-        let token_0 = self.data::<data::Data>().token_0;
-        let token_1 = self.data::<data::Data>().token_1;
-        let balance_0 = PSP22Ref::balance_of(&token_0, contract);
-        let balance_1 = PSP22Ref::balance_of(&token_1, contract);
-        safe_transfer(
-            token_0,
-            to,
-            balance_0
-                .checked_sub(reserve_0)
-                .ok_or(PairError::SubUnderFlow12)?,
-        )?;
-        safe_transfer(
-            token_1,
-            to,
-            balance_1
-                .checked_sub(reserve_1)
-                .ok_or(PairError::SubUnderFlow13)?,
-        )?;
-        Ok(())
-    }
-
-    #[modifiers(non_reentrant)]
-    default fn sync(&mut self) -> Result<(), PairError> {
-        let contract = Self::env().account_id();
-        let reserve_0 = self.data::<data::Data>().reserve_0;
-        let reserve_1 = self.data::<data::Data>().reserve_1;
-        let token_0 = self.data::<data::Data>().token_0;
-        let token_1 = self.data::<data::Data>().token_1;
-        let balance_0 = PSP22Ref::balance_of(&token_0, contract);
-        let balance_1 = PSP22Ref::balance_of(&token_1, contract);
-        self._update(balance_0, balance_1, reserve_0, reserve_1)
-    }
-
-    default fn get_token_0(&self) -> AccountId {
-        self.data::<data::Data>().token_0
-    }
-
-    default fn get_token_1(&self) -> AccountId {
-        self.data::<data::Data>().token_1
-    }
-}
-
-fn min(x: u128, y: u128) -> u128 {
-    if x < y {
-        return x
-    }
-    y
-}
-
 #[inline]
-fn update_cumulative(
+pub fn update_cumulative(
     price_0_cumulative_last: WrappedU256,
     price_1_cumulative_last: WrappedU256,
     time_elapsed: U256,
