@@ -1,7 +1,7 @@
 [package]
 name = "pair_contract"
 version = "0.1.0"
-authors = ["Stake Technologies <devops@stake.co.jp>"]
+authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
@@ -19,6 +19,10 @@ openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", tag =
     "reentrancy_guard",
 ] }
 uniswap_v2 = { path = "../../logics", default-features = false }
+primitive-types = { version = "0.11.1", default-features = false, features = [
+    "codec",
+] }
+sp-arithmetic = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.37" }
 
 [lib]
 name = "pair_contract"

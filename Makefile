@@ -87,7 +87,7 @@ e2e-tests: ## Runs all the e2e tests in sequence.
 .PHONY: build-and-wrap-all
 build-and-wrap-all: build-all wrap-all ## Builds all contracts and generates code for contract interaction.
 
-INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.6.0
+INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.7.0
 
 .PHONY: check-all-dockerized
 check-all-dockerized: ## Runs cargo checks and unit tests on all contracts in a container.

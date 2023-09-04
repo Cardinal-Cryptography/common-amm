@@ -938,7 +938,9 @@ dependencies = [
  "ink",
  "openbrush 3.1.1",
  "parity-scale-codec",
+ "primitive-types",
  "scale-info",
+ "sp-arithmetic",
  "uniswap_v2",
 ]
 
@@ -1542,7 +1544,7 @@ checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
 
 [[package]]
 name = "uniswap_v2"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ink",
  "ink_metadata",
