@@ -1,7 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
 mod error;
-mod reentrancy_guard;
 
 // TODO:
 // Add upper bound on farm length.
@@ -10,12 +9,9 @@ mod reentrancy_guard;
 
 #[ink::contract]
 mod farm {
-    use crate::{
-        error::{
-            FarmError,
-            FarmStartError,
-        },
-        reentrancy_guard::*,
+    use crate::error::{
+        FarmError,
+        FarmStartError,
     };
 
     use openbrush::modifiers;
@@ -67,8 +63,6 @@ mod farm {
         is_stopped: bool,
         /// Farm state.
         state: Lazy<State, ManualKey<0x4641524d>>,
-        /// Flag to prevent reentrancy attacks.
-        reentrancy_guard: ReentrancyLock,
     }
 
     const SCALING_FACTOR: u128 = 10_u128.pow(18);
@@ -86,7 +80,6 @@ mod farm {
                 owner: Self::env().caller(),
                 is_stopped: true,
                 state: Lazy::new(),
-                reentrancy_guard: ReentrancyLock::Unlocked,
             }
         }
 
@@ -229,7 +222,7 @@ mod farm {
 
         /// Deposits the given amount of tokens into the farm.
         #[ink(message)]
-        #[modifiers(ensure_running(true), non_zero_amount(amount), non_reentrant)]
+        #[modifiers(ensure_running(true), non_zero_amount(amount))]
         pub fn deposit(&mut self, amount: u128) -> Result<(), FarmError> {
             self.update_reward_index()?;
 
@@ -255,7 +248,7 @@ mod farm {
 
         /// Withdraws the given amount of shares from the farm.
         #[ink(message)]
-        #[modifiers(non_zero_amount(amount), non_reentrant)]
+        #[modifiers(non_zero_amount(amount))]
         pub fn withdraw(&mut self, amount: u128) -> Result<(), FarmError> {
             let caller = self.env().caller();
 
@@ -286,7 +279,6 @@ mod farm {
 
         /// Claim all rewards for the caller.
         #[ink(message)]
-        #[modifiers(non_reentrant)]
         pub fn claim(&mut self) -> Result<(), FarmError> {
             self.update_reward_index()?;
 
@@ -521,21 +513,6 @@ mod farm {
             return Err(FarmError::InvalidAmountArgument)
         }
         body(instance)
-    }
-
-    impl ReentrancyGuardT for Farm {
-        fn lock(&mut self) -> Result<(), ReentrancyGuardError> {
-            if self.reentrancy_guard == ReentrancyLock::Locked {
-                return Err(ReentrancyGuardError::ReentrancyError)
-            }
-            self.reentrancy_guard = ReentrancyLock::Locked;
-            Ok(())
-        }
-
-        fn unlock(&mut self) {
-            // It's safe to "unlock" already unlocked guard.
-            self.reentrancy_guard = ReentrancyLock::Unlocked;
-        }
     }
 
     #[cfg(test)]
