@@ -938,7 +938,7 @@ dependencies = [
  "ink",
  "openbrush 3.1.1",
  "parity-scale-codec",
- "primitive-types",
+ "primitive-types 0.11.1",
  "scale-info",
  "sp-arithmetic",
  "uniswap_v2",
@@ -1058,7 +1058,7 @@ dependencies = [
 
 [[package]]
 name = "psp22_token"
-version = "2.1.0"
+version = "0.1.0"
 dependencies = [
  "ink",
  "openbrush 3.1.1",
