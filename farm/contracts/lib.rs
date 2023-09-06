@@ -59,16 +59,13 @@ mod farm {
         pool: contract_ref!(PSP22),
         /// Address of the farm creator.
         owner: AccountId,
-        /// Whether the farm is stopped.
-        is_stopped: bool,
+        /// Whether the farm is running now.
+        is_running: bool,
         /// Farm state.
         state: Lazy<State, ManualKey<0x4641524d>>,
     }
 
     const SCALING_FACTOR: u128 = 10_u128.pow(18);
-
-    // 3 months; assumes a month has 30 days.
-    const MAX_FARM_LENGTH_SECONDS: u64 = 3 * 30 * 24 * 60 * 60;
 
     const MAX_REWARD_TOKENS: u32 = 10;
 
@@ -78,7 +75,7 @@ mod farm {
             Farm {
                 pool: pair_address.into(),
                 owner: Self::env().caller(),
-                is_stopped: true,
+                is_running: false,
                 state: Lazy::new(),
             }
         }
@@ -101,10 +98,9 @@ mod farm {
             reward_amounts: Vec<u128>,
             reward_tokens: Vec<AccountId>,
         ) -> Result<(), FarmStartError> {
-            if !self.is_stopped {
+            if self.is_running {
                 return Err(FarmStartError::StillRunning)
             }
-
             // (For now) we don't allow for "restarting" the farm.
             if self.state.get().is_some() {
                 return Err(FarmStartError::FarmAlreadyFinished)
@@ -126,10 +122,6 @@ mod farm {
             }
 
             let duration = end as u128 - now as u128;
-
-            if duration > MAX_FARM_LENGTH_SECONDS as u128 {
-                return Err(FarmStartError::FarmTooLong)
-            }
 
             if reward_amounts.len() != reward_tokens.len() {
                 return Err(FarmStartError::RewardAmountsAndTokenLengthDiffer)
@@ -185,7 +177,7 @@ mod farm {
             };
 
             self.state.set(&state);
-            self.is_stopped = false;
+            self.is_running = true;
 
             Ok(())
         }
@@ -198,14 +190,18 @@ mod farm {
         #[ink(message)]
         #[modifiers(ensure_running(true))]
         pub fn stop(&mut self) -> Result<(), FarmError> {
-            // Q: should anyone be able to stop the farm? Or only the owner?
-            let running = self.get_state()?;
+            let mut running = self.get_state()?;
 
-            if self.env().block_timestamp() < running.end {
+            // We allow owner of the farm to stop it prematurely
+            // while anyone else can change the farm's status only when it's finished.
+            if self.env().caller() == self.owner {
+                running.end = self.env().block_timestamp();
+            } else if self.env().block_timestamp() < running.end {
                 return Err(FarmError::StillRunning)
             }
 
-            self.is_stopped = true;
+            self.is_running = false;
+            self.state.set(&running);
 
             // Send remaining rewards to the farm owner.
             for reward_token in running.reward_tokens.iter() {
@@ -498,7 +494,7 @@ mod farm {
     where
         F: FnOnce(&mut Farm) -> Result<T, FarmError>,
     {
-        if !should_be_running && !instance.is_stopped {
+        if !should_be_running && instance.is_running {
             return Err(FarmError::StillRunning)
         }
         body(instance)
@@ -867,7 +863,7 @@ mod farm {
             #[ink::test]
             fn new_creates_stopped_farm() {
                 let farm = farm();
-                assert_eq!(farm.is_stopped, true);
+                assert_eq!(farm.is_running, false);
             }
 
             #[ink::test]
@@ -893,20 +889,6 @@ mod farm {
                 assert_eq!(
                     farm.start(2, reward_amounts, reward_tokens),
                     Err(FarmStartError::FarmEndBeforeStart)
-                );
-            }
-
-            #[ink::test]
-            fn farm_too_long_fails() {
-                let mut farm = farm();
-                let now: u64 = 1;
-                set_block_timestamp::<DefaultEnvironment>(now);
-                let reward_tokens = single_reward_token();
-                let reward_amounts = vec![300];
-                let farm_end = now as u64 + super::MAX_FARM_LENGTH_SECONDS + 1;
-                assert_eq!(
-                    farm.start(farm_end, reward_amounts, reward_tokens),
-                    Err(FarmStartError::FarmTooLong)
                 );
             }
 
