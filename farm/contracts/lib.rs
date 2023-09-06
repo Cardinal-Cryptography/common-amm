@@ -206,10 +206,9 @@ mod farm {
             // Send remaining rewards to the farm owner.
             for reward_token in running.reward_tokens.iter() {
                 let mut psp22_ref: ink::contract_ref!(PSP22) = (*reward_token).into();
-                let balance: Balance = psp22_ref.balance_of(Self::env().account_id());
-                // TODO: What if `psp22_ref.transfer` fails?
+                let balance: Balance = safe_balance_of(&psp22_ref, self.env().account_id());
                 if balance > 0 {
-                    psp22_ref.transfer(running.owner, balance, vec![])?;
+                    safe_transfer(&mut psp22_ref, running.owner, balance)?;
                 }
             }
 
@@ -302,7 +301,7 @@ mod farm {
             {
                 if user_reward > 0 {
                     let mut psp22_ref: ink::contract_ref!(PSP22) = (*reward_token).into();
-                    psp22_ref.transfer(caller, user_reward, vec![])?;
+                    safe_transfer(&mut psp22_ref, caller, user_reward)?;
                 }
             }
             self.env().emit_event(RewardsClaimed {
@@ -509,6 +508,50 @@ mod farm {
             return Err(FarmError::InvalidAmountArgument)
         }
         body(instance)
+    }
+
+    use ink::codegen::TraitCallBuilder;
+
+    // We're making a concious choice here that we don't want to fail the whole transaction
+    // if a PSP22::transfer fails with a panic.
+    // This is to ensure that funds are not locked in the farm if someone uses malicious
+    // PSP22 token impl for rewards.
+    pub fn safe_transfer(
+        psp22: &mut contract_ref!(PSP22),
+        recipient: AccountId,
+        amount: u128,
+    ) -> Result<(), psp22_traits::PSP22Error> {
+        match psp22
+            .call_mut()
+            .transfer(recipient, amount, vec![])
+            .try_invoke()
+        {
+            Err(ink_env_err) => {
+                ink::env::debug_println!("ink env error: {:?}", ink_env_err);
+                Ok(())
+            }
+            Ok(Err(ink_lang_err)) => {
+                ink::env::debug_println!("ink lang error: {:?}", ink_lang_err);
+                Ok(())
+            }
+            Ok(Ok(res)) => res,
+        }
+    }
+
+    // We don't want to fail the whole transaction if PSP22::balance_of fails with a panic either.
+    // We choose to use `0` to denote the "panic" scenarios b/c it's a noop for the farm.
+    pub fn safe_balance_of(psp22: &contract_ref!(PSP22), account: AccountId) -> u128 {
+        match psp22.call().balance_of(account).try_invoke() {
+            Err(ink_env_err) => {
+                ink::env::debug_println!("ink env error: {:?}", ink_env_err);
+                0
+            }
+            Ok(Err(ink_lang_err)) => {
+                ink::env::debug_println!("ink lang error: {:?}", ink_lang_err);
+                0
+            }
+            Ok(Ok(res)) => res,
+        }
     }
 
     #[cfg(test)]
