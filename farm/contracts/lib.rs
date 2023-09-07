@@ -174,6 +174,7 @@ mod farm {
                 shares: Mapping::new(),
                 user_reward_per_token_paid: Mapping::new(),
                 user_uncollected_rewards: Mapping::new(),
+                total_uncollected_rewards: vec![0; tokens_len],
             };
 
             self.state.set(&state);
@@ -204,11 +205,13 @@ mod farm {
             self.state.set(&running);
 
             // Send remaining rewards to the farm owner.
-            for reward_token in running.reward_tokens.iter() {
+            for (idx, reward_token) in running.reward_tokens.iter().enumerate() {
                 let mut psp22_ref: ink::contract_ref!(PSP22) = (*reward_token).into();
                 let balance: Balance = safe_balance_of(&psp22_ref, self.env().account_id());
-                if balance > 0 {
-                    safe_transfer(&mut psp22_ref, running.owner, balance)?;
+                let reserved = running.total_uncollected_rewards[idx];
+                let to_refund = balance.saturating_sub(reserved);
+                if to_refund > 0 {
+                    safe_transfer(&mut psp22_ref, running.owner, to_refund)?;
                 }
             }
 
@@ -304,6 +307,12 @@ mod farm {
                     safe_transfer(&mut psp22_ref, caller, user_reward)?;
                 }
             }
+            for (idx, reward) in user_rewards.iter().enumerate() {
+                state.total_uncollected_rewards[idx] =
+                    state.total_uncollected_rewards[idx].saturating_sub(*reward);
+            }
+            self.state.set(&state);
+
             self.env().emit_event(RewardsClaimed {
                 account: caller,
                 amounts: user_rewards,
@@ -332,6 +341,12 @@ mod farm {
             let rewards_per_token = state.rewards_per_token(self.env().block_timestamp())?;
             let user_rewards = state.rewards_earned(account, &rewards_per_token)?;
 
+            let total_unclaimed_rewards = user_rewards
+                .iter()
+                .zip(state.total_uncollected_rewards.iter())
+                .map(|(a, b)| a + b)
+                .collect::<Vec<_>>();
+            state.total_uncollected_rewards = total_unclaimed_rewards;
             state
                 .user_reward_per_token_paid
                 .insert(account, &rewards_per_token);
@@ -350,10 +365,13 @@ mod farm {
         }
     }
 
+    type TokenId = AccountId;
+    type UserId = AccountId;
+
     #[ink::storage_item]
     pub struct State {
         /// Creator(owner) of the farm.
-        pub owner: AccountId,
+        pub owner: UserId,
         /// The timestamp when the farm was created.
         pub start: Timestamp,
         /// The timestamp when the farm will stop.
@@ -361,7 +379,7 @@ mod farm {
         /// How many rewards to pay out for the smallest unit of time.
         pub reward_rates: Vec<u128>,
         /// Tokens deposited as rewards for providing LP to the farm.
-        pub reward_tokens: Vec<AccountId>,
+        pub reward_tokens: Vec<TokenId>,
         /// Reward counter at the last farm change.
         pub reward_per_token_stored: Vec<u128>,
         /// Timestamp of the last farm change.
@@ -369,13 +387,16 @@ mod farm {
         /// Total shares in the farm after the last action.
         pub total_shares: u128,
         /// How many shares each user has in the farm.
-        pub shares: Mapping<AccountId, u128>,
+        pub shares: Mapping<UserId, u128>,
         /// Reward per token paid to the user for each reward token.
         // We need to track this separately for each reward token as each can have different reward rate.
         // Vectors should be relatively small (probably < 5).
-        pub user_reward_per_token_paid: Mapping<AccountId, Vec<u128>>,
+        pub user_reward_per_token_paid: Mapping<UserId, Vec<u128>>,
         /// Rewards that have not been collected (withdrawn) by the user yet.
-        pub user_uncollected_rewards: Mapping<AccountId, Vec<u128>>,
+        pub user_uncollected_rewards: Mapping<UserId, Vec<u128>>,
+        /// Totals of uncollected rewards.
+        // Necessary for not letting owner, re-claim more than allowed to once the farm is stopped.
+        pub total_uncollected_rewards: Vec<u128>,
     }
 
     impl State {
