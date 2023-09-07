@@ -1,7 +1,7 @@
 [package]
 name = "psp22_token"
-version = "2.1.0"
-authors = ["Supercolony <green.baneling@supercolony.net>"]
+version = "0.1.0"
+authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]

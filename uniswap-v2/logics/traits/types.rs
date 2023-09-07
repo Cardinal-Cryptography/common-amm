@@ -1,13 +1,13 @@
 #[cfg(feature = "std")]
-use ink::primitives::Key;
-#[cfg(feature = "std")]
-use ink::storage::traits::StorageLayout;
-#[cfg(feature = "std")]
-use ink_metadata::layout::{
+use ink::metadata::layout::{
     Layout,
     LayoutKey,
     LeafLayout,
 };
+#[cfg(feature = "std")]
+use ink::primitives::Key;
+#[cfg(feature = "std")]
+use ink::storage::traits::StorageLayout;
 use primitive_types::U256;
 use scale::{
     Decode,
