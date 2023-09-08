@@ -173,7 +173,8 @@ mod farm {
                 total_shares: 0,
                 shares: Mapping::new(),
                 user_reward_per_token_paid: Mapping::new(),
-                user_uncollected_rewards: Mapping::new(),
+                user_unclaimed_rewards: Mapping::new(),
+                total_unclaimed_rewards: vec![0; tokens_len],
             };
 
             self.state.set(&state);
@@ -204,11 +205,13 @@ mod farm {
             self.state.set(&running);
 
             // Send remaining rewards to the farm owner.
-            for reward_token in running.reward_tokens.iter() {
+            for (idx, reward_token) in running.reward_tokens.iter().enumerate() {
                 let mut psp22_ref: ink::contract_ref!(PSP22) = (*reward_token).into();
                 let balance: Balance = safe_balance_of(&psp22_ref, self.env().account_id());
-                if balance > 0 {
-                    safe_transfer(&mut psp22_ref, running.owner, balance)?;
+                let reserved = running.total_unclaimed_rewards[idx];
+                let to_refund = balance.saturating_sub(reserved);
+                if to_refund > 0 {
+                    safe_transfer(&mut psp22_ref, running.owner, to_refund)?;
                 }
             }
 
@@ -282,14 +285,14 @@ mod farm {
             let mut state = self.get_state()?;
 
             let user_rewards = state
-                .user_uncollected_rewards
+                .user_unclaimed_rewards
                 .get(caller)
                 .ok_or(FarmError::CallerNotFarmer)?;
 
             // Reset state before calling PSP22 methods.
             // Reentrancy protection.
             state
-                .user_uncollected_rewards
+                .user_unclaimed_rewards
                 .insert(caller, &vec![0; user_rewards.len()]);
 
             self.state.set(&state);
@@ -304,6 +307,12 @@ mod farm {
                     safe_transfer(&mut psp22_ref, caller, user_reward)?;
                 }
             }
+            for (idx, reward) in user_rewards.iter().enumerate() {
+                state.total_unclaimed_rewards[idx] =
+                    state.total_unclaimed_rewards[idx].saturating_sub(*reward);
+            }
+            self.state.set(&state);
+
             self.env().emit_event(RewardsClaimed {
                 account: caller,
                 amounts: user_rewards,
@@ -332,12 +341,12 @@ mod farm {
             let rewards_per_token = state.rewards_per_token(self.env().block_timestamp())?;
             let user_rewards = state.rewards_earned(account, &rewards_per_token)?;
 
+            state.total_unclaimed_rewards =
+                state.rewards_distributable(self.env().block_timestamp());
             state
                 .user_reward_per_token_paid
                 .insert(account, &rewards_per_token);
-            state
-                .user_uncollected_rewards
-                .insert(account, &user_rewards);
+            state.user_unclaimed_rewards.insert(account, &user_rewards);
             state.reward_per_token_stored = rewards_per_token;
 
             self.state.set(&state);
@@ -350,10 +359,13 @@ mod farm {
         }
     }
 
+    type TokenId = AccountId;
+    type UserId = AccountId;
+
     #[ink::storage_item]
     pub struct State {
         /// Creator(owner) of the farm.
-        pub owner: AccountId,
+        pub owner: UserId,
         /// The timestamp when the farm was created.
         pub start: Timestamp,
         /// The timestamp when the farm will stop.
@@ -361,7 +373,7 @@ mod farm {
         /// How many rewards to pay out for the smallest unit of time.
         pub reward_rates: Vec<u128>,
         /// Tokens deposited as rewards for providing LP to the farm.
-        pub reward_tokens: Vec<AccountId>,
+        pub reward_tokens: Vec<TokenId>,
         /// Reward counter at the last farm change.
         pub reward_per_token_stored: Vec<u128>,
         /// Timestamp of the last farm change.
@@ -369,13 +381,16 @@ mod farm {
         /// Total shares in the farm after the last action.
         pub total_shares: u128,
         /// How many shares each user has in the farm.
-        pub shares: Mapping<AccountId, u128>,
+        pub shares: Mapping<UserId, u128>,
         /// Reward per token paid to the user for each reward token.
         // We need to track this separately for each reward token as each can have different reward rate.
         // Vectors should be relatively small (probably < 5).
-        pub user_reward_per_token_paid: Mapping<AccountId, Vec<u128>>,
-        /// Rewards that have not been collected (withdrawn) by the user yet.
-        pub user_uncollected_rewards: Mapping<AccountId, Vec<u128>>,
+        pub user_reward_per_token_paid: Mapping<UserId, Vec<u128>>,
+        /// Rewards that have not been claimed (withdrawn) by the user yet.
+        pub user_unclaimed_rewards: Mapping<UserId, Vec<u128>>,
+        /// Totals of unclaimed rewards.
+        // Necessary for not letting owner, re-claim more than allowed to once the farm is stopped.
+        pub total_unclaimed_rewards: Vec<u128>,
     }
 
     impl State {
@@ -419,7 +434,7 @@ mod farm {
                 .unwrap_or(vec![0; rewards_per_token.len()]);
 
             let uncollected_user_rewards = self
-                .user_uncollected_rewards
+                .user_unclaimed_rewards
                 .get(account)
                 .unwrap_or(vec![0; rewards_per_token.len()]);
 
@@ -436,6 +451,21 @@ mod farm {
             }
 
             Ok(unclaimed_user_rewards)
+        }
+
+        /// Returns rewards distribuatble to all farmers for the period.
+        pub fn rewards_distributable(&self, current_timestamp: Timestamp) -> Vec<u128> {
+            let last_time_reward_applicable = core::cmp::min(current_timestamp, self.end) as u128;
+            self.reward_rates
+                .iter()
+                .map(|reward_rate| {
+                    reward_rate
+                        .checked_mul(
+                            last_time_reward_applicable - self.timestamp_at_last_update as u128,
+                        )
+                        .unwrap_or(0)
+                })
+                .collect()
         }
     }
 
