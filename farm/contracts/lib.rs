@@ -14,10 +14,7 @@ mod farm {
         FarmStartError,
     };
 
-    use openbrush::{
-        modifiers,
-        traits::Timestamp,
-    };
+    use openbrush::modifiers;
 
     use psp22_traits::PSP22;
 
