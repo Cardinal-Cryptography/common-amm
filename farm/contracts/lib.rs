@@ -65,8 +65,6 @@ mod farm {
         state: Lazy<State, ManualKey<0x4641524d>>,
     }
 
-    const SCALING_FACTOR: u128 = 10_u128.pow(18);
-
     const MAX_REWARD_TOKENS: u32 = 10;
 
     impl Farm {
@@ -97,6 +95,7 @@ mod farm {
             end: Timestamp,
             reward_amounts: Vec<u128>,
             reward_tokens: Vec<AccountId>,
+            reward_scaling_factors: Vec<u128>,
         ) -> Result<(), FarmStartError> {
             if self.is_running {
                 return Err(FarmStartError::StillRunning)
@@ -168,6 +167,7 @@ mod farm {
                 end,
                 reward_rates,
                 reward_tokens,
+                reward_scaling_factors,
                 reward_per_token_stored: vec![0; tokens_len],
                 timestamp_at_last_update: now,
                 total_shares: 0,
@@ -361,6 +361,7 @@ mod farm {
 
     type TokenId = AccountId;
     type UserId = AccountId;
+    type ScalingFactor = u128;
 
     #[ink::storage_item]
     pub struct State {
@@ -374,6 +375,12 @@ mod farm {
         pub reward_rates: Vec<u128>,
         /// Tokens deposited as rewards for providing LP to the farm.
         pub reward_tokens: Vec<TokenId>,
+        /// Scaling factors for each reward token.
+        // Necessary to be token-specific as it's dependent on the token's "value worth".
+        // If token is "cheap", a lot of it can be deposited as shares, driving up the `total_shares` in `reward_rate / total_shares` formula.
+        // We need to scale it up to avoid that formule to underflow - if `total_shares > reward_rate`, the formula will return 0.
+        // By introducing the scaling factor, we can make sure that `total_shares` is always smaller than `reward_rate`.
+        pub reward_scaling_factors: Vec<ScalingFactor>,
         /// Reward counter at the last farm change.
         pub reward_per_token_stored: Vec<u128>,
         /// Timestamp of the last farm change.
@@ -406,10 +413,12 @@ mod farm {
 
             for i in 0..self.reward_tokens.len() {
                 let reward_rate: u128 = self.reward_rates[i];
+                let scaling_factor = self.reward_scaling_factors[i];
                 let rpr = reward_per_token(
                     self.reward_per_token_stored[i],
                     reward_rate,
                     self.total_shares,
+                    scaling_factor,
                     self.timestamp_at_last_update as u128,
                     core::cmp::min(current_timestamp, self.end) as u128,
                 )
@@ -444,6 +453,7 @@ mod farm {
                 let rewards_earned = rewards_earned(
                     shares,
                     rewards_per_token[i],
+                    self.reward_scaling_factors[i],
                     rewards_per_token_paid_so_far[i],
                 )
                 .ok_or(FarmError::ArithmeticError)?;
@@ -486,6 +496,7 @@ mod farm {
         reward_per_token_stored: u128,
         reward_rate: u128,
         total_supply: u128,
+        scaling_factor: u128,
         last_update_time: u128,
         last_time_reward_applicable: u128,
     ) -> Option<u128> {
@@ -495,7 +506,7 @@ mod farm {
 
         reward_rate
             .checked_mul(last_time_reward_applicable - last_update_time)
-            .and_then(|r| r.checked_mul(SCALING_FACTOR))
+            .and_then(|r| r.checked_mul(scaling_factor))
             .and_then(|r| r.checked_div(total_supply))
             .and_then(|r| r.checked_add(reward_per_token_stored))
     }
@@ -504,12 +515,13 @@ mod farm {
     fn rewards_earned(
         shares: u128,
         rewards_per_token: u128,
+        scaling_factor: u128,
         paid_reward_per_token: u128,
     ) -> Option<u128> {
         rewards_per_token
             .checked_sub(paid_reward_per_token)
             .and_then(|r| r.checked_mul(shares))
-            .and_then(|r| r.checked_div(SCALING_FACTOR))
+            .and_then(|r| r.checked_div(scaling_factor))
     }
 
     use openbrush::modifier_definition;
@@ -586,9 +598,10 @@ mod farm {
 
     #[cfg(test)]
     mod tests {
+        use super::*;
         use ink::env::DefaultEnvironment;
 
-        use super::*;
+        const SCALING_FACTOR: u128 = 10_u128.pow(18);
 
         fn set_sender(sender: AccountId) {
             ink::env::test::set_caller::<Environment>(sender);
@@ -608,7 +621,7 @@ mod farm {
 
         #[cfg(test)]
         mod reward_calculation {
-            use crate::farm::SCALING_FACTOR;
+            use super::SCALING_FACTOR;
 
             // 1 reward tokens for every t=1.
             const REWARD_RATE: u128 = 100;
@@ -624,6 +637,7 @@ mod farm {
                     reward_per_token_stored,
                     reward_rate,
                     total_supply,
+                    SCALING_FACTOR,
                     last_update_time,
                     last_time_reward_applicable,
                 )
@@ -635,8 +649,13 @@ mod farm {
                 rewards_per_token: u128,
                 paid_reward_per_token: u128,
             ) -> u128 {
-                super::rewards_earned(shares, rewards_per_token, paid_reward_per_token)
-                    .expect("to calculate rewards earned")
+                super::rewards_earned(
+                    shares,
+                    rewards_per_token,
+                    SCALING_FACTOR,
+                    paid_reward_per_token,
+                )
+                .expect("to calculate rewards earned")
             }
 
             /// Case when there's a single farmer,
@@ -933,6 +952,10 @@ mod farm {
                 vec![AccountId::from([0x02; 32])]
             }
 
+            fn single_scaling_factor() -> Vec<u128> {
+                vec![SCALING_FACTOR]
+            }
+
             #[ink::test]
             fn new_creates_stopped_farm() {
                 let farm = farm();
@@ -946,9 +969,10 @@ mod farm {
                 let mut farm = farm();
                 set_block_timestamp::<DefaultEnvironment>(1);
                 let reward_tokens = single_reward_token();
+                let reward_scalings = single_scaling_factor();
                 set_sender(bob());
                 assert_eq!(
-                    farm.start(5, vec![300], reward_tokens),
+                    farm.start(5, vec![300], reward_tokens, reward_scalings),
                     Err(FarmStartError::CallerNotOwner)
                 );
             }
@@ -960,7 +984,7 @@ mod farm {
                 let reward_tokens = single_reward_token();
                 let reward_amounts = vec![300];
                 assert_eq!(
-                    farm.start(2, reward_amounts, reward_tokens),
+                    farm.start(2, reward_amounts, reward_tokens, single_scaling_factor()),
                     Err(FarmStartError::FarmEndBeforeStart)
                 );
             }
@@ -973,9 +997,10 @@ mod farm {
                     .into_iter()
                     .map(|i| AccountId::from([i as u8; 32]))
                     .collect::<Vec<_>>();
+                let reward_scalings = reward_tokens.iter().map(|_| SCALING_FACTOR).collect();
                 let reward_amounts = vec![300];
                 assert_eq!(
-                    farm.start(1000, reward_amounts, reward_tokens),
+                    farm.start(1000, reward_amounts, reward_tokens, reward_scalings),
                     Err(FarmStartError::TooManyRewardTokens)
                 );
             }
@@ -984,9 +1009,10 @@ mod farm {
             fn reward_amounts_and_tokens_mismatch() {
                 let mut farm = farm();
                 let reward_tokens = single_reward_token();
+                let reward_scalings = single_scaling_factor();
                 let reward_amounts = vec![300, 400];
                 assert_eq!(
-                    farm.start(10, reward_amounts, reward_tokens),
+                    farm.start(10, reward_amounts, reward_tokens, reward_scalings),
                     Err(FarmStartError::RewardAmountsAndTokenLengthDiffer)
                 );
             }
@@ -995,9 +1021,10 @@ mod farm {
             fn fail_on_zero_reward_amount() {
                 let mut farm = farm();
                 let reward_tokens = single_reward_token();
+                let reward_scalings = single_scaling_factor();
                 let reward_amounts = vec![0];
                 assert_eq!(
-                    farm.start(10, reward_amounts, reward_tokens),
+                    farm.start(10, reward_amounts, reward_tokens, reward_scalings),
                     Err(FarmStartError::ZeroRewardAmount)
                 );
             }
@@ -1006,11 +1033,12 @@ mod farm {
             fn fail_on_insufficient_rewards() {
                 let mut farm = farm();
                 let reward_tokens = single_reward_token();
+                let reward_scalings = single_scaling_factor();
                 let reward_amounts = vec![10];
                 // reward_rate = reward / duration
                 // rr = 10 / 100 == 0;
                 assert_eq!(
-                    farm.start(100, reward_amounts, reward_tokens),
+                    farm.start(100, reward_amounts, reward_tokens, reward_scalings),
                     Err(FarmStartError::ZeroRewardRate)
                 );
             }
