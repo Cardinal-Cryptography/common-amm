@@ -3,16 +3,7 @@
 
 #[openbrush::contract]
 pub mod router {
-    use ink::{
-        codegen::Env,
-        env::CallFlags,
-        prelude::vec::Vec,
-    };
-    use openbrush::{
-        modifiers,
-        traits::Storage,
-    };
-    use uniswap_v2::{
+    use amm::{
         ensure,
         helpers::{
             helper::*,
@@ -29,6 +20,15 @@ pub mod router {
             pair::PairRef,
             router::*,
         },
+    };
+    use ink::{
+        codegen::Env,
+        env::CallFlags,
+        prelude::vec::Vec,
+    };
+    use openbrush::{
+        modifiers,
+        traits::Storage,
     };
 
     #[ink(storage)]

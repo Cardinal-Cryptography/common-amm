@@ -34,7 +34,7 @@ build-node-arm64:
 build-node-x86_64:
 	@docker buildx build --pull --platform linux/amd64 -t aleph-onenode-chain-x86_64 --load docker
 
-UNI_CONTRACTS = ./uniswap-v2/contracts
+UNI_CONTRACTS = ./amm/contracts
 UNI_CONTRACTS_PATHS := $(shell find $(UNI_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
 FARM_CONTRACTS = ./farm

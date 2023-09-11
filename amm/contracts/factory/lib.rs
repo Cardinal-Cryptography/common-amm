@@ -3,6 +3,17 @@
 
 #[openbrush::contract]
 pub mod factory {
+    use amm::{
+        ensure,
+        impls::factory::{
+            factory::{
+                only_fee_setter,
+                Internal,
+            },
+            *,
+        },
+        traits::factory::*,
+    };
     use ink::{
         codegen::{
             EmitEvent,
@@ -19,17 +30,6 @@ pub mod factory {
         },
     };
     use pair_contract::pair::PairContractRef;
-    use uniswap_v2::{
-        ensure,
-        impls::factory::{
-            factory::{
-                only_fee_setter,
-                Internal,
-            },
-            *,
-        },
-        traits::factory::*,
-    };
 
     #[ink(event)]
     pub struct PairCreated {
@@ -202,10 +202,7 @@ pub mod factory {
         fn initialize_works() {
             let accounts = default_accounts::<ink::env::DefaultEnvironment>();
             let factory = FactoryContract::new(accounts.alice, Hash::default());
-            assert_eq!(
-                factory.factory.fee_to,
-                uniswap_v2::helpers::ZERO_ADDRESS.into()
-            );
+            assert_eq!(factory.factory.fee_to, amm::helpers::ZERO_ADDRESS.into());
         }
     }
 }

@@ -21,7 +21,7 @@ use aleph_client::{
     TxStatus,
 };
 
-pub use uniswap_v2::helpers::ZERO_ADDRESS;
+pub use amm::helpers::ZERO_ADDRESS;
 
 pub const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:9944";
 pub const WEALTHY_SEED: &str = "//Alice";

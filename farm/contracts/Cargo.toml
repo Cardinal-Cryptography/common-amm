@@ -1,5 +1,5 @@
 [package]
-name = "uniswap_v2_farm"
+name = "amm_farm"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
