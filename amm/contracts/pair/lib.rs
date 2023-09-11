@@ -3,23 +3,7 @@
 
 #[openbrush::contract]
 pub mod pair {
-    use ink::{
-        codegen::{
-            EmitEvent,
-            Env,
-        },
-        prelude::vec::Vec,
-    };
-    use openbrush::{
-        contracts::{
-            psp22::*,
-            reentrancy_guard::*,
-        },
-        modifiers,
-        traits::Storage,
-    };
-    use sp_arithmetic::traits::IntegerSquareRoot;
-    use uniswap_v2::{
+    use amm::{
         ensure,
         helpers::{
             math::casted_mul,
@@ -38,6 +22,22 @@ pub mod pair {
             types::WrappedU256,
         },
     };
+    use ink::{
+        codegen::{
+            EmitEvent,
+            Env,
+        },
+        prelude::vec::Vec,
+    };
+    use openbrush::{
+        contracts::{
+            psp22::*,
+            reentrancy_guard::*,
+        },
+        modifiers,
+        traits::Storage,
+    };
+    use sp_arithmetic::traits::IntegerSquareRoot;
 
     #[ink(event)]
     pub struct Mint {

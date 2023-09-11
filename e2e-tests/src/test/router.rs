@@ -15,13 +15,13 @@ use aleph_client::{
     Balance,
     SignedConnection,
 };
+use amm::impls::pair::pair::MINIMUM_LIQUIDITY;
 use ink_wrapper_types::{
     util::ToAccountId,
     Connection,
     SignedConnection as _,
     UploadConnection,
 };
-use uniswap_v2::impls::pair::pair::MINIMUM_LIQUIDITY;
 
 use crate::{
     factory_contract,

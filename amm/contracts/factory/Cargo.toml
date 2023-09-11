@@ -18,7 +18,7 @@ pair_contract = { path = "../pair", default-features = false, features = [
     "ink-as-dependency",
 ] }
 openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", tag = "3.1.1", default-features = false }
-uniswap_v2 = { path = "../../logics", default-features = false }
+amm = { path = "../../logics", default-features = false }
 
 [lib]
 name = "factory_contract"
@@ -31,7 +31,7 @@ std = [
     "scale/std",
     "scale-info/std",
     "openbrush/std",
-    "uniswap_v2/std",
+    "amm/std",
     "pair_contract/std",
 ]
 ink-as-dependency = []

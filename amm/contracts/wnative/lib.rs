@@ -3,6 +3,10 @@
 
 #[openbrush::contract]
 pub mod wnative {
+    use amm::traits::wnative::{
+        wnative_external,
+        Wnative,
+    };
     use ink::{
         codegen::{
             EmitEvent,
@@ -16,10 +20,6 @@ pub mod wnative {
             Storage,
             String,
         },
-    };
-    use uniswap_v2::traits::wnative::{
-        wnative_external,
-        Wnative,
     };
 
     #[ink(event)]

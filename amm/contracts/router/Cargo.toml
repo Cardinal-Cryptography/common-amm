@@ -20,7 +20,7 @@ scale-info = { version = "2.3", default-features = false, features = [
 openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", tag = "3.1.1", default-features = false, features = [
     "psp22",
 ] }
-uniswap_v2 = { path = "../../logics", default-features = false }
+amm = { path = "../../logics", default-features = false }
 
 [lib]
 name = "router_contract"
@@ -34,7 +34,7 @@ std = [
     "scale-info",
     "scale-info/std",
     "openbrush/std",
-    "uniswap_v2/std",
+    "amm/std",
 ]
 ink-as-dependency = []
 

@@ -1,4 +1,4 @@
 [workspace]
-members = ["uniswap-v2/contracts/**", "farm/contracts"]
+members = ["amm/contracts/**", "farm/contracts"]
 
-exclude = ["e2e-tests", "uniswap-v2/logics"]
+exclude = ["e2e-tests", "amm/logics"]
