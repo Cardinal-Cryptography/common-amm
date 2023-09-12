@@ -14,7 +14,7 @@ use openbrush::{
     },
 };
 
-use super::types::WrappedU256;
+use amm_helpers::types::WrappedU256;
 
 #[openbrush::wrapper]
 pub type PairRef = dyn Pair;

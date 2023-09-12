@@ -17,11 +17,9 @@ pub mod pair {
             },
             *,
         },
-        traits::{
-            pair::*,
-            types::WrappedU256,
-        },
+        traits::pair::*,
     };
+    use amm_helpers::types::WrappedU256;
     use ink::{
         codegen::{
             EmitEvent,

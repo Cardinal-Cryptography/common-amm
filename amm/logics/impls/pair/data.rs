@@ -1,7 +1,5 @@
-use crate::{
-    helpers::ZERO_ADDRESS,
-    traits::types::WrappedU256,
-};
+use crate::helpers::ZERO_ADDRESS;
+use amm_helpers::types::WrappedU256;
 use openbrush::traits::{
     AccountId,
     Balance,

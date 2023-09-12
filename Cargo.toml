@@ -1,4 +1,4 @@
 [workspace]
 members = ["amm/contracts/**", "farm/contracts"]
 
-exclude = ["e2e-tests", "amm/logics"]
+exclude = ["e2e-tests", "amm/logics", "helpers"]

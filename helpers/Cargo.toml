@@ -1,5 +1,5 @@
 [package]
-name = "amm"
+name = "amm-helpers"
 version = "0.2.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
@@ -15,23 +15,11 @@ scale-info = { version = "2.3", default-features = false, features = [
     "derive",
 ], optional = true }
 
-openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", tag = "3.1.1", default-features = false, features = [
-    "psp22",
-    "ownable",
-    "reentrancy_guard",
-] }
 primitive-types = { version = "0.11.1", default-features = false, features = [
     "codec",
 ] }
-sp-arithmetic = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.37" }
-amm-helpers = { path = "../../helpers", default-features = false }
-
-[dev-dependencies]
-curve25519-dalek = { version = "4.0.0-rc.2", features = ["digest"] }
-sha2 = "0.10.6"
 
 [lib]
-name = "amm"
 path = "lib.rs"
 crate-type = ["rlib"]
 
@@ -43,9 +31,6 @@ std = [
     "ink_metadata/std",
     "scale/std",
     "scale-info/std",
-    "openbrush/std",
     "primitive-types/std",
     "primitive-types/scale-info",
-    "sp-arithmetic/std",
-    "amm-helpers/std",
 ]
