@@ -38,7 +38,6 @@ UNI_CONTRACTS = ./amm/contracts
 UNI_CONTRACTS_PATHS := $(shell find $(UNI_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
 FARM_CONTRACTS = ./farm/contracts
-FARM_CONTRACTS_PATHS := $(FARM_CONTRACTS)
 
 .PHONY: build-all
 build-all: ## Builds all contracts.
@@ -46,7 +45,7 @@ build-all: ## Builds all contracts.
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
-	@for d in $(FARM_CONTRACTS_PATHS); do \
+	@for d in $(FARM_CONTRACTS); do \
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
