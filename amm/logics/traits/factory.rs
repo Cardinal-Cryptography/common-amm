@@ -1,14 +1,19 @@
 use crate::traits::pair::PairError;
-use ink::primitives::Hash;
-use openbrush::traits::AccountId;
+use ink::{
+    contract_ref,
+    env::DefaultEnvironment,
+    primitives::{
+        AccountId,
+        Hash,
+    },
+};
 
-#[openbrush::wrapper]
-pub type FactoryRef = dyn Factory;
+pub type FactoryRef = contract_ref!(Factory, DefaultEnvironment);
 
 /// Factory trait for tracking all pairs within the UniswapV2 DEX.
 /// Creates new, unique instances of `Pair` smart contract per token pairs.
 /// Contains the logic to turn on the protocol charge.
-#[openbrush::trait_definition]
+#[ink::trait_definition]
 pub trait Factory {
     /// Returns address of the pair contract identified by `pid` id.
     #[ink(message)]
@@ -49,7 +54,7 @@ pub trait Factory {
     #[ink(message)]
     fn fee_to_setter(&self) -> AccountId;
 
-    /// Returns addres of `Pair` contract instance (if any) for `(token_a, token_b)` pair.
+    /// Returns address of `Pair` contract instance (if any) for `(token_a, token_b)` pair.
     #[ink(message)]
     fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId>;
 }

@@ -2,7 +2,10 @@ use crate::{
     ensure,
     helpers::math::casted_mul,
     traits::{
-        factory::FactoryRef,
+        factory::{
+            Factory,
+            FactoryRef,
+        },
         types::WrappedU256,
     },
 };
@@ -100,7 +103,8 @@ impl<T: Storage<data::Data> + Storage<psp22::Data>> Internal for T {
         reserve_0: Balance,
         reserve_1: Balance,
     ) -> Result<bool, PairError> {
-        let fee_to = FactoryRef::fee_to(&self.data::<data::Data>().factory);
+        let factory_ref: FactoryRef = self.data::<data::Data>().factory.into();
+        let fee_to = factory_ref.fee_to();
         let fee_on = !fee_to.is_zero();
         let k_last: U256 = self.data::<data::Data>().k_last.into();
         if fee_on {

@@ -1,33 +1,52 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 #![feature(min_specialization)]
 
-#[openbrush::contract]
+use amm::helpers::ZERO_ADDRESS;
+use ink::{
+    primitives::{
+        AccountId,
+        Hash,
+    },
+    storage::Mapping,
+};
+
+#[derive(Debug)]
+#[ink::storage_item]
+struct Data {
+    fee_to: AccountId,
+    fee_to_setter: AccountId,
+    get_pair: Mapping<(AccountId, AccountId), AccountId>,
+    all_pairs: Mapping<u64, AccountId>,
+    all_pairs_length: u64,
+    pair_contract_code_hash: Hash,
+}
+
+impl Default for Data {
+    fn default() -> Self {
+        Self {
+            fee_to: ZERO_ADDRESS.into(),
+            fee_to_setter: ZERO_ADDRESS.into(),
+            get_pair: Default::default(),
+            all_pairs: Mapping::default(),
+            all_pairs_length: 0,
+            pair_contract_code_hash: Default::default(),
+        }
+    }
+}
+
+#[ink::contract]
 pub mod factory {
     use amm::{
         ensure,
-        impls::factory::{
-            factory::{
-                only_fee_setter,
-                Internal,
-            },
-            *,
+        traits::factory::{
+            Factory,
+            FactoryError,
         },
-        traits::factory::*,
     };
     use ink::{
-        codegen::{
-            EmitEvent,
-            Env,
-        },
+        codegen::EmitEvent,
         env::hash::Blake2x256,
         ToAccountId,
-    };
-    use openbrush::{
-        modifiers,
-        traits::{
-            AccountIdExt,
-            Storage,
-        },
     };
     use pair_contract::pair::PairContractRef;
 
@@ -42,10 +61,9 @@ pub mod factory {
     }
 
     #[ink(storage)]
-    #[derive(Default, Storage)]
+    #[derive(Default)]
     pub struct FactoryContract {
-        #[storage_field]
-        factory: data::Data,
+        factory: crate::Data,
     }
 
     impl Factory for FactoryContract {
@@ -76,7 +94,6 @@ pub mod factory {
             } else {
                 (token_b, token_a)
             };
-            ensure!(!token_pair.0.is_zero(), FactoryError::ZeroAddress);
             ensure!(
                 self.factory.get_pair.get(&token_pair).is_none(),
                 FactoryError::PairExists
@@ -105,16 +122,20 @@ pub mod factory {
             Ok(pair_contract)
         }
 
-        #[modifiers(only_fee_setter)]
         #[ink(message)]
         fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), FactoryError> {
+            if self.env().caller() != self.factory.fee_to_setter {
+                return Err(FactoryError::CallerIsNotFeeSetter)
+            }
             self.factory.fee_to = fee_to;
             Ok(())
         }
 
-        #[modifiers(only_fee_setter)]
         #[ink(message)]
         fn set_fee_to_setter(&mut self, fee_to_setter: AccountId) -> Result<(), FactoryError> {
+            if self.env().caller() != self.factory.fee_to_setter {
+                return Err(FactoryError::CallerIsNotFeeSetter)
+            }
             self.factory.fee_to_setter = fee_to_setter;
             Ok(())
         }
@@ -135,7 +156,15 @@ pub mod factory {
         }
     }
 
-    impl factory::Internal for FactoryContract {
+    impl FactoryContract {
+        #[ink(constructor)]
+        pub fn new(fee_to_setter: AccountId, pair_code_hash: Hash) -> Self {
+            let mut instance = Self::default();
+            instance.factory.pair_contract_code_hash = pair_code_hash;
+            instance.factory.fee_to_setter = fee_to_setter;
+            instance
+        }
+
         fn _instantiate_pair(
             &mut self,
             salt_bytes: &[u8],
@@ -180,15 +209,6 @@ pub mod factory {
         }
     }
 
-    impl FactoryContract {
-        #[ink(constructor)]
-        pub fn new(fee_to_setter: AccountId, pair_code_hash: Hash) -> Self {
-            let mut instance = Self::default();
-            instance.factory.pair_contract_code_hash = pair_code_hash;
-            instance.factory.fee_to_setter = fee_to_setter;
-            instance
-        }
-    }
     #[cfg(test)]
     mod tests {
         use ink::{

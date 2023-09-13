@@ -337,7 +337,6 @@ version = "0.1.0"
 dependencies = [
  "amm",
  "ink",
- "openbrush 3.1.1",
  "pair_contract",
  "parity-scale-codec",
  "scale-info",
