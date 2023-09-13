@@ -33,9 +33,3 @@ doctest = false
 default = ["std"]
 std = ["ink/std", "scale/std", "scale-info/std", "openbrush/std", "amm/std"]
 ink-as-dependency = []
-
-[profile.dev]
-overflow-checks = false
-
-[profile.release]
-overflow-checks = false
