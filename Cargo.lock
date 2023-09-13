@@ -40,6 +40,7 @@ dependencies = [
 name = "amm_farm"
 version = "0.1.0"
 dependencies = [
+ "amm-helpers",
  "ink",
  "openbrush 3.0.0",
  "parity-scale-codec",

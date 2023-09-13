@@ -6,7 +6,6 @@ pub mod pair {
     use amm::{
         ensure,
         helpers::{
-            math::casted_mul,
             transfer_helper::safe_transfer,
             ZERO_ADDRESS,
         },
@@ -19,7 +18,10 @@ pub mod pair {
         },
         traits::pair::*,
     };
-    use amm_helpers::types::WrappedU256;
+    use amm_helpers::{
+        math::casted_mul,
+        types::WrappedU256,
+    };
     use ink::{
         codegen::{
             EmitEvent,
