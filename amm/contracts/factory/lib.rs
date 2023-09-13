@@ -69,7 +69,7 @@ pub mod factory {
     impl Factory for FactoryContract {
         #[ink(message)]
         fn all_pairs(&self, pid: u64) -> Option<AccountId> {
-            self.factory.all_pairs.get(&pid)
+            self.factory.all_pairs.get(pid)
         }
 
         #[ink(message)]
@@ -95,7 +95,7 @@ pub mod factory {
                 (token_b, token_a)
             };
             ensure!(
-                self.factory.get_pair.get(&token_pair).is_none(),
+                self.factory.get_pair.get(token_pair).is_none(),
                 FactoryError::PairExists
             );
 
@@ -105,10 +105,10 @@ pub mod factory {
 
             self.factory
                 .get_pair
-                .insert(&(token_pair.0, token_pair.1), &pair_contract);
+                .insert((token_pair.0, token_pair.1), &pair_contract);
             self.factory
                 .get_pair
-                .insert(&(token_pair.1, token_pair.0), &pair_contract);
+                .insert((token_pair.1, token_pair.0), &pair_contract);
 
             self._add_new_pair(pair_contract);
 
@@ -152,7 +152,7 @@ pub mod factory {
 
         #[ink(message)]
         fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId> {
-            self.factory.get_pair.get(&(token_a, token_b))
+            self.factory.get_pair.get((token_a, token_b))
         }
     }
 
@@ -204,7 +204,7 @@ pub mod factory {
 
         fn _add_new_pair(&mut self, pair: AccountId) {
             let pair_len = self.factory.all_pairs_length;
-            self.factory.all_pairs.insert(&pair_len, &pair);
+            self.factory.all_pairs.insert(pair_len, &pair);
             self.factory.all_pairs_length += 1;
         }
     }
