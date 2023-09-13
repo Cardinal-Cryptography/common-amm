@@ -501,7 +501,7 @@ mod farm {
         last_time_reward_applicable: u128,
     ) -> Result<U256, MathError> {
         if total_supply == 0 {
-            return Ok(U256::from(reward_per_token_stored))
+            return Ok(reward_per_token_stored)
         }
 
         casted_mul(reward_rate, last_time_reward_applicable - last_update_time)
@@ -509,7 +509,7 @@ mod farm {
             .ok_or(MathError::Overflow)?
             .checked_div(U256::from(total_supply))
             .ok_or(MathError::DivByZero)?
-            .checked_add(U256::from(reward_per_token_stored))
+            .checked_add(reward_per_token_stored)
             .ok_or(MathError::Overflow)
     }
 
