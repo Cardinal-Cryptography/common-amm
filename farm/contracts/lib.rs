@@ -16,6 +16,7 @@ mod farm {
 
     use openbrush::modifiers;
 
+    use primitive_types::U256;
     use psp22_traits::PSP22;
 
     use ink::{
@@ -30,6 +31,14 @@ mod farm {
     use ink::prelude::{
         vec,
         vec::Vec,
+    };
+
+    use amm_helpers::{
+        math::{
+            casted_mul,
+            MathError,
+        },
+        types::WrappedU256,
     };
 
     #[ink(event)]
@@ -65,8 +74,7 @@ mod farm {
         state: Lazy<State, ManualKey<0x4641524d>>,
     }
 
-    const SCALING_FACTOR: u128 = 10_u128.pow(18);
-
+    const SCALING_FACTOR: u128 = u128::MAX;
     const MAX_REWARD_TOKENS: u32 = 10;
 
     impl Farm {
@@ -168,7 +176,7 @@ mod farm {
                 end,
                 reward_rates,
                 reward_tokens,
-                reward_per_token_stored: vec![0; tokens_len],
+                reward_per_token_stored: vec![WrappedU256::ZERO; tokens_len],
                 timestamp_at_last_update: now,
                 total_shares: 0,
                 shares: Mapping::new(),
@@ -343,11 +351,16 @@ mod farm {
 
             state.total_unclaimed_rewards =
                 state.rewards_distributable(self.env().block_timestamp());
-            state
-                .user_reward_per_token_paid
-                .insert(account, &rewards_per_token);
+            state.user_reward_per_token_paid.insert(
+                account,
+                &rewards_per_token
+                    .clone()
+                    .into_iter()
+                    .map(WrappedU256::from)
+                    .collect::<Vec<_>>(),
+            );
             state.user_unclaimed_rewards.insert(account, &user_rewards);
-            state.reward_per_token_stored = rewards_per_token;
+            state.reward_per_token_stored = rewards_per_token.into_iter().map(Into::into).collect();
 
             self.state.set(&state);
 
@@ -375,7 +388,7 @@ mod farm {
         /// Tokens deposited as rewards for providing LP to the farm.
         pub reward_tokens: Vec<TokenId>,
         /// Reward counter at the last farm change.
-        pub reward_per_token_stored: Vec<u128>,
+        pub reward_per_token_stored: Vec<WrappedU256>,
         /// Timestamp of the last farm change.
         pub timestamp_at_last_update: Timestamp,
         /// Total shares in the farm after the last action.
@@ -385,7 +398,7 @@ mod farm {
         /// Reward per token paid to the user for each reward token.
         // We need to track this separately for each reward token as each can have different reward rate.
         // Vectors should be relatively small (probably < 5).
-        pub user_reward_per_token_paid: Mapping<UserId, Vec<u128>>,
+        pub user_reward_per_token_paid: Mapping<UserId, Vec<WrappedU256>>,
         /// Rewards that have not been claimed (withdrawn) by the user yet.
         pub user_unclaimed_rewards: Mapping<UserId, Vec<u128>>,
         /// Totals of unclaimed rewards.
@@ -401,19 +414,18 @@ mod farm {
         pub fn rewards_per_token(
             &self,
             current_timestamp: Timestamp,
-        ) -> Result<Vec<u128>, FarmError> {
-            let mut rewards_per_token: Vec<u128> = Vec::with_capacity(self.reward_tokens.len());
+        ) -> Result<Vec<U256>, FarmError> {
+            let mut rewards_per_token: Vec<U256> = Vec::with_capacity(self.reward_tokens.len());
 
             for i in 0..self.reward_tokens.len() {
                 let reward_rate: u128 = self.reward_rates[i];
                 let rpr = reward_per_token(
-                    self.reward_per_token_stored[i],
+                    self.reward_per_token_stored[i].0,
                     reward_rate,
                     self.total_shares,
                     self.timestamp_at_last_update as u128,
                     core::cmp::min(current_timestamp, self.end) as u128,
-                )
-                .ok_or(FarmError::ArithmeticError)?;
+                )?;
                 rewards_per_token.push(rpr);
             }
 
@@ -424,14 +436,14 @@ mod farm {
         pub fn rewards_earned(
             &self,
             account: AccountId,
-            rewards_per_token: &[u128],
+            rewards_per_token: &[U256],
         ) -> Result<Vec<u128>, FarmError> {
             let shares = self.shares.get(account).ok_or(FarmError::CallerNotFarmer)?;
 
             let rewards_per_token_paid_so_far = self
                 .user_reward_per_token_paid
                 .get(account)
-                .unwrap_or(vec![0; rewards_per_token.len()]);
+                .unwrap_or(vec![WrappedU256::ZERO; rewards_per_token.len()]);
 
             let uncollected_user_rewards = self
                 .user_unclaimed_rewards
@@ -444,9 +456,8 @@ mod farm {
                 let rewards_earned = rewards_earned(
                     shares,
                     rewards_per_token[i],
-                    rewards_per_token_paid_so_far[i],
-                )
-                .ok_or(FarmError::ArithmeticError)?;
+                    rewards_per_token_paid_so_far[i].0,
+                )?;
                 unclaimed_user_rewards.push(rewards_earned + uncollected_user_rewards[i]);
             }
 
@@ -474,42 +485,50 @@ mod farm {
     /// r_j = r_j0 + R/T(t_j - t_j0)
     ///
     /// where:
-    /// - r_j0 - reward per token stored at the last time the user interacted with the farm
+    /// - r_j0 - reward per token stored at the last time any user interacted with the farm
     /// - R - total amount of rewards available for distribution
     /// - T - total shares in the farm
-    /// - t_j - last time the user interacted with the farm, usually _now_.
-    /// - t_j0 - last time the user "claimed" rewards.
-    /// - r_j - rewards due to the user for providing liquidity from t_j0 to t_j
+    /// - t_j - last time user interacted with the farm, usually _now_.
+    /// - t_j0 - last time user "claimed" rewards.
+    /// - r_j - rewards due to user for providing liquidity from t_j0 to t_j
     ///
     /// See https://github.com/stakewithus/notes/blob/main/excalidraw/staking-rewards.png for more.
     fn reward_per_token(
-        reward_per_token_stored: u128,
+        reward_per_token_stored: U256,
         reward_rate: u128,
         total_supply: u128,
         last_update_time: u128,
         last_time_reward_applicable: u128,
-    ) -> Option<u128> {
+    ) -> Result<U256, MathError> {
         if total_supply == 0 {
-            return Some(reward_per_token_stored)
+            return Ok(U256::from(reward_per_token_stored))
         }
 
-        reward_rate
-            .checked_mul(last_time_reward_applicable - last_update_time)
-            .and_then(|r| r.checked_mul(SCALING_FACTOR))
-            .and_then(|r| r.checked_div(total_supply))
-            .and_then(|r| r.checked_add(reward_per_token_stored))
+        casted_mul(reward_rate, last_time_reward_applicable - last_update_time)
+            .checked_mul(U256::from(SCALING_FACTOR))
+            .ok_or(MathError::Overflow)?
+            .checked_div(U256::from(total_supply))
+            .ok_or(MathError::DivByZero)?
+            .checked_add(U256::from(reward_per_token_stored))
+            .ok_or(MathError::Overflow)
     }
 
     /// Returns rewards earned by the user given `rewards_per_token` for some period of time.
     fn rewards_earned(
         shares: u128,
-        rewards_per_token: u128,
-        paid_reward_per_token: u128,
-    ) -> Option<u128> {
-        rewards_per_token
+        rewards_per_token: U256,
+        paid_reward_per_token: U256,
+    ) -> Result<u128, MathError> {
+        let r = rewards_per_token
             .checked_sub(paid_reward_per_token)
-            .and_then(|r| r.checked_mul(shares))
-            .and_then(|r| r.checked_div(SCALING_FACTOR))
+            .ok_or(MathError::Underflow)?;
+
+        r.checked_mul(U256::from(shares))
+            .ok_or(MathError::Overflow)?
+            .checked_div(U256::from(SCALING_FACTOR))
+            .ok_or(MathError::DivByZero)?
+            .try_into()
+            .map_err(|_| MathError::CastOverflow)
     }
 
     use openbrush::modifier_definition;
@@ -609,17 +628,20 @@ mod farm {
         #[cfg(test)]
         mod reward_calculation {
             use crate::farm::SCALING_FACTOR;
+            use amm_helpers::math::casted_mul;
+            use primitive_types::U256;
 
-            // 1 reward tokens for every t=1.
+            // 100 reward tokens for every t=1.
             const REWARD_RATE: u128 = 100;
 
+            // Handy wrappers to use in tests.
             fn reward_per_token(
-                reward_per_token_stored: u128,
+                reward_per_token_stored: U256,
                 reward_rate: u128,
                 total_supply: u128,
                 last_update_time: u128,
                 last_time_reward_applicable: u128,
-            ) -> u128 {
+            ) -> U256 {
                 super::reward_per_token(
                     reward_per_token_stored,
                     reward_rate,
@@ -632,8 +654,8 @@ mod farm {
 
             fn rewards_earned(
                 shares: u128,
-                rewards_per_token: u128,
-                paid_reward_per_token: u128,
+                rewards_per_token: U256,
+                paid_reward_per_token: U256,
             ) -> u128 {
                 super::rewards_earned(shares, rewards_per_token, paid_reward_per_token)
                     .expect("to calculate rewards earned")
@@ -652,12 +674,13 @@ mod farm {
                 let shares = 100;
                 let total_supply = shares;
 
-                let rewards_per_token = reward_per_token(0, REWARD_RATE, total_supply, 3, 5);
+                let rewards_per_token =
+                    reward_per_token(U256::zero(), REWARD_RATE, total_supply, 3, 5);
                 // = r_j0 + R/T(t_j - t_j0)
                 // = 0 + 100/100 * 2
                 // = 2
-                assert_eq!(rewards_per_token, 2 * super::SCALING_FACTOR);
-                let reward_earned = rewards_earned(shares, rewards_per_token, 0);
+                assert_eq!(rewards_per_token, casted_mul(2, super::SCALING_FACTOR));
+                let reward_earned = rewards_earned(shares, rewards_per_token, U256::zero());
                 assert_eq!(reward_earned, 200);
             }
 
@@ -681,7 +704,7 @@ mod farm {
             fn single_farmer_top_up() {
                 let shares = 100;
                 let total_supply = shares;
-                let rewards_per_token_from0_till3 = 0;
+                let rewards_per_token_from0_till3 = U256::zero();
 
                 let rewards_per_token_from0_till5 = reward_per_token(
                     rewards_per_token_from0_till3,
@@ -695,8 +718,9 @@ mod farm {
                 // = 0 + REWARD_RATE / TOTAL_SUPPLY * (5 - 3)
                 // = 0 + 100/100 * 2
                 // = 2
-                assert_eq!(rewards_per_token_from0_till5, 2 * SCALING_FACTOR);
-                let reward_earned = rewards_earned(shares, rewards_per_token_from0_till5, 0);
+                assert_eq!(rewards_per_token_from0_till5, casted_mul(2, SCALING_FACTOR));
+                let reward_earned =
+                    rewards_earned(shares, rewards_per_token_from0_till5, U256::zero());
                 assert_eq!(reward_earned, 200);
 
                 let shares: u128 = 300;
@@ -735,7 +759,7 @@ mod farm {
             fn single_farmer_withdraw_partial() {
                 let shares = 300;
                 let total_supply = shares;
-                let rewards_per_token_from0_till3 = 0;
+                let rewards_per_token_from0_till3 = U256::zero();
 
                 let rewards_per_token_from0_till5 = reward_per_token(
                     rewards_per_token_from0_till3,
@@ -746,21 +770,18 @@ mod farm {
                 );
                 // expected value is
                 // = r_j0 + R/T(t_j-t_j0)
-                // = 0 + (1 reward_rate * 2s)/300 * SCALING_FACTOR
-                // = 2/300 * SCALING_FACTOR
-                let expected = 666666666666666666u128;
+                // = 0 + (100 * 2s)/300 * SCALING_FACTOR
+                // = 200/300 * SCALING_FACTOR
+                // = 2/3 * SCALING_FACTOR
+                let expected = casted_mul(2, SCALING_FACTOR) / 3;
                 assert_eq!(rewards_per_token_from0_till5, expected);
-                let reward_earned = rewards_earned(shares, rewards_per_token_from0_till5, 0);
-                println!("reward_earned = {:?}", reward_earned);
+                let reward_earned =
+                    rewards_earned(shares, rewards_per_token_from0_till5, U256::zero());
                 // expected value is 200:
                 // = reward_per_token * shares / SCALING_FACTOR
                 // = (2/300 * SCALING_FACTOR) * 300 / SCALING_FACTOR
-                // = 2
-                // but due to roundings, we get 199.
-                // We could choose to add one to account for the error,
-                // but we prefer to have rounding errors benefit the farm,
-                // to avoid liquidity drip slowly out.
-                assert_eq!(reward_earned, 199);
+                // = 200
+                assert_eq!(reward_earned, 200);
 
                 let shares: u128 = 100;
                 let total_supply = shares;
@@ -776,7 +797,7 @@ mod farm {
                 // = 200/300  + 100/100 * 3
                 // = (3 + 2/3)
                 // modulo SCALING_FACTOR
-                let expected = 3666666666666666666u128;
+                let expected = expected + casted_mul(3, SCALING_FACTOR);
                 assert_eq!(rewards_per_token, expected);
                 let reward_earned =
                     rewards_earned(shares, rewards_per_token, rewards_per_token_from0_till5);
@@ -795,7 +816,7 @@ mod farm {
             fn two_farmers_overlap() {
                 let alice = 100;
                 let bob = 200;
-                let reward_per_token_from0_till3 = 0;
+                let reward_per_token_from0_till3 = U256::zero();
 
                 // Alice deposits 100 at t=3;
                 // = r_j0 + R/T(t_j-t_j0)
@@ -803,7 +824,8 @@ mod farm {
                 // = 2
                 let rewards_per_token_from0_till5 =
                     reward_per_token(reward_per_token_from0_till3, REWARD_RATE, alice, 3, 5);
-                assert_eq!(rewards_per_token_from0_till5, 2 * SCALING_FACTOR);
+                let expected = casted_mul(2, SCALING_FACTOR);
+                assert_eq!(rewards_per_token_from0_till5, expected);
 
                 // Bob deposits 200 at t=5;
                 let reward_per_token_from0_till7 = reward_per_token(
@@ -816,10 +838,12 @@ mod farm {
                 // = r_j0 + R/T(t_j-t_j0)
                 // = 2 + 100/300 * 2
                 // = 2 + 2/3
-                assert_eq!(reward_per_token_from0_till7, 2666666666666666666u128);
+                let expected = expected + casted_mul(2, SCALING_FACTOR) / 3;
+                assert_eq!(reward_per_token_from0_till7, expected);
 
                 // Alice withdraws 100 at t=7;
-                let alice_reward_earned = rewards_earned(alice, reward_per_token_from0_till7, 0);
+                let alice_reward_earned =
+                    rewards_earned(alice, reward_per_token_from0_till7, U256::zero());
 
                 // Expected value is:
                 // 2 full rewards for 2 units of time when she's the only farmer.
@@ -827,7 +851,11 @@ mod farm {
                 // Scaled with SCALING_FACTOR for fixed point arithmetic.
                 // reward_rate(ALICE) = 8/3R = 2 2/3 R, where R=reward_rate
                 // rewards_earned(ALICE) = reward_rate(ALICE) * shares(ALICE) / SCALING_FACTOR
-                let alice_expected = 2666666666666666666u128 * alice / SCALING_FACTOR;
+                let alice_expected: u128 = (expected * U256::from(alice))
+                    .checked_div(U256::from(SCALING_FACTOR))
+                    .expect("to calculate alice_expected")
+                    .try_into()
+                    .expect("to cast alice_expected to u128");
                 assert_eq!(alice_expected, alice_reward_earned);
 
                 // Bob withdraws 200 at t=10;
@@ -839,13 +867,18 @@ mod farm {
                 // = 4 + 1/6
                 let reward_per_token_from0_till10 =
                     reward_per_token(reward_per_token_from0_till7, REWARD_RATE, bob, 7, 10);
-                let expected_rate = 4 * SCALING_FACTOR + SCALING_FACTOR / 6;
+                let expected_rate = casted_mul(4, SCALING_FACTOR) + U256::from(SCALING_FACTOR) / 6;
                 assert_eq!(reward_per_token_from0_till10, expected_rate);
-                let bob_rewards_earned = rewards_earned(bob, reward_per_token_from0_till10, 0);
+                let bob_rewards_earned =
+                    rewards_earned(bob, reward_per_token_from0_till10, U256::zero());
                 // 2/3 * 2 worth of reward for 3 units of time when he has 2/3 of shares.
                 // 3 full rewards for 3 units of time when he's the only farmer.
                 // rewards_earned(BOB) = reward_rate(BOB) * shares(BOB) / SCALING_FACTOR
-                let bob_expected = expected_rate * bob / SCALING_FACTOR;
+                let bob_expected: u128 = (expected_rate * U256::from(bob))
+                    .checked_div(U256::from(SCALING_FACTOR))
+                    .expect("to calculate bob_expected")
+                    .try_into()
+                    .expect("to cast bob_expected to u128");
                 assert_eq!(bob_expected, bob_rewards_earned);
             }
 
@@ -875,7 +908,8 @@ mod farm {
                 let bob = 200;
                 let carol = 100;
 
-                let reward_per_token_from0_till5 = reward_per_token(0, REWARD_RATE, alice, 3, 5);
+                let reward_per_token_from0_till5 =
+                    reward_per_token(U256::zero(), REWARD_RATE, alice, 3, 5);
 
                 let reward_per_token_from0_till6 =
                     reward_per_token(reward_per_token_from0_till5, REWARD_RATE, alice + bob, 5, 6);
@@ -888,7 +922,8 @@ mod farm {
                     9,
                 );
 
-                let alice_reward_earned = rewards_earned(alice, reward_per_token_from0_till9, 0);
+                let alice_reward_earned =
+                    rewards_earned(alice, reward_per_token_from0_till9, U256::zero());
                 assert_eq!(alice_reward_earned, 37 * alice / 12);
 
                 let reward_rate_from0_till10 = reward_per_token(
@@ -898,7 +933,8 @@ mod farm {
                     9,
                     10,
                 );
-                let expected_reward_rate = 3 * SCALING_FACTOR + (5 * SCALING_FACTOR) / 12;
+                let expected_reward_rate =
+                    casted_mul(3, SCALING_FACTOR) + casted_mul(5, SCALING_FACTOR) / 12;
                 assert_eq!(reward_rate_from0_till10, expected_reward_rate);
                 let new_carol = carol + 100;
                 let reward_rate_from0_till11 = reward_per_token(
@@ -910,8 +946,13 @@ mod farm {
                 );
                 let expected_reward_rate = expected_reward_rate + (SCALING_FACTOR / 4);
                 assert_eq!(reward_rate_from0_till11, expected_reward_rate,);
-                let bob_earned = rewards_earned(bob, reward_rate_from0_till11, 0);
-                assert_eq!(bob_earned, bob * expected_reward_rate / SCALING_FACTOR);
+                let bob_earned = rewards_earned(bob, reward_rate_from0_till11, U256::zero());
+                let bob_expected: u128 = (expected_reward_rate * U256::from(bob))
+                    .checked_div(U256::from(SCALING_FACTOR))
+                    .expect("to calculate bob_expected")
+                    .try_into()
+                    .expect("to cast bob_expected to u128");
+                assert_eq!(bob_earned, bob_expected);
             }
         }
 

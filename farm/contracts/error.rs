@@ -1,3 +1,4 @@
+use amm_helpers::math::MathError;
 use psp22_traits::PSP22Error;
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -8,7 +9,7 @@ pub enum FarmError {
     CallerNotOwner,
     PSP22Error(PSP22Error),
     CallerNotFarmer,
-    ArithmeticError,
+    ArithmeticError(MathError),
     InvalidAmountArgument,
     InsufficientDepositAmount,
     InvalidWithdrawAmount,
@@ -44,5 +45,11 @@ impl From<PSP22Error> for FarmError {
 impl From<PSP22Error> for FarmStartError {
     fn from(e: PSP22Error) -> Self {
         FarmStartError::PSP22Error(e)
+    }
+}
+
+impl From<MathError> for FarmError {
+    fn from(e: MathError) -> Self {
+        FarmError::ArithmeticError(e)
     }
 }
