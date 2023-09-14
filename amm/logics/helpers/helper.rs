@@ -1,5 +1,8 @@
 use crate::traits::{
-    factory::FactoryRef,
+    factory::{
+        Factory,
+        FactoryRef,
+    },
     pair::PairRef,
 };
 use amm_helpers::math::casted_mul;
@@ -47,7 +50,8 @@ pub fn pair_for_on_chain(
     token_a: AccountId,
     token_b: AccountId,
 ) -> Option<AccountId> {
-    FactoryRef::get_pair(factory, token_a, token_b)
+    let factory_ref: FactoryRef = (*factory).into();
+    factory_ref.get_pair(token_a, token_b)
 }
 
 /// Returns balances of token reserves for particular `Factory` instance.

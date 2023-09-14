@@ -34,20 +34,20 @@ build-node-arm64:
 build-node-x86_64:
 	@docker buildx build --pull --platform linux/amd64 -t aleph-onenode-chain-x86_64 --load docker
 
-UNI_CONTRACTS = ./amm/contracts
-UNI_CONTRACTS_PATHS := $(shell find $(UNI_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
+AMM_CONTRACTS = ./amm/contracts
+AMM_CONTRACTS_PATHS := $(shell find $(AMM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
-FARM_CONTRACTS = ./farm
-FARM_CONTRACTS_PATHS := $(shell find $(FARM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
+FARM_CONTRACTS = ./farm/contracts
+FARM_PATHS := $(shell find ./farm -mindepth 1 -maxdepth 1 -type d)
 
 .PHONY: build-all
 build-all: ## Builds all contracts.
-	@for d in $(UNI_CONTRACTS_PATHS); do \
+	@for d in $(AMM_CONTRACTS_PATHS); do \
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
-	@for d in $(FARM_CONTRACTS_PATHS); do \
-		echo "Checking $$d" ; \
+	@for d in $(FARM_CONTRACTS); do \
+		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
 
@@ -56,11 +56,11 @@ check-all: ## Runs cargo checks and unit tests on all contracts.
 	@cargo check --quiet --all-targets --all-features --all
 	@cargo clippy --quiet --all-features -- --no-deps -D warnings
 	@cargo fmt --quiet --all --check
-	@for d in $(UNI_CONTRACTS_PATHS); do \
+	@for d in $(AMM_CONTRACTS_PATHS); do \
 		echo "Checking $$d" ; \
 		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
 	done
-	@for d in $(FARM_CONTRACTS_PATHS); do \
+	@for d in $(FARM_PATHS); do \
 		echo "Checking $$d" ; \
 		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
 	done
