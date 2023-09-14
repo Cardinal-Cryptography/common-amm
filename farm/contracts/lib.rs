@@ -12,9 +12,13 @@ mod tests;
 
 #[ink::contract]
 mod farm {
-    use crate::error::{
-        FarmError,
-        FarmStartError,
+    use crate::{
+        error::{
+            FarmError,
+            FarmStartError,
+        },
+        reward_per_token,
+        rewards_earned,
     };
 
     use openbrush::modifiers;
@@ -36,13 +40,7 @@ mod farm {
         vec::Vec,
     };
 
-    use amm_helpers::{
-        math::{
-            casted_mul,
-            MathError,
-        },
-        types::WrappedU256,
-    };
+    use amm_helpers::types::WrappedU256;
 
     #[ink(event)]
     pub struct Deposited {
@@ -515,57 +513,6 @@ mod farm {
         }
     }
 
-    /// Returns rewards due for providing liquidity from `last_update_time` to `last_time_reward_applicable`.
-    ///
-    /// r_j = r_j0 + R/T(t_j - t_j0)
-    ///
-    /// where:
-    /// - r_j0 - reward per token stored at the last time any user interacted with the farm
-    /// - R - total amount of rewards available for distribution
-    /// - T - total shares in the farm
-    /// - t_j - last time user interacted with the farm, usually _now_.
-    /// - t_j0 - last time user "claimed" rewards.
-    /// - r_j - rewards due to user for providing liquidity from t_j0 to t_j
-    ///
-    /// See https://github.com/stakewithus/notes/blob/main/excalidraw/staking-rewards.png for more.
-    pub fn reward_per_token(
-        reward_per_token_stored: U256,
-        reward_rate: u128,
-        total_supply: u128,
-        last_update_time: u128,
-        last_time_reward_applicable: u128,
-    ) -> Result<U256, MathError> {
-        if total_supply == 0 {
-            return Ok(reward_per_token_stored)
-        }
-
-        casted_mul(reward_rate, last_time_reward_applicable - last_update_time)
-            .checked_mul(U256::from(SCALING_FACTOR))
-            .ok_or(MathError::Overflow)?
-            .checked_div(U256::from(total_supply))
-            .ok_or(MathError::DivByZero)?
-            .checked_add(reward_per_token_stored)
-            .ok_or(MathError::Overflow)
-    }
-
-    /// Returns rewards earned by the user given `rewards_per_token` for some period of time.
-    pub fn rewards_earned(
-        shares: u128,
-        rewards_per_token: U256,
-        paid_reward_per_token: U256,
-    ) -> Result<u128, MathError> {
-        let r = rewards_per_token
-            .checked_sub(paid_reward_per_token)
-            .ok_or(MathError::Underflow)?;
-
-        r.checked_mul(U256::from(shares))
-            .ok_or(MathError::Overflow)?
-            .checked_div(U256::from(SCALING_FACTOR))
-            .ok_or(MathError::DivByZero)?
-            .try_into()
-            .map_err(|_| MathError::CastOverflow)
-    }
-
     use openbrush::modifier_definition;
 
     #[modifier_definition]
@@ -637,4 +584,62 @@ mod farm {
             Ok(Ok(res)) => res,
         }
     }
+}
+
+use amm_helpers::math::{
+    casted_mul,
+    MathError,
+};
+use farm::SCALING_FACTOR;
+use primitive_types::U256;
+
+/// Returns rewards due for providing liquidity from `last_update_time` to `last_time_reward_applicable`.
+///
+/// r_j = r_j0 + R/T(t_j - t_j0)
+///
+/// where:
+/// - r_j0 - reward per token stored at the last time any user interacted with the farm
+/// - R - total amount of rewards available for distribution
+/// - T - total shares in the farm
+/// - t_j - last time user interacted with the farm, usually _now_.
+/// - t_j0 - last time user "claimed" rewards.
+/// - r_j - rewards due to user for providing liquidity from t_j0 to t_j
+///
+/// See https://github.com/stakewithus/notes/blob/main/excalidraw/staking-rewards.png for more.
+pub fn reward_per_token(
+    reward_per_token_stored: U256,
+    reward_rate: u128,
+    total_supply: u128,
+    last_update_time: u128,
+    last_time_reward_applicable: u128,
+) -> Result<U256, MathError> {
+    if total_supply == 0 {
+        return Ok(reward_per_token_stored)
+    }
+
+    casted_mul(reward_rate, last_time_reward_applicable - last_update_time)
+        .checked_mul(U256::from(SCALING_FACTOR))
+        .ok_or(MathError::Overflow)?
+        .checked_div(U256::from(total_supply))
+        .ok_or(MathError::DivByZero)?
+        .checked_add(reward_per_token_stored)
+        .ok_or(MathError::Overflow)
+}
+
+/// Returns rewards earned by the user given `rewards_per_token` for some period of time.
+pub fn rewards_earned(
+    shares: u128,
+    rewards_per_token: U256,
+    paid_reward_per_token: U256,
+) -> Result<u128, MathError> {
+    let r = rewards_per_token
+        .checked_sub(paid_reward_per_token)
+        .ok_or(MathError::Underflow)?;
+
+    r.checked_mul(U256::from(shares))
+        .ok_or(MathError::Overflow)?
+        .checked_div(U256::from(SCALING_FACTOR))
+        .ok_or(MathError::DivByZero)?
+        .try_into()
+        .map_err(|_| MathError::CastOverflow)
 }
