@@ -23,7 +23,7 @@ openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", tag =
 primitive-types = { version = "0.12.1", default-features = false, features = [
     "codec",
 ] }
-sp-arithmetic = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.37" }
+sp-arithmetic = { version = "18.0.0", default-features = false }
 amm-helpers = { path = "../../helpers", default-features = false }
 
 [dev-dependencies]
