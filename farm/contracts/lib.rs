@@ -170,19 +170,34 @@ mod farm {
                 reward_rates.push(rate);
             }
 
+            let mut reward_tokens_info = Vec::with_capacity(tokens_len);
+
+            for (token, reward_rate) in reward_tokens.iter().zip(reward_rates.iter()) {
+                let token_id = *token;
+                let reward_rate = *reward_rate;
+                let total_unclaimed_rewards = 0;
+                let reward_per_token_stored = WrappedU256::ZERO;
+
+                let info = RewardTokenInfo {
+                    token_id,
+                    reward_rate,
+                    total_unclaimed_rewards,
+                    reward_per_token_stored,
+                };
+
+                reward_tokens_info.push(info);
+            }
+
             let state = State {
                 owner: farm_owner,
                 start: now,
                 end,
-                reward_rates,
-                reward_tokens,
-                reward_per_token_stored: vec![WrappedU256::ZERO; tokens_len],
+                reward_tokens_info,
                 timestamp_at_last_update: now,
                 total_shares: 0,
                 shares: Mapping::new(),
                 user_reward_per_token_paid: Mapping::new(),
                 user_unclaimed_rewards: Mapping::new(),
-                total_unclaimed_rewards: vec![0; tokens_len],
             };
 
             self.state.set(&state);
@@ -213,10 +228,10 @@ mod farm {
             self.state.set(&running);
 
             // Send remaining rewards to the farm owner.
-            for (idx, reward_token) in running.reward_tokens.iter().enumerate() {
-                let mut psp22_ref: ink::contract_ref!(PSP22) = (*reward_token).into();
+            for reward_token in running.reward_tokens_info.iter() {
+                let mut psp22_ref: ink::contract_ref!(PSP22) = reward_token.token_id.into();
                 let balance: Balance = safe_balance_of(&psp22_ref, self.env().account_id());
-                let reserved = running.total_unclaimed_rewards[idx];
+                let reserved = reward_token.total_unclaimed_rewards;
                 let to_refund = balance.saturating_sub(reserved);
                 if to_refund > 0 {
                     safe_transfer(&mut psp22_ref, running.owner, to_refund)?;
@@ -297,28 +312,22 @@ mod farm {
                 .get(caller)
                 .ok_or(FarmError::CallerNotFarmer)?;
 
-            // Reset state before calling PSP22 methods.
-            // Reentrancy protection.
             state
                 .user_unclaimed_rewards
                 .insert(caller, &vec![0; user_rewards.len()]);
 
-            self.state.set(&state);
-
-            for (user_reward, reward_token) in user_rewards
-                .clone()
-                .into_iter()
-                .zip(state.reward_tokens.iter())
-            {
+            for (idx, user_reward) in user_rewards.clone().into_iter().enumerate() {
                 if user_reward > 0 {
-                    let mut psp22_ref: ink::contract_ref!(PSP22) = (*reward_token).into();
+                    let mut psp22_ref: ink::contract_ref!(PSP22) =
+                        state.reward_tokens_info[idx].token_id.into();
+                    state.reward_tokens_info[idx].total_unclaimed_rewards = state
+                        .reward_tokens_info[idx]
+                        .total_unclaimed_rewards
+                        .saturating_sub(user_reward);
                     safe_transfer(&mut psp22_ref, caller, user_reward)?;
                 }
             }
-            for (idx, reward) in user_rewards.iter().enumerate() {
-                state.total_unclaimed_rewards[idx] =
-                    state.total_unclaimed_rewards[idx].saturating_sub(*reward);
-            }
+
             self.state.set(&state);
 
             self.env().emit_event(RewardsClaimed {
@@ -347,10 +356,18 @@ mod farm {
             let mut state = self.get_state()?;
 
             let rewards_per_token = state.rewards_per_token(self.env().block_timestamp())?;
-            let user_rewards = state.rewards_earned(account, &rewards_per_token)?;
+            let unclaimed_rewards = state.rewards_earned(account, &rewards_per_token)?;
 
-            state.total_unclaimed_rewards =
-                state.rewards_distributable(self.env().block_timestamp());
+            for (idx, rewards_distributable) in state
+                .rewards_distributable(self.env().block_timestamp())
+                .iter()
+                .enumerate()
+            {
+                state.reward_tokens_info[idx].total_unclaimed_rewards += *rewards_distributable;
+                state.reward_tokens_info[idx].reward_per_token_stored =
+                    rewards_per_token[idx].into();
+            }
+
             state.user_reward_per_token_paid.insert(
                 account,
                 &rewards_per_token
@@ -359,12 +376,13 @@ mod farm {
                     .map(WrappedU256::from)
                     .collect::<Vec<_>>(),
             );
-            state.user_unclaimed_rewards.insert(account, &user_rewards);
-            state.reward_per_token_stored = rewards_per_token.into_iter().map(Into::into).collect();
+            state
+                .user_unclaimed_rewards
+                .insert(account, &unclaimed_rewards);
 
             self.state.set(&state);
 
-            Ok(user_rewards)
+            Ok(unclaimed_rewards)
         }
 
         fn get_state(&self) -> Result<State, FarmError> {
@@ -375,6 +393,25 @@ mod farm {
     type TokenId = AccountId;
     type UserId = AccountId;
 
+    use scale::{
+        Decode,
+        Encode,
+    };
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub struct RewardTokenInfo {
+        /// Tokens deposited as rewards for providing LP to the farm.
+        token_id: TokenId,
+        /// How many rewards to pay out for the smallest unit of time.
+        reward_rate: u128,
+        /// Totals of unclaimed rewards.
+        // Necessary for not letting owner, re-claim more than allowed to once the farm is stopped.
+        total_unclaimed_rewards: u128,
+        /// Reward counter at the last farm change.
+        reward_per_token_stored: WrappedU256,
+    }
+
     #[ink::storage_item]
     pub struct State {
         /// Creator(owner) of the farm.
@@ -383,12 +420,8 @@ mod farm {
         pub start: Timestamp,
         /// The timestamp when the farm will stop.
         pub end: Timestamp,
-        /// How many rewards to pay out for the smallest unit of time.
-        pub reward_rates: Vec<u128>,
-        /// Tokens deposited as rewards for providing LP to the farm.
-        pub reward_tokens: Vec<TokenId>,
-        /// Reward counter at the last farm change.
-        pub reward_per_token_stored: Vec<WrappedU256>,
+        /// Reward tokens.
+        pub reward_tokens_info: Vec<RewardTokenInfo>,
         /// Timestamp of the last farm change.
         pub timestamp_at_last_update: Timestamp,
         /// Total shares in the farm after the last action.
@@ -401,9 +434,6 @@ mod farm {
         pub user_reward_per_token_paid: Mapping<UserId, Vec<WrappedU256>>,
         /// Rewards that have not been claimed (withdrawn) by the user yet.
         pub user_unclaimed_rewards: Mapping<UserId, Vec<u128>>,
-        /// Totals of unclaimed rewards.
-        // Necessary for not letting owner, re-claim more than allowed to once the farm is stopped.
-        pub total_unclaimed_rewards: Vec<u128>,
     }
 
     impl State {
@@ -415,12 +445,13 @@ mod farm {
             &self,
             current_timestamp: Timestamp,
         ) -> Result<Vec<U256>, FarmError> {
-            let mut rewards_per_token: Vec<U256> = Vec::with_capacity(self.reward_tokens.len());
+            let mut rewards_per_token: Vec<U256> =
+                Vec::with_capacity(self.reward_tokens_info.len());
 
-            for i in 0..self.reward_tokens.len() {
-                let reward_rate: u128 = self.reward_rates[i];
+            for reward_token in self.reward_tokens_info.iter() {
+                let reward_rate = reward_token.reward_rate;
                 let rpr = reward_per_token(
-                    self.reward_per_token_stored[i].0,
+                    reward_token.reward_per_token_stored.0,
                     reward_rate,
                     self.total_shares,
                     self.timestamp_at_last_update as u128,
@@ -464,13 +495,14 @@ mod farm {
             Ok(unclaimed_user_rewards)
         }
 
-        /// Returns rewards distribuatble to all farmers for the period.
+        /// Returns rewards distributable to all farmers for the period between now (or farm end)
+        /// and last farm change.
         pub fn rewards_distributable(&self, current_timestamp: Timestamp) -> Vec<u128> {
             let last_time_reward_applicable = core::cmp::min(current_timestamp, self.end) as u128;
-            self.reward_rates
+            self.reward_tokens_info
                 .iter()
-                .map(|reward_rate| {
-                    reward_rate
+                .map(|info| {
+                    info.reward_rate
                         .checked_mul(
                             last_time_reward_applicable - self.timestamp_at_last_update as u128,
                         )

@@ -38,3 +38,6 @@ std = [
     "amm-helpers/std",
 ]
 ink-as-dependency = []
+
+[profile.release]
+overflow-checks = false
