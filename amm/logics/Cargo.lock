@@ -15,6 +15,7 @@ dependencies = [
 name = "amm"
 version = "0.2.0"
 dependencies = [
+ "amm-helpers",
  "curve25519-dalek",
  "ink",
  "ink_metadata",
@@ -24,6 +25,17 @@ dependencies = [
  "scale-info",
  "sha2",
  "sp-arithmetic",
+]
+
+[[package]]
+name = "amm-helpers"
+version = "0.2.0"
+dependencies = [
+ "ink",
+ "ink_metadata",
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
 ]
 
 [[package]]

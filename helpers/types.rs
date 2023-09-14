@@ -16,7 +16,11 @@ use scale::{
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub struct WrappedU256(U256);
+pub struct WrappedU256(pub U256);
+
+impl WrappedU256 {
+    pub const ZERO: WrappedU256 = WrappedU256(U256::zero());
+}
 
 impl From<WrappedU256> for U256 {
     fn from(value: WrappedU256) -> Self {

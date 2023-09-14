@@ -1,17 +1,17 @@
 use crate::{
     ensure,
-    helpers::math::casted_mul,
-    traits::{
-        factory::{
-            Factory,
-            FactoryRef,
-        },
-        types::WrappedU256,
+    traits::factory::{
+        Factory,
+        FactoryRef,
     },
 };
 pub use crate::{
     impls::pair::*,
     traits::pair::*,
+};
+use amm_helpers::{
+    math::casted_mul,
+    types::WrappedU256,
 };
 use openbrush::{
     contracts::psp22::*,

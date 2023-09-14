@@ -1,13 +1,11 @@
-use crate::{
-    helpers::math::casted_mul,
-    traits::{
-        factory::{
-            Factory,
-            FactoryRef,
-        },
-        pair::PairRef,
+use crate::traits::{
+    factory::{
+        Factory,
+        FactoryRef,
     },
+    pair::PairRef,
 };
+use amm_helpers::math::casted_mul;
 use ink::prelude::vec::Vec;
 use openbrush::traits::{
     AccountId,
