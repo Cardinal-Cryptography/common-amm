@@ -247,25 +247,17 @@ mod farm {
         #[modifiers(ensure_running(true), non_zero_amount(amount))]
         pub fn deposit(&mut self, amount: u128) -> Result<(), FarmError> {
             self.update_reward_index()?;
+            self.add_shares(amount)
+        }
 
-            let contract = self.env().account_id();
-            let caller = self.env().caller();
-
-            let mut running_state = self.get_state()?;
-
-            let prev_share = running_state.shares.get(caller).unwrap_or(0);
-            running_state.shares.insert(caller, &(prev_share + amount));
-            running_state.total_shares += amount;
-
-            self.state.set(&running_state);
-
-            self.pool.transfer_from(caller, contract, amount, vec![])?;
-
-            self.env().emit_event(Deposited {
-                account: caller,
-                amount,
-            });
-            Ok(())
+        /// Deposits all of the LP tokens the caller has.
+        /// NOTE: Requires that the caller has approved the farm to spend their tokens.
+        #[ink(message)]
+        #[modifiers(ensure_running(true))]
+        pub fn deposit_all(&mut self) -> Result<(), FarmError> {
+            self.update_reward_index()?;
+            let token_balance = safe_balance_of(&self.pool, self.env().caller());
+            self.add_shares(token_balance)
         }
 
         /// Withdraws the given amount of shares from the farm.
@@ -348,6 +340,26 @@ mod farm {
             let user_rewards = state.rewards_earned(account, &rewards_per_token)?;
 
             Ok(user_rewards)
+        }
+
+        /// Adds the given amount of shares to the farm under `account`.
+        fn add_shares(&mut self, amount: u128) -> Result<(), FarmError> {
+            let caller = self.env().caller();
+            let mut running_state = self.get_state()?;
+            let prev_share = running_state.shares.get(caller).unwrap_or(0);
+            running_state.shares.insert(caller, &(prev_share + amount));
+            running_state.total_shares += amount;
+
+            self.state.set(&running_state);
+
+            self.pool
+                .transfer_from(caller, self.env().account_id(), amount, vec![])?;
+
+            self.env().emit_event(Deposited {
+                account: caller,
+                amount,
+            });
+            Ok(())
         }
 
         /// Returns the amount of rewards per token that have been accumulated for the given account.
