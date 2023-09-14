@@ -5,7 +5,7 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
-primitive-types = { version = "0.11.1", default-features = false, features = [
+primitive-types = { version = "0.12.1", default-features = false, features = [
     "num-traits",
 ] }
 ink = { version = "=4.3.0", default-features = false }
