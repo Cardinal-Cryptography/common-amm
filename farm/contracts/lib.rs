@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
 mod error;
+mod views;
 
 #[cfg(test)]
 mod tests;
@@ -12,11 +13,17 @@ mod tests;
 
 #[ink::contract]
 mod farm {
+    use crate::error::{
+        FarmError,
+        FarmStartError,
+    };
+
+    use crate::views::{
+        FarmDetailsView,
+        UserPositionView,
+    };
+
     use crate::{
-        error::{
-            FarmError,
-            FarmStartError,
-        },
         reward_per_token,
         rewards_earned,
     };
@@ -66,7 +73,7 @@ mod farm {
     #[ink(storage)]
     pub struct Farm {
         /// Address of the token pool for which this farm is created.
-        pub pool: contract_ref!(PSP22),
+        pub pool: AccountId,
         /// Address of the farm creator.
         pub owner: AccountId,
         /// Whether the farm is running now.
@@ -82,7 +89,7 @@ mod farm {
         #[ink(constructor)]
         pub fn new(pair_address: AccountId) -> Self {
             Farm {
-                pool: pair_address.into(),
+                pool: pair_address,
                 owner: Self::env().caller(),
                 is_running: false,
                 state: Lazy::new(),
@@ -256,7 +263,7 @@ mod farm {
         #[modifiers(ensure_running(true))]
         pub fn deposit_all(&mut self) -> Result<(), FarmError> {
             self.update_reward_index()?;
-            let token_balance = safe_balance_of(&self.pool, self.env().caller());
+            let token_balance = safe_balance_of(&self.pool.into(), self.env().caller());
             self.add_shares(token_balance)
         }
 
@@ -281,7 +288,9 @@ mod farm {
 
             self.state.set(&state);
 
-            self.pool.transfer(caller, amount, vec![])?;
+            let mut pool: contract_ref!(PSP22) = self.pool.into();
+
+            pool.transfer(caller, amount, vec![])?;
 
             self.env().emit_event(Withdrawn {
                 account: caller,
@@ -342,6 +351,35 @@ mod farm {
             Ok(user_rewards)
         }
 
+        /// Returns view structure with details about the currently active farm.
+        #[ink(message)]
+        pub fn view_farm_details(&self) -> FarmDetailsView {
+            let state = self.get_state().expect("state to exist");
+            FarmDetailsView {
+                pair: self.pool,
+                start: state.start,
+                end: state.end,
+                total_shares: state.total_shares,
+                reward_tokens: state.reward_tokens_info.iter().map(Into::into).collect(),
+            }
+        }
+
+        /// Returns view structure with details about the caller's position in the farm.
+        #[ink(message)]
+        pub fn view_user_position(&self, account: AccountId) -> Option<UserPositionView> {
+            let unclaimed_rewards = self.claimable(account).ok()?;
+
+            let state = self.get_state().ok()?;
+            let shares = state.shares.get(account)?;
+            let claimed_rewards = state.claimed_rewards(account).ok()?;
+
+            Some(UserPositionView {
+                shares,
+                unclaimed_rewards,
+                claimed_rewards,
+            })
+        }
+
         /// Adds the given amount of shares to the farm under `account`.
         fn add_shares(&mut self, amount: u128) -> Result<(), FarmError> {
             let caller = self.env().caller();
@@ -352,8 +390,9 @@ mod farm {
 
             self.state.set(&running_state);
 
-            self.pool
-                .transfer_from(caller, self.env().account_id(), amount, vec![])?;
+            let mut pool: contract_ref!(PSP22) = self.pool.into();
+
+            pool.transfer_from(caller, self.env().account_id(), amount, vec![])?;
 
             self.env().emit_event(Deposited {
                 account: caller,
@@ -362,7 +401,7 @@ mod farm {
             Ok(())
         }
 
-        /// Returns the amount of rewards per token that have been accumulated for the given account.
+        /// Returns the amount of new rewards per token that have been accumulated for the given account.
         fn update_reward_index(&mut self) -> Result<Vec<u128>, FarmError> {
             let account = self.env().caller();
 
@@ -415,14 +454,14 @@ mod farm {
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub struct RewardTokenInfo {
         /// Tokens deposited as rewards for providing LP to the farm.
-        token_id: TokenId,
+        pub token_id: TokenId,
         /// How many rewards to pay out for the smallest unit of time.
-        reward_rate: u128,
+        pub reward_rate: u128,
         /// Totals of unclaimed rewards.
         // Necessary for not letting owner, re-claim more than allowed to once the farm is stopped.
-        total_unclaimed_rewards: u128,
+        pub total_unclaimed_rewards: u128,
         /// Reward counter at the last farm change.
-        reward_per_token_stored: WrappedU256,
+        pub reward_per_token_stored: WrappedU256,
     }
 
     #[ink::storage_item]
@@ -522,6 +561,24 @@ mod farm {
                         .unwrap_or(0)
                 })
                 .collect()
+        }
+
+        pub fn claimed_rewards(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
+            let shares = self.shares.get(account).ok_or(FarmError::CallerNotFarmer)?;
+
+            let rewards_per_token_paid_so_far = match self.user_reward_per_token_paid.get(account) {
+                Some(rrtps) => rrtps,
+                // No rewards paid so far.
+                None => return Ok(vec![0; self.reward_tokens_info.len()]),
+            };
+
+            let mut claimed_rewards = vec![];
+
+            for claimed_rr in rewards_per_token_paid_so_far {
+                claimed_rewards.push(rewards_earned(shares, claimed_rr.0, U256::zero())?);
+            }
+
+            Ok(claimed_rewards)
         }
     }
 
