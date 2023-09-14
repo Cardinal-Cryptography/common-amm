@@ -17,7 +17,6 @@ scale-info = { version = "2.3", default-features = false, features = [
 pair_contract = { path = "../pair", default-features = false, features = [
     "ink-as-dependency",
 ] }
-openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", tag = "3.1.1", default-features = false }
 amm = { path = "../../logics", default-features = false }
 
 [lib]
@@ -30,14 +29,7 @@ std = [
     "ink/std",
     "scale/std",
     "scale-info/std",
-    "openbrush/std",
     "amm/std",
     "pair_contract/std",
 ]
 ink-as-dependency = []
-
-[profile.dev]
-overflow-checks = false
-
-[profile.release]
-overflow-checks = false

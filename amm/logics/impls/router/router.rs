@@ -7,7 +7,10 @@ use crate::{
         sort_tokens,
     },
     traits::{
-        factory::FactoryRef,
+        factory::{
+            Factory,
+            FactoryRef,
+        },
         pair::PairRef,
     },
 };
@@ -60,7 +63,8 @@ impl<T: Storage<data::Data>> Internal for T {
     ) -> Result<(Balance, Balance), RouterError> {
         let factory = self.data().factory;
         if pair_for_on_chain(&factory, token_a, token_b).is_none() {
-            FactoryRef::create_pair(&factory, token_a, token_b)?;
+            let mut factory_ref: FactoryRef = factory.into();
+            factory_ref.create_pair(token_a, token_b)?;
         };
 
         let (reserve_a, reserve_b) = get_reserves(&factory, token_a, token_b)?;
