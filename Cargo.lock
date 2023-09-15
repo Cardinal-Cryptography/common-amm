@@ -18,7 +18,7 @@ dependencies = [
  "amm-helpers",
  "ink",
  "ink_metadata",
- "openbrush 3.1.1",
+ "openbrush",
  "parity-scale-codec",
  "primitive-types 0.12.1",
  "scale-info",
@@ -42,7 +42,7 @@ version = "0.1.0"
 dependencies = [
  "amm-helpers",
  "ink",
- "openbrush 3.0.0",
+ "openbrush",
  "parity-scale-codec",
  "primitive-types 0.12.1",
  "psp22-traits",
@@ -785,7 +785,8 @@ dependencies = [
 [[package]]
 name = "obce"
 version = "0.1.0"
-source = "git+https://github.com/727-Ventures/obce?branch=polkadot-v0.9.37#d452f6eda1bc1ecb36e7e332d61529ad440d5a89"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82773a5f89dc4310cbf30b33cf0e138088d68ae9c7f18467a664e2a3d90c7d93"
 dependencies = [
  "ink",
  "ink_engine",
@@ -797,9 +798,11 @@ dependencies = [
 [[package]]
 name = "obce-codegen"
 version = "0.1.0"
-source = "git+https://github.com/727-Ventures/obce?branch=polkadot-v0.9.37#d452f6eda1bc1ecb36e7e332d61529ad440d5a89"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "750739b48634f2b782d58176f82db1fb68cdf8b45be9888b31e55cd96002d991"
 dependencies = [
  "blake2 0.10.6",
+ "darling",
  "itertools",
  "proc-macro2",
  "quote",
@@ -810,12 +813,10 @@ dependencies = [
 [[package]]
 name = "obce-macro"
 version = "0.1.0"
-source = "git+https://github.com/727-Ventures/obce?branch=polkadot-v0.9.37#d452f6eda1bc1ecb36e7e332d61529ad440d5a89"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0f49eee83f2bc691f6508d9db6c93900b5d2d81a0572a1749b73dc91761517e"
 dependencies = [
  "obce-codegen",
- "proc-macro2",
- "syn 1.0.109",
- "synstructure 0.12.6",
 ]
 
 [[package]]
@@ -832,47 +833,25 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "openbrush"
-version = "3.0.0"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.0#107348d75ba40d5abeee4978fd2c70ead0122d3b"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6520212a5bcf7fc6d7dcf4309172ffa0c608f415d5e321d1801492f574990549"
 dependencies = [
  "ink",
- "openbrush_contracts 3.0.0",
- "openbrush_lang 3.0.0",
- "parity-scale-codec",
- "scale-info",
-]
-
-[[package]]
-name = "openbrush"
-version = "3.1.1"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.1#13e82f3f02e8ea65a95ea02c381106ea738e1fb8"
-dependencies = [
- "ink",
- "openbrush_contracts 3.1.1",
- "openbrush_lang 3.1.1",
+ "openbrush_contracts",
+ "openbrush_lang",
  "parity-scale-codec",
  "scale-info",
 ]
 
 [[package]]
 name = "openbrush_contracts"
-version = "3.0.0"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.0#107348d75ba40d5abeee4978fd2c70ead0122d3b"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "538b4781b95aeab1d03733ba4a14e8e12269f6ebf165c0238525cfc6338f6c45"
 dependencies = [
  "ink",
- "openbrush_lang 3.0.0",
- "pallet-assets-chain-extension",
- "parity-scale-codec",
- "scale-info",
-]
-
-[[package]]
-name = "openbrush_contracts"
-version = "3.1.1"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.1#13e82f3f02e8ea65a95ea02c381106ea738e1fb8"
-dependencies = [
- "ink",
- "openbrush_lang 3.1.1",
+ "openbrush_lang",
  "pallet-assets-chain-extension",
  "parity-scale-codec",
  "scale-info",
@@ -880,25 +859,13 @@ dependencies = [
 
 [[package]]
 name = "openbrush_lang"
-version = "3.0.0"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.0#107348d75ba40d5abeee4978fd2c70ead0122d3b"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93d535786ef8bc2ff8a3499d085003f15a42a955a4a720d4e0bc6898a21200cd"
 dependencies = [
  "const_format",
  "ink",
- "openbrush_lang_macro 3.0.0",
- "parity-scale-codec",
- "scale-info",
- "xxhash-rust",
-]
-
-[[package]]
-name = "openbrush_lang"
-version = "3.1.1"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.1#13e82f3f02e8ea65a95ea02c381106ea738e1fb8"
-dependencies = [
- "const_format",
- "ink",
- "openbrush_lang_macro 3.1.1",
+ "openbrush_lang_macro",
  "parity-scale-codec",
  "scale-info",
  "xxhash-rust",
@@ -906,28 +873,9 @@ dependencies = [
 
 [[package]]
 name = "openbrush_lang_codegen"
-version = "3.0.0"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.0#107348d75ba40d5abeee4978fd2c70ead0122d3b"
-dependencies = [
- "blake2 0.9.2",
- "cargo_metadata",
- "fs2",
- "heck 0.3.3",
- "ink_ir",
- "ink_primitives",
- "proc-macro2",
- "quote",
- "serde",
- "serde_json",
- "syn 1.0.109",
- "synstructure 0.12.6",
- "unwrap",
-]
-
-[[package]]
-name = "openbrush_lang_codegen"
-version = "3.1.1"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.1#13e82f3f02e8ea65a95ea02c381106ea738e1fb8"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "580211ddc8bab41dd6dbd40a10e5e2d83e05b2154fdc00c7497c8ad96639f1f4"
 dependencies = [
  "blake2 0.9.2",
  "cargo_metadata",
@@ -946,21 +894,11 @@ dependencies = [
 
 [[package]]
 name = "openbrush_lang_macro"
-version = "3.0.0"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.0#107348d75ba40d5abeee4978fd2c70ead0122d3b"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dc539bc8509ad8320cf262a11b2e76e6a3ec442c297a039b9d136dd6d494d8b"
 dependencies = [
- "openbrush_lang_codegen 3.0.0",
- "proc-macro2",
- "syn 1.0.109",
- "synstructure 0.12.6",
-]
-
-[[package]]
-name = "openbrush_lang_macro"
-version = "3.1.1"
-source = "git+https://github.com/727-Ventures/openbrush-contracts?tag=3.1.1#13e82f3f02e8ea65a95ea02c381106ea738e1fb8"
-dependencies = [
- "openbrush_lang_codegen 3.1.1",
+ "openbrush_lang_codegen",
  "proc-macro2",
  "syn 1.0.109",
  "synstructure 0.12.6",
@@ -973,7 +911,7 @@ dependencies = [
  "amm",
  "amm-helpers",
  "ink",
- "openbrush 3.1.1",
+ "openbrush",
  "parity-scale-codec",
  "primitive-types 0.11.1",
  "scale-info",
@@ -983,7 +921,8 @@ dependencies = [
 [[package]]
 name = "pallet-assets-chain-extension"
 version = "0.1.1"
-source = "git+https://github.com/727-ventures/pallet-assets-chain-extension?branch=polkadot-v0.9.37#f8ea374186df2a3fc139c8d585719e58d83df582"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3602e4cb7260f4e18e7a247fdba9ccf718b7a49fdfef14f33fe5f570e4830bd8"
 dependencies = [
  "ink",
  "obce",
@@ -1096,7 +1035,7 @@ name = "psp22_token"
 version = "0.1.0"
 dependencies = [
  "ink",
- "openbrush 3.1.1",
+ "openbrush",
  "parity-scale-codec",
  "scale-info",
 ]
@@ -1175,7 +1114,7 @@ version = "0.1.0"
 dependencies = [
  "amm",
  "ink",
- "openbrush 3.1.1",
+ "openbrush",
  "parity-scale-codec",
  "primitive-types 0.12.1",
  "scale-info",
@@ -1709,7 +1648,7 @@ version = "0.1.0"
 dependencies = [
  "amm",
  "ink",
- "openbrush 3.1.1",
+ "openbrush",
  "parity-scale-codec",
  "scale-info",
 ]
