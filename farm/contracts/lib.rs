@@ -315,12 +315,8 @@ mod farm {
 
             let user_rewards = state
                 .user_unclaimed_rewards
-                .get(caller)
+                .take(caller)
                 .ok_or(FarmError::CallerNotFarmer)?;
-
-            state
-                .user_unclaimed_rewards
-                .insert(caller, &vec![0; user_rewards.len()]);
 
             for (idx, user_reward) in user_rewards.clone().into_iter().enumerate() {
                 if user_reward > 0 {
