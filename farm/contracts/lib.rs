@@ -277,17 +277,20 @@ mod farm {
 
             let shares = state.shares.get(caller).ok_or(FarmError::CallerNotFarmer)?;
 
-            if shares < amount {
-                return Err(FarmError::InvalidWithdrawAmount)
-            }
+            match shares.checked_sub(amount) {
+                Some(0) => {
+                    // Caller leaves the pool entirely.
+                    state.shares.remove(caller);
+                }
+                Some(new_shares) => {
+                    state.shares.insert(caller, &new_shares);
+                }
+                // Apparently, the caller doesn't have enough shares to withdraw.
+                None => return Err(FarmError::InvalidWithdrawAmount),
+            };
 
             self.update_reward_index()?;
 
-            if shares == amount {
-                state.shares.remove(caller);
-            } else {
-                state.shares.insert(caller, &(shares - amount));
-            }
             state.total_shares -= amount;
 
             self.state.set(&state);
