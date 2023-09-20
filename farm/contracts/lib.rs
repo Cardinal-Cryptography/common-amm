@@ -371,12 +371,10 @@ mod farm {
 
             let state = self.get_state().ok()?;
             let shares = state.shares.get(account)?;
-            let claimed_rewards = state.claimed_rewards(account).ok()?;
 
             Some(UserPositionView {
                 shares,
                 unclaimed_rewards,
-                claimed_rewards,
             })
         }
 
@@ -561,24 +559,6 @@ mod farm {
                         .unwrap_or(0)
                 })
                 .collect()
-        }
-
-        pub fn claimed_rewards(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
-            let shares = self.shares.get(account).ok_or(FarmError::CallerNotFarmer)?;
-
-            let rewards_per_token_paid_so_far = match self.user_reward_per_token_paid.get(account) {
-                Some(rrtps) => rrtps,
-                // No rewards paid so far.
-                None => return Ok(vec![0; self.reward_tokens_info.len()]),
-            };
-
-            let mut claimed_rewards = vec![];
-
-            for claimed_rr in rewards_per_token_paid_so_far {
-                claimed_rewards.push(rewards_earned(shares, claimed_rr.0, U256::zero())?);
-            }
-
-            Ok(claimed_rewards)
         }
     }
 

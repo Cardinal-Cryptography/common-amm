@@ -57,6 +57,4 @@ pub struct UserPositionView {
     pub shares: u128,
     // Amount of unclaimed rewards.
     pub unclaimed_rewards: Vec<u128>,
-    // Amount of already-claimed rewards.
-    pub claimed_rewards: Vec<u128>,
 }
