@@ -319,7 +319,7 @@ mod farm {
                 .ok_or(FarmError::CallerNotFarmer)?;
 
             if !self.is_running {
-                // We can remove the user from the map only when the farm is already finished. 
+                // We can remove the user from the map only when the farm is already finished.
                 // That's b/c it won't be earning any more rewards for this particular farm.
                 state.user_reward_per_token_paid.remove(caller);
             }

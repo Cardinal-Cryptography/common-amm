@@ -55,7 +55,7 @@ build-all: ## Builds all contracts.
 check-all: ## Runs cargo checks and unit tests on all contracts.
 	@cargo check --quiet --all-targets --all-features --all
 	@cargo clippy --quiet --all-features -- --no-deps -D warnings
-	@cargo fmt --quiet --all --check
+	@cargo fmt --all --check
 	@for d in $(AMM_CONTRACTS_PATHS); do \
 		echo "Checking $$d" ; \
 		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
