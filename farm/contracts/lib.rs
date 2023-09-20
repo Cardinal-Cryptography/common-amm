@@ -271,6 +271,7 @@ mod farm {
         #[ink(message)]
         #[modifiers(non_zero_amount(amount))]
         pub fn withdraw(&mut self, amount: u128) -> Result<(), FarmError> {
+            self.update_reward_index()?;
             let caller = self.env().caller();
 
             let mut state = self.get_state()?;
@@ -288,8 +289,6 @@ mod farm {
                 // Apparently, the caller doesn't have enough shares to withdraw.
                 None => return Err(FarmError::InvalidWithdrawAmount),
             };
-
-            self.update_reward_index()?;
 
             state.total_shares -= amount;
 
