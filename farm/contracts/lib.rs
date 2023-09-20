@@ -283,7 +283,11 @@ mod farm {
 
             self.update_reward_index()?;
 
-            state.shares.insert(caller, &(shares - amount));
+            if shares == amount {
+                state.shares.remove(caller);
+            } else {
+                state.shares.insert(caller, &(shares - amount));
+            }
             state.total_shares -= amount;
 
             self.state.set(&state);
