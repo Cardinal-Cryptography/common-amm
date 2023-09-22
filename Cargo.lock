@@ -26,6 +26,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "amm-farm"
+version = "0.1.0"
+dependencies = [
+ "amm-helpers",
+ "ink",
+ "openbrush",
+ "parity-scale-codec",
+ "primitive-types 0.12.1",
+ "psp22-traits",
+ "scale-info",
+ "sp-arithmetic",
+]
+
+[[package]]
 name = "amm-helpers"
 version = "0.2.0"
 dependencies = [
@@ -37,9 +51,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "amm_farm"
+name = "amm_farm_manager"
 version = "0.1.0"
 dependencies = [
+ "amm-farm",
  "amm-helpers",
  "ink",
  "openbrush",

@@ -1,5 +1,5 @@
 [package]
-name = "amm-farm"
+name = "amm_farm_manager"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
@@ -21,6 +21,8 @@ primitive-types = { version = "0.12.1", default-features = false, features = [
 sp-arithmetic = { version = "18.0.0", default-features = false }
 psp22-traits = { path = "../../psp22-traits", default-features = false }
 amm-helpers = { path = "../../../helpers", default-features = false }
+amm-farm = { path = "../instance", default-features = false }
+
 [lib]
 path = "lib.rs"
 
@@ -31,6 +33,7 @@ std = [
     "scale/std",
     "scale-info/std",
     "psp22-traits/std",
+    "amm-farm/std",
     "openbrush/std",
     "primitive-types/std",
     "primitive-types/scale-info",
