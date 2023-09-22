@@ -271,19 +271,25 @@ mod farm {
         #[ink(message)]
         #[modifiers(non_zero_amount(amount))]
         pub fn withdraw(&mut self, amount: u128) -> Result<(), FarmError> {
+            self.update_reward_index()?;
             let caller = self.env().caller();
 
             let mut state = self.get_state()?;
 
             let shares = state.shares.get(caller).ok_or(FarmError::CallerNotFarmer)?;
 
-            if shares < amount {
-                return Err(FarmError::InvalidWithdrawAmount)
-            }
+            match shares.checked_sub(amount) {
+                Some(0) => {
+                    // Caller leaves the pool entirely.
+                    state.shares.remove(caller);
+                }
+                Some(new_shares) => {
+                    state.shares.insert(caller, &new_shares);
+                }
+                // Apparently, the caller doesn't have enough shares to withdraw.
+                None => return Err(FarmError::InvalidWithdrawAmount),
+            };
 
-            self.update_reward_index()?;
-
-            state.shares.insert(caller, &(shares - amount));
             state.total_shares -= amount;
 
             self.state.set(&state);
@@ -311,12 +317,14 @@ mod farm {
 
             let user_rewards = state
                 .user_unclaimed_rewards
-                .get(caller)
+                .take(caller)
                 .ok_or(FarmError::CallerNotFarmer)?;
 
-            state
-                .user_unclaimed_rewards
-                .insert(caller, &vec![0; user_rewards.len()]);
+            if !self.is_running {
+                // We can remove the user from the map only when the farm is already finished.
+                // That's b/c it won't be earning any more rewards for this particular farm.
+                state.user_reward_per_token_paid.remove(caller);
+            }
 
             for (idx, user_reward) in user_rewards.clone().into_iter().enumerate() {
                 if user_reward > 0 {
