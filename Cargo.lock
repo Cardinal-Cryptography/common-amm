@@ -30,6 +30,8 @@ name = "amm-farm"
 version = "0.1.0"
 dependencies = [
  "amm-helpers",
+ "farm-instance-trait",
+ "farm-manager-trait",
  "ink",
  "openbrush",
  "parity-scale-codec",
@@ -56,6 +58,8 @@ version = "0.1.0"
 dependencies = [
  "amm-farm",
  "amm-helpers",
+ "farm-instance-trait",
+ "farm-manager-trait",
  "ink",
  "openbrush",
  "parity-scale-codec",
@@ -367,6 +371,26 @@ dependencies = [
  "ink",
  "pair_contract",
  "parity-scale-codec",
+ "scale-info",
+]
+
+[[package]]
+name = "farm-instance-trait"
+version = "0.1.0"
+dependencies = [
+ "ink",
+ "parity-scale-codec",
+ "psp22-traits",
+ "scale-info",
+]
+
+[[package]]
+name = "farm-manager-trait"
+version = "0.1.0"
+dependencies = [
+ "ink",
+ "parity-scale-codec",
+ "psp22-traits",
  "scale-info",
 ]
 

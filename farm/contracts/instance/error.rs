@@ -28,7 +28,6 @@ pub enum FarmStartError {
     FarmTooLong,
     FarmAlreadyFinished,
     TooManyRewardTokens,
-    RewardAmountsAndTokenLengthDiffer,
     ZeroRewardAmount,
     ZeroRewardRate,
     InsufficientRewardAmount,

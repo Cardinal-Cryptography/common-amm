@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-mod error;
+pub mod error;
 mod views;
 
 #[cfg(test)]
@@ -10,6 +10,8 @@ mod tests;
 // Add upper bound on farm length.
 // Tests.
 // ? Refactor to make staking logic reusable in different contracts.
+
+pub use farm::FarmRef;
 
 #[ink::contract]
 mod farm {
@@ -49,6 +51,8 @@ mod farm {
 
     use amm_helpers::types::WrappedU256;
 
+    use farm_manager_trait::FarmManager as FarmManagerT;
+
     #[ink(event)]
     pub struct Deposited {
         #[ink(topic)]
@@ -76,12 +80,8 @@ mod farm {
         pub pool: AccountId,
         /// Address of the farm creator.
         pub owner: AccountId,
-        /// How many shares each user has in the farm.
-        pub shares: Mapping<UserId, u128>,
-        /// Total shares in the farm after the last action.
-        pub total_shares: u128,
-        /// Whether the farm is running now.
-        pub is_running: bool,
+        /// Farm manager that created this instance.
+        pub manager: AccountId,
         /// Farm state.
         pub state: Lazy<State, ManualKey<0x4641524d>>,
     }
@@ -90,18 +90,6 @@ mod farm {
     pub const MAX_REWARD_TOKENS: u32 = 10;
 
     impl Farm {
-        #[ink(constructor)]
-        pub fn new(pair_address: AccountId) -> Self {
-            Farm {
-                pool: pair_address,
-                owner: Self::env().caller(),
-                shares: Mapping::new(),
-                total_shares: 0,
-                is_running: false,
-                state: Lazy::new(),
-            }
-        }
-
         /// Starts the farm with the given parameters.
         ///
         /// Arguments:
@@ -113,28 +101,29 @@ mod farm {
         /// NOTE:
         /// Current block's timestamp is used as the start time.
         /// Farm can be started only if it's in `Stopped` state.
+        #[ink(constructor)]
+        pub fn new(pair_address: AccountId, manager: AccountId, owner: AccountId) -> Self {
+            Farm {
+                pool: pair_address,
+                owner,
+                manager,
+                state: Lazy::new(),
+            }
+        }
+
         #[ink(message)]
         pub fn start(
             &mut self,
             end: Timestamp,
-            reward_amounts: Vec<u128>,
             reward_tokens: Vec<AccountId>,
         ) -> Result<(), FarmStartError> {
-            if self.is_running {
-                return Err(FarmStartError::StillRunning)
-            }
-            // (For now) we don't allow for "restarting" the farm.
-            if self.state.get().is_some() {
-                return Err(FarmStartError::FarmAlreadyFinished)
+            let farm_owner = self.owner;
+            if Self::env().caller() != farm_owner {
+                return Err(FarmStartError::CallerNotOwner)
             }
 
             if reward_tokens.len() > MAX_REWARD_TOKENS as usize {
                 return Err(FarmStartError::TooManyRewardTokens)
-            }
-
-            let farm_owner = self.owner;
-            if Self::env().caller() != farm_owner {
-                return Err(FarmStartError::CallerNotOwner)
             }
 
             let now = Self::env().block_timestamp();
@@ -145,50 +134,31 @@ mod farm {
 
             let duration = end as u128 - now as u128;
 
-            if reward_amounts.len() != reward_tokens.len() {
-                return Err(FarmStartError::RewardAmountsAndTokenLengthDiffer)
-            }
-
             let tokens_len = reward_tokens.len();
 
             let mut reward_rates = Vec::with_capacity(tokens_len);
+            let mut reward_tokens_info = Vec::with_capacity(tokens_len);
 
-            for i in 0..tokens_len {
-                let reward_amount = reward_amounts[i];
+            for token_id in reward_tokens {
+                let psp22_ref: ink::contract_ref!(PSP22) = token_id.into();
 
+                let reward_amount = psp22_ref.balance_of(self.env().account_id());
                 if reward_amount == 0 {
                     return Err(FarmStartError::ZeroRewardAmount)
                 }
-                let rate = reward_amount
+                let reward_rate = reward_amount
                     .checked_div(duration)
                     .ok_or(FarmStartError::ArithmeticError)?;
 
-                if rate == 0 {
+                if reward_rate == 0 {
                     return Err(FarmStartError::ZeroRewardRate)
                 }
 
                 // Double-check we have enough to cover the whole farm.
-                if duration * rate < reward_amount {
+                if duration * reward_rate < reward_amount {
                     return Err(FarmStartError::InsufficientRewardAmount)
                 }
 
-                let mut psp22_ref: ink::contract_ref!(PSP22) = reward_tokens[i].into();
-
-                psp22_ref.transfer_from(
-                    farm_owner,
-                    Self::env().account_id(),
-                    reward_amount,
-                    vec![],
-                )?;
-
-                reward_rates.push(rate);
-            }
-
-            let mut reward_tokens_info = Vec::with_capacity(tokens_len);
-
-            for (token, reward_rate) in reward_tokens.iter().zip(reward_rates.iter()) {
-                let token_id = *token;
-                let reward_rate = *reward_rate;
                 let total_unclaimed_rewards = 0;
                 let reward_per_token_stored = WrappedU256::ZERO;
 
@@ -200,6 +170,7 @@ mod farm {
                 };
 
                 reward_tokens_info.push(info);
+                reward_rates.push(reward_rate);
             }
 
             let state = State {
@@ -213,8 +184,6 @@ mod farm {
             };
 
             self.state.set(&state);
-            self.is_running = true;
-
             Ok(())
         }
 
@@ -228,15 +197,15 @@ mod farm {
         pub fn stop(&mut self) -> Result<(), FarmError> {
             let mut running = self.get_state()?;
 
+            // TODO: consider extracting to `set_end` function.
             // We allow owner of the farm to stop it prematurely
             // while anyone else can change the farm's status only when it's finished.
             if self.env().caller() == self.owner {
                 running.end = self.env().block_timestamp();
-            } else if self.env().block_timestamp() < running.end {
+            } else if self.is_running()? {
                 return Err(FarmError::StillRunning)
             }
 
-            self.is_running = false;
             self.state.set(&running);
 
             // Send remaining rewards to the farm owner.
@@ -278,21 +247,9 @@ mod farm {
             self.update_reward_index()?;
             let caller = self.env().caller();
 
-            let shares = self.shares.get(caller).ok_or(FarmError::CallerNotFarmer)?;
+            let mut manager: contract_ref!(FarmManagerT) = self.manager.into();
 
-            match shares.checked_sub(amount) {
-                Some(0) => {
-                    // Caller leaves the pool entirely.
-                    self.shares.remove(caller);
-                }
-                Some(new_shares) => {
-                    self.shares.insert(caller, &new_shares);
-                }
-                // Apparently, the caller doesn't have enough shares to withdraw.
-                None => return Err(FarmError::InvalidWithdrawAmount),
-            };
-
-            self.total_shares -= amount;
+            manager.withdraw_shares(caller, amount)?;
 
             let mut pool: contract_ref!(PSP22) = self.pool.into();
 
@@ -320,7 +277,7 @@ mod farm {
                 .take(caller)
                 .ok_or(FarmError::CallerNotFarmer)?;
 
-            if !self.is_running {
+            if !self.is_running()? {
                 // We can remove the user from the map only when the farm is already finished.
                 // That's b/c it won't be earning any more rewards for this particular farm.
                 state.user_reward_per_token_paid.remove(caller);
@@ -350,16 +307,21 @@ mod farm {
         /// Returns how much reward tokens the caller account has accumulated.
         // We're using the `account` as an argument, instead of `&self.env().caller()`,
         // for easier frontend integration.
+        // TODO: Rename to `view_claimable`.
         #[ink(message)]
         pub fn claimable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
+            let manager: contract_ref!(FarmManagerT) = self.manager.into();
+
+            let shares = manager.balance_of(account);
+            if shares == 0 {
+                return Err(FarmError::CallerNotFarmer)
+            }
+
             let state = self.get_state()?;
             let rewards_per_token =
-                state.rewards_per_token(self.total_shares, self.env().block_timestamp())?;
-            let user_rewards = state.rewards_earned(
-                account,
-                self.shares.get(account).ok_or(FarmError::CallerNotFarmer)?,
-                &rewards_per_token,
-            )?;
+                state.rewards_per_token(manager.total_supply(), self.env().block_timestamp())?;
+
+            let user_rewards = state.rewards_earned(account, shares, &rewards_per_token)?;
 
             Ok(user_rewards)
         }
@@ -367,12 +329,14 @@ mod farm {
         /// Returns view structure with details about the currently active farm.
         #[ink(message)]
         pub fn view_farm_details(&self) -> FarmDetailsView {
+            let manager: contract_ref!(FarmManagerT) = self.manager.into();
+
             let state = self.get_state().expect("state to exist");
             FarmDetailsView {
                 pair: self.pool,
                 start: state.start,
                 end: state.end,
-                total_shares: self.total_shares,
+                total_shares: manager.total_supply(),
                 reward_tokens: state.reward_tokens_info.iter().map(Into::into).collect(),
             }
         }
@@ -380,18 +344,31 @@ mod farm {
         /// Returns view structure with details about the caller's position in the farm.
         #[ink(message)]
         pub fn view_user_position(&self, account: AccountId) -> Option<UserPositionView> {
+            let manager: contract_ref!(FarmManagerT) = self.manager.into();
+
             Some(UserPositionView {
-                shares: self.shares.get(account)?,
+                shares: manager.balance_of(account),
                 unclaimed_rewards: self.claimable(account).ok()?,
+            })
+        }
+
+        /// Check whether farm is currently running - i.e. whether current timestamp
+        /// is between "start" and "end" of the farm.
+        ///
+        /// Returns `FarmError::StateMissing` when farm hasn't been started yet.
+        pub fn is_running(&self) -> Result<bool, FarmError> {
+            self.get_state().map(|state| {
+                self.env().block_timestamp() < state.start
+                    || self.env().block_timestamp() >= state.end
             })
         }
 
         /// Adds the given amount of shares to the farm under `account`.
         fn add_shares(&mut self, amount: u128) -> Result<(), FarmError> {
             let caller = self.env().caller();
-            let prev_share = self.shares.get(caller).unwrap_or(0);
-            self.shares.insert(caller, &(prev_share + amount));
-            self.total_shares += amount;
+            let mut manager: contract_ref!(FarmManagerT) = self.manager.into();
+
+            manager.deposit_shares(caller, amount);
 
             let mut pool: contract_ref!(PSP22) = self.pool.into();
 
@@ -406,17 +383,20 @@ mod farm {
 
         /// Returns the amount of new rewards per token that have been accumulated for the given account.
         fn update_reward_index(&mut self) -> Result<Vec<u128>, FarmError> {
+            let manager: contract_ref!(FarmManagerT) = self.manager.into();
+
             let account = self.env().caller();
+            let shares = manager.balance_of(account);
+            if shares == 0 {
+                return Err(FarmError::CallerNotFarmer)
+            }
+            let total_shares = manager.total_supply();
 
             let mut state = self.get_state()?;
 
             let rewards_per_token =
-                state.rewards_per_token(self.total_shares, self.env().block_timestamp())?;
-            let unclaimed_rewards = state.rewards_earned(
-                account,
-                self.shares.get(account).ok_or(FarmError::CallerNotFarmer)?,
-                &rewards_per_token,
-            )?;
+                state.rewards_per_token(total_shares, self.env().block_timestamp())?;
+            let unclaimed_rewards = state.rewards_earned(account, shares, &rewards_per_token)?;
 
             for (idx, rewards_distributable) in state
                 .rewards_distributable(self.env().block_timestamp())
@@ -447,6 +427,35 @@ mod farm {
 
         fn get_state(&self) -> Result<State, FarmError> {
             self.state.get().ok_or(FarmError::StateMissing)
+        }
+    }
+
+    impl farm_instance_trait::Farm for Farm {
+        #[ink(message)]
+        fn pool_id(&self) -> AccountId {
+            self.pool
+        }
+
+        #[ink(message)]
+        fn is_running(&self) -> bool {
+            self.is_running().unwrap()
+        }
+
+        #[ink(message)]
+        fn farm_manager(&self) -> AccountId {
+            self.manager
+        }
+
+        #[ink(message)]
+        fn farm_owner(&self) -> AccountId {
+            self.owner
+        }
+
+        #[ink(message)]
+        fn code_hash(&self) -> Hash {
+            self.env()
+                .own_code_hash()
+                .expect("to properly deserialize code hash")
         }
     }
 
@@ -579,7 +588,7 @@ mod farm {
     where
         F: FnOnce(&mut Farm) -> Result<T, FarmError>,
     {
-        if !should_be_running && instance.is_running {
+        if !should_be_running && instance.is_running()? {
             return Err(FarmError::StillRunning)
         }
         body(instance)

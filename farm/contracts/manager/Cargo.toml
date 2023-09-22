@@ -21,7 +21,11 @@ primitive-types = { version = "0.12.1", default-features = false, features = [
 sp-arithmetic = { version = "18.0.0", default-features = false }
 psp22-traits = { path = "../../traits/psp22", default-features = false }
 amm-helpers = { path = "../../../helpers", default-features = false }
-amm-farm = { path = "../instance", default-features = false }
+amm-farm = { path = "../instance", default-features = false, features = [
+    "ink-as-dependency",
+] }
+farm-manager-trait = { path = "../../traits/manager", default-features = false }
+farm-instance-trait = { path = "../../traits/instance", default-features = false }
 
 [lib]
 path = "lib.rs"

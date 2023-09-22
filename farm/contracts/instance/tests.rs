@@ -345,7 +345,10 @@ mod reward_calculation {
 mod farm_start {
     use super::*;
     use crate::{
-        error::FarmStartError,
+        error::{
+            FarmError,
+            FarmStartError,
+        },
         farm::{
             Farm,
             MAX_REWARD_TOKENS,
@@ -358,30 +361,32 @@ mod farm_start {
         AccountId::from([0x01; 32])
     }
 
+    fn manager() -> AccountId {
+        AccountId::from([0x02; 32])
+    }
+
     fn farm() -> Farm {
-        Farm::new(pool_id())
+        Farm::new(pool_id(), manager(), alice())
     }
 
     fn single_reward_token() -> Vec<AccountId> {
-        vec![AccountId::from([0x02; 32])]
+        vec![AccountId::from([0x11; 32])]
     }
 
     #[ink::test]
-    fn new_creates_stopped_farm() {
+    fn new_creates_uninitialised_farm() {
         let farm = farm();
-        assert_eq!(farm.is_running, false);
+        assert_eq!(farm.is_running(), Result::Err(FarmError::StateMissing));
     }
 
     #[ink::test]
     fn non_owner_cannot_start_farm() {
-        set_sender(alice());
-
         let mut farm = farm();
         set_block_timestamp::<DefaultEnvironment>(1);
         let reward_tokens = single_reward_token();
         set_sender(bob());
         assert_eq!(
-            farm.start(5, vec![300], reward_tokens),
+            farm.start(5, reward_tokens),
             Err(FarmStartError::CallerNotOwner)
         );
     }
@@ -391,9 +396,8 @@ mod farm_start {
         let mut farm = farm();
         set_block_timestamp::<DefaultEnvironment>(5);
         let reward_tokens = single_reward_token();
-        let reward_amounts = vec![300];
         assert_eq!(
-            farm.start(2, reward_amounts, reward_tokens),
+            farm.start(2, reward_tokens),
             Err(FarmStartError::FarmEndBeforeStart)
         );
     }
@@ -406,46 +410,29 @@ mod farm_start {
             .into_iter()
             .map(|i| AccountId::from([i as u8; 32]))
             .collect::<Vec<_>>();
-        let reward_amounts = vec![300];
         assert_eq!(
-            farm.start(1000, reward_amounts, reward_tokens),
+            farm.start(1000, reward_tokens),
             Err(FarmStartError::TooManyRewardTokens)
         );
     }
 
     #[ink::test]
-    fn reward_amounts_and_tokens_mismatch() {
-        let mut farm = farm();
-        let reward_tokens = single_reward_token();
-        let reward_amounts = vec![300, 400];
-        assert_eq!(
-            farm.start(10, reward_amounts, reward_tokens),
-            Err(FarmStartError::RewardAmountsAndTokenLengthDiffer)
-        );
-    }
-
-    #[ink::test]
     fn fail_on_zero_reward_amount() {
-        let mut farm = farm();
-        let reward_tokens = single_reward_token();
-        let reward_amounts = vec![0];
-        assert_eq!(
-            farm.start(10, reward_amounts, reward_tokens),
-            Err(FarmStartError::ZeroRewardAmount)
-        );
+        unimplemented!("This now has to be done as e2e test")
     }
 
     #[ink::test]
     fn fail_on_insufficient_rewards() {
-        let mut farm = farm();
-        let reward_tokens = single_reward_token();
-        let reward_amounts = vec![10];
-        // reward_rate = reward / duration
-        // rr = 10 / 100 == 0;
-        assert_eq!(
-            farm.start(100, reward_amounts, reward_tokens),
-            Err(FarmStartError::ZeroRewardRate)
-        );
+        unimplemented!("This now has to be done as e2e test")
+        // let mut farm = farm();
+        // let reward_tokens = single_reward_token();
+        // let reward_amounts = vec![10];
+        // // reward_rate = reward / duration
+        // // rr = 10 / 100 == 0;
+        // assert_eq!(
+        //     farm.start(100, reward_amounts, reward_tokens),
+        //     Err(FarmStartError::ZeroRewardRate)
+        // );
     }
 }
 
