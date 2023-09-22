@@ -37,7 +37,7 @@ build-node-x86_64:
 AMM_CONTRACTS = ./amm/contracts
 AMM_CONTRACTS_PATHS := $(shell find $(AMM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
-FARM_CONTRACTS = ./farm/contracts
+FARM_CONTRACTS_PATHS := $(shell find ./farm/contracts -mindepth 1 -maxdepth 1 -type d)
 FARM_PATHS := $(shell find ./farm -mindepth 1 -maxdepth 1 -type d)
 
 .PHONY: build-all
@@ -46,7 +46,7 @@ build-all: ## Builds all contracts.
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
-	@for d in $(FARM_CONTRACTS); do \
+	@for d in $(FARM_CONTRACTS_PATHS); do \
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
