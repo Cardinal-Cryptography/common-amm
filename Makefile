@@ -38,14 +38,16 @@ AMM_CONTRACTS = ./amm/contracts
 AMM_CONTRACTS_PATHS := $(shell find $(AMM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
 FARM_CONTRACTS_PATHS := $(shell find ./farm/contracts -mindepth 1 -maxdepth 1 -type d)
-FARM_PATHS := $(shell find ./farm -mindepth 1 -maxdepth 1 -type d)
+# Find all directories in the farm directory that contain a Cargo.toml file.
+# We need to cut the trailing `/Cargo.toml` from the path so we reverse, cut first 12 chars and reverse again.
+FARM_PATHS := $(shell find ./farm -mindepth 1 -maxdepth 3 -name Cargo.toml | rev | cut -c12- | rev)
 
 .PHONY: build-all
 build-all: ## Builds all contracts.
-	@for d in $(AMM_CONTRACTS_PATHS); do \
-		echo "Building $$d contract" ; \
-		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
-	done
+	# @for d in $(AMM_CONTRACTS_PATHS); do \
+	# 	echo "Building $$d contract" ; \
+	# 	cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
+	# done
 	@for d in $(FARM_CONTRACTS_PATHS); do \
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
