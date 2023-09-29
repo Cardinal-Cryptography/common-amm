@@ -30,6 +30,7 @@ mod farm {
         rewards_earned,
     };
 
+    use error::FarmError;
     use openbrush::modifiers;
 
     use primitive_types::U256;
@@ -187,26 +188,33 @@ mod farm {
             Ok(())
         }
 
-        /// Stops the farm and sends all remaining rewards to the farm owner.
+        /// Stops the farm in the current block.
+        ///  
+        /// Callable only by the owner.
         ///
         /// Returns errors in the following cases:
         /// 1. Farm is not in `Running` state.
-        /// 2. Farm's `end` timestamp is still in the future.
+        /// 2. Caller is not owner.
         #[ink(message)]
         #[modifiers(ensure_running(true))]
-        pub fn stop(&mut self) -> Result<(), FarmError> {
-            let mut running = self.get_state()?;
-
-            // TODO: consider extracting to `set_end` function.
-            // We allow owner of the farm to stop it prematurely
-            // while anyone else can change the farm's status only when it's finished.
-            if self.env().caller() == self.owner {
-                running.end = self.env().block_timestamp();
-            } else if self.is_running()? {
-                return Err(FarmError::StillRunning)
+        pub fn stop(&mut self, new_end: Timestamp) -> Result<(), FarmError> {
+            if self.env().caller() != self.owner {
+                return Err(FarmError::CallerNotOwner)
             }
-
+            let mut running = self.get_state()?;
+            running.end = self.env().block_timestamp();
             self.state.set(&running);
+            Ok(())
+        }
+
+        /// Transfers remaining reward tokens to the farm's owner.
+        ///
+        /// Returns errors in the following cases:
+        /// 1. Farm is still `Running`.
+        #[ink(message)]
+        #[modifiers(ensure_running(false))]
+        pub fn withdraw_reward_tokens(&mut self) -> Result<(), FarmError> {
+            let mut running = self.get_state()?;
 
             // Send remaining rewards to the farm owner.
             for reward_token in running.reward_tokens_info.iter() {
@@ -218,7 +226,6 @@ mod farm {
                     safe_transfer(&mut psp22_ref, running.owner, to_refund)?;
                 }
             }
-
             Ok(())
         }
 
