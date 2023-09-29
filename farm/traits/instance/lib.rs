@@ -1,17 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-use ink::{
-    env::{
-        DefaultEnvironment,
-        Environment,
-    },
-    primitives::{
-        AccountId,
-        Hash,
-    },
+use ink::primitives::{
+    AccountId,
+    Hash,
 };
-
-pub type Balance = <DefaultEnvironment as Environment>::Balance;
 
 #[ink::trait_definition]
 pub trait Farm {
