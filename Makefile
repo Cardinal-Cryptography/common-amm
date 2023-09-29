@@ -42,30 +42,44 @@ FARM_CONTRACTS_PATHS := $(shell find ./farm/contracts -mindepth 1 -maxdepth 1 -t
 # We need to cut the trailing `/Cargo.toml` from the path so we reverse, cut first 12 chars and reverse again.
 FARM_PATHS := $(shell find ./farm -mindepth 1 -maxdepth 3 -name Cargo.toml | rev | cut -c12- | rev)
 
-.PHONY: build-all
-build-all: ## Builds all contracts.
-	# @for d in $(AMM_CONTRACTS_PATHS); do \
-	# 	echo "Building $$d contract" ; \
-	# 	cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
-	# done
+.PHONY: build-farm
+build-farm: ## Builds farm contracts.
 	@for d in $(FARM_CONTRACTS_PATHS); do \
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
 
-.PHONY: check-all
-check-all: ## Runs cargo checks and unit tests on all contracts.
-	@cargo check --quiet --all-targets --all-features --all
-	@cargo clippy --quiet --all-features -- --no-deps -D warnings
-	@cargo fmt --all --check
+.PHONY: build-amm
+build-amm: ## Builds AMM contracts.
 	@for d in $(AMM_CONTRACTS_PATHS); do \
-		echo "Checking $$d" ; \
-		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
+	 	echo "Building $$d contract" ; \
+	 	cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
+
+.PHONY: build-all
+build-all: build-farm build-amm ## Builds all contracts.
+
+	
+.PHONY: check-farm
+check-farm: ## Runs cargo checks on farm contracts.
 	@for d in $(FARM_PATHS); do \
 		echo "Checking $$d" ; \
+		cargo check --quiet --all-targets --all-features --manifest-path $$d/Cargo.toml ; \
+		cargo clippy --quiet --all-features --manifest-path $$d/Cargo.toml -- --no-deps -D warnings ; \
 		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
 	done
+
+.PHONY: check-amm
+check-amm: ## Runs cargo (contract) check on AMM contracts.
+	@for d in $(AMM_CONTRACTS_PATHS); do \
+		echo "Checking $$d" ; \
+		cargo check --quiet --all-targets --all-features --manifest-path $$d/Cargo.toml ; \
+		cargo clippy --quiet --all-features --manifest-path $$d/Cargo.toml -- --no-deps -D warnings ; \
+		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
+	done
+
+.PHONY: check-all
+check-all: check-farm check-amm ## Runs cargo checks and unit tests on all contracts.
 	@cargo test --quiet --locked --frozen --workspace
 
 .PHONY: format
