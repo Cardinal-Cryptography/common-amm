@@ -636,7 +636,11 @@ mod farm {
                 ink::env::debug_println!("ink lang error: {:?}", ink_lang_err);
                 Ok(())
             }
-            Ok(Ok(res)) => res,
+            Ok(Ok(Err(psp22_error))) => {
+                ink::env::debug_println!("psp22 error: {:?}", psp22_error);
+                Ok(())
+            }
+            Ok(Ok(Ok(res))) => Ok(res),
         }
     }
 
