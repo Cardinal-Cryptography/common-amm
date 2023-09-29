@@ -34,6 +34,7 @@ mod manager {
         PSP22Error(PSP22Error),
         FarmAlreadyRunning(AccountId),
         FarmInstantiationFailed,
+        CallerNotOwner,
     }
 
     impl From<FarmStartError> for FarmManagerError {
@@ -105,28 +106,14 @@ mod manager {
             rewards: Vec<(TokenId, u128)>,
         ) -> Result<AccountId, FarmManagerError> {
             // There can be only one instance of this farm running at a time.
-            if let Some(latest_farm_id) = self.latest_farm {
-                let farm_address = self.farms.get(latest_farm_id).unwrap();
-                let farm: contract_ref!(FarmT) = farm_address.into();
-                if farm.is_running() {
-                    return Err(FarmManagerError::FarmAlreadyRunning(farm_address))
-                }
-            }
+            self.check_no_active_farm()?;
 
             let farm_id = self.latest_farm.unwrap_or_default() + 1;
             let salt = self
                 .env()
                 .hash_encoded::<Blake2x256, _>(&(self.pool_id, farm_id));
 
-            let mut farm = match FarmRef::new(self.pool_id, self.env().account_id(), self.owner)
-                .endowment(0)
-                .salt_bytes(&salt)
-                .code_hash(self.farm_code_hash)
-                .try_instantiate()
-            {
-                Ok(Ok(address)) => Ok(address),
-                _ => Err(FarmManagerError::FarmInstantiationFailed),
-            }?;
+            let mut farm = self._instantiate_farm(&salt)?;
 
             let farm_address = farm.to_account_id();
 
@@ -155,6 +142,39 @@ mod manager {
                 }),
             );
             Ok(farm_address)
+        }
+
+        #[ink(message)]
+        pub fn set_farm_code_hash(&mut self, farm_code_hash: Hash) -> Result<(), FarmManagerError> {
+            if self.env().caller() != self.owner {
+                return Err(FarmManagerError::CallerNotOwner)
+            }
+            self.farm_code_hash = farm_code_hash;
+            Ok(())
+        }
+
+        fn _instantiate_farm(&self, salt: &[u8]) -> Result<FarmRef, FarmManagerError> {
+            let farm = match FarmRef::new(self.pool_id, self.env().account_id(), self.owner)
+                .endowment(0)
+                .salt_bytes(&salt)
+                .code_hash(self.farm_code_hash)
+                .try_instantiate()
+            {
+                Ok(Ok(address)) => Ok(address),
+                _ => Err(FarmManagerError::FarmInstantiationFailed),
+            }?;
+            Ok(farm)
+        }
+
+        fn check_no_active_farm(&self) -> Result<(), FarmManagerError> {
+            if let Some(latest_farm_id) = self.latest_farm {
+                let farm_address = self.farms.get(latest_farm_id).unwrap();
+                let farm: contract_ref!(FarmT) = farm_address.into();
+                if farm.is_running() {
+                    return Err(FarmManagerError::FarmAlreadyRunning(farm_address))
+                }
+            }
+            Ok(())
         }
 
         fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
