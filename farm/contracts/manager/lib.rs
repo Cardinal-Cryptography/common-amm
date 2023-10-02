@@ -52,13 +52,13 @@ mod manager {
 
     #[ink(event)]
     pub struct FarmInstantiated {
+        /// Address of token pair for which this farm was created.
         #[ink(topic)]
         pool_id: AccountId,
+        /// Owner of the pair - address seeding the rewards.
         owner: AccountId,
+        /// Address of the farm.
         address: AccountId,
-        end: Timestamp,
-        reward_tokens: Vec<AccountId>,
-        reward_amounts: Vec<u128>,
     }
 
     pub type Event = <FarmManager as ContractEventBase>::Type;
@@ -118,8 +118,8 @@ mod manager {
 
             let farm_address = farm.to_account_id();
 
-            let (reward_tokens, reward_amounts): (Vec<AccountId>, Vec<u128>) =
-                rewards.clone().into_iter().unzip();
+            let reward_tokens: Vec<AccountId> =
+                rewards.iter().map(|(token, _amount)| *token).collect();
 
             for (token, amount) in rewards {
                 let mut psp22: contract_ref!(PSP22) = token.into();
@@ -137,9 +137,6 @@ mod manager {
                     pool_id: self.pool_id,
                     owner: self.owner,
                     address: farm_address,
-                    end,
-                    reward_tokens,
-                    reward_amounts,
                 }),
             );
             Ok(farm_address)
