@@ -35,6 +35,7 @@ mod manager {
         FarmAlreadyRunning(AccountId),
         FarmInstantiationFailed,
         CallerNotOwner,
+        FarmNotFound(u32),
     }
 
     impl From<FarmStartError> for FarmManagerError {
@@ -168,7 +169,10 @@ mod manager {
 
         fn check_no_active_farm(&self) -> Result<(), FarmManagerError> {
             if let Some(latest_farm_id) = self.latest_farm {
-                let farm_address = self.farms.get(latest_farm_id).unwrap();
+                let farm_address = self
+                    .farms
+                    .get(latest_farm_id)
+                    .ok_or(FarmManagerError::FarmNotFound(latest_farm_id))?;
                 let farm: contract_ref!(FarmT) = farm_address.into();
                 if farm.is_running() {
                     return Err(FarmManagerError::FarmAlreadyRunning(farm_address))
