@@ -31,13 +31,13 @@ pub trait FarmManager {
     #[ink(message)]
     fn withdraw_shares(
         &mut self,
-        owner: AccountId,
+        account: AccountId,
         amount: u128,
     ) -> Result<(), psp22_traits::PSP22Error>;
 
     /// Deposits `amount` of shares under `owner` account.
     #[ink(message)]
-    fn deposit_shares(&mut self, owner: AccountId, amount: u128);
+    fn deposit_shares(&mut self, account: AccountId, amount: u128);
 
     /// Returns a vector of token addresses which are rewarded for participating in this farm.
     #[ink(message)]

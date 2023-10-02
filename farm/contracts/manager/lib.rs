@@ -200,12 +200,12 @@ mod manager {
         }
 
         #[ink(message)]
-        fn withdraw_shares(&mut self, owner: AccountId, amount: u128) -> Result<(), PSP22Error> {
-            let shares = self.shares.get(owner).unwrap_or(0);
+        fn withdraw_shares(&mut self, account: AccountId, amount: u128) -> Result<(), PSP22Error> {
+            let shares = self.shares.get(account).unwrap_or(0);
 
             match shares.checked_sub(amount) {
                 Some(new_shares) => {
-                    self.shares.insert(owner, &new_shares);
+                    self.shares.insert(account, &new_shares);
                     self.total_shares -= amount;
                     Ok(())
                 }
@@ -214,9 +214,9 @@ mod manager {
         }
 
         #[ink(message)]
-        fn deposit_shares(&mut self, owner: AccountId, amount: u128) {
-            let shares = self.shares.get(owner).unwrap_or(0);
-            self.shares.insert(owner, &(shares + amount));
+        fn deposit_shares(&mut self, account: AccountId, amount: u128) {
+            let shares = self.shares.get(account).unwrap_or(0);
+            self.shares.insert(account, &(shares + amount));
             self.total_shares += amount;
         }
 
