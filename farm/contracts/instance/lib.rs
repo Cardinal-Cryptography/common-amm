@@ -196,7 +196,7 @@ mod farm {
         /// 2. Caller is not owner.
         #[ink(message)]
         #[modifiers(ensure_running(true))]
-        pub fn stop(&mut self, new_end: Timestamp) -> Result<(), FarmError> {
+        pub fn stop(&mut self) -> Result<(), FarmError> {
             if self.env().caller() != self.owner {
                 return Err(FarmError::CallerNotOwner)
             }
@@ -215,16 +215,44 @@ mod farm {
         pub fn withdraw_reward_tokens(&mut self) -> Result<(), FarmError> {
             let mut running = self.get_state()?;
 
-            // Send remaining rewards to the farm owner.
+            let mut to_refund: Vec<(AccountId, u128)> =
+                Vec::with_capacity(running.reward_tokens_info.len());
+
             for reward_token in running.reward_tokens_info.iter() {
-                let mut psp22_ref: ink::contract_ref!(PSP22) = reward_token.token_id.into();
-                let balance: Balance = safe_balance_of(&psp22_ref, self.env().account_id());
+                let token_id = reward_token.token_id;
                 let reserved = reward_token.total_unclaimed_rewards;
-                let to_refund = balance.saturating_sub(reserved);
-                if to_refund > 0 {
-                    safe_transfer(&mut psp22_ref, running.owner, to_refund)?;
+                if reserved == 0 {
+                    // If there are no yet-unclaimed rewards, nothing is reserved
+                    // and we can skip this reward token (most probably all iterations will be skipped).
+                    to_refund.push((token_id, 0));
+                    continue
+                }
+                let psp22_ref: ink::contract_ref!(PSP22) = token_id.into();
+                let balance: Balance = safe_balance_of(&psp22_ref, self.env().account_id());
+                let refund_amount = balance.saturating_sub(reserved);
+                to_refund.push((token_id, refund_amount));
+            }
+
+            running.reward_tokens_info = running
+                .reward_tokens_info
+                .clone()
+                .into_iter()
+                .map(|mut rti| {
+                    rti.total_unclaimed_rewards = 0;
+                    rti
+                })
+                .collect();
+
+            self.state.set(&running);
+
+            for (token_id, refund_amount) in to_refund {
+                let mut psp22_ref: ink::contract_ref!(PSP22) = token_id.into();
+
+                if refund_amount > 0 {
+                    safe_transfer(&mut psp22_ref, running.owner, refund_amount)?;
                 }
             }
+
             Ok(())
         }
 
