@@ -225,6 +225,11 @@ mod manager {
         }
 
         #[ink(message)]
+        fn get_farm_address(&self, farm_id: u32) -> Option<AccountId> {
+            self.farms.get(farm_id)
+        }
+
+        #[ink(message)]
         fn reward_tokens(&self) -> Vec<AccountId> {
             self.reward_tokens.clone()
         }

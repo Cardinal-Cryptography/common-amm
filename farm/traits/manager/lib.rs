@@ -29,6 +29,10 @@ pub trait FarmManager {
     #[ink(message)]
     fn latest_farm_id(&self) -> Option<AccountId>;
 
+    /// Returns an address of the farm registered under `farm_id`.
+    #[ink(message)]
+    fn get_farm_address(&self, farm_id: u32) -> Option<AccountId>;
+
     /// Withdarws `amount` of shares from `owner`.
     #[ink(message)]
     fn withdraw_shares(
