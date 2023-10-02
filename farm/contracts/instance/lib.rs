@@ -90,13 +90,7 @@ mod farm {
     pub const MAX_REWARD_TOKENS: u32 = 10;
 
     impl Farm {
-        /// Starts the farm with the given parameters.
-        ///
-        /// Arguments:
-        /// * end - timestamp when the farm will stop.
-        /// * reward_tokens - vector of account ids of reward tokens.
-        /// * reward_amounts - vector of unsigned integers, specifying how many rewards
-        ///   will be paid out throughout the whole farm of each reward token.
+        /// Creates the farm instance, without starting it yet.
         ///
         /// NOTE:
         /// Current block's timestamp is used as the start time.
