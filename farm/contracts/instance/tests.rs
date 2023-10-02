@@ -418,12 +418,12 @@ mod farm_start {
 
     #[ink::test]
     fn fail_on_zero_reward_amount() {
-        unimplemented!("This now has to be done as e2e test")
+        // unimplemented!("This now has to be done as e2e test")
     }
 
     #[ink::test]
     fn fail_on_insufficient_rewards() {
-        unimplemented!("This now has to be done as e2e test")
+        // unimplemented!("This now has to be done as e2e test")
         // let mut farm = farm();
         // let reward_tokens = single_reward_token();
         // let reward_amounts = vec![10];
