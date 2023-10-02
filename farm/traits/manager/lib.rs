@@ -1,15 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
 use ink::{
-    env::{
-        DefaultEnvironment,
-        Environment,
-    },
     prelude::vec::Vec,
     primitives::AccountId,
 };
-
-pub type Balance = <DefaultEnvironment as Environment>::Balance;
 
 #[ink::trait_definition]
 pub trait FarmManager {
