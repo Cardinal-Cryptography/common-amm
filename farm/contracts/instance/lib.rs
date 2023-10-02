@@ -30,7 +30,6 @@ mod farm {
         rewards_earned,
     };
 
-    use error::FarmError;
     use openbrush::modifiers;
 
     use primitive_types::U256;
