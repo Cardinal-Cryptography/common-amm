@@ -51,7 +51,7 @@ mod farm {
 
     use amm_helpers::types::WrappedU256;
 
-    use farm_manager_trait::FarmManager as FarmManagerT;
+    use farm_manager_trait::FarmManager;
 
     #[ink(event)]
     pub struct Deposited {
@@ -281,7 +281,7 @@ mod farm {
             self.update_reward_index()?;
             let caller = self.env().caller();
 
-            let mut manager: contract_ref!(FarmManagerT) = self.manager.into();
+            let mut manager: contract_ref!(FarmManager) = self.manager.into();
 
             manager.withdraw_shares(caller, amount)?;
 
@@ -344,7 +344,7 @@ mod farm {
         // TODO: Rename to `view_claimable`.
         #[ink(message)]
         pub fn claimable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
-            let manager: contract_ref!(FarmManagerT) = self.manager.into();
+            let manager: contract_ref!(FarmManager) = self.manager.into();
 
             let shares = manager.balance_of(account);
             if shares == 0 {
@@ -363,7 +363,7 @@ mod farm {
         /// Returns view structure with details about the currently active farm.
         #[ink(message)]
         pub fn view_farm_details(&self) -> FarmDetailsView {
-            let manager: contract_ref!(FarmManagerT) = self.manager.into();
+            let manager: contract_ref!(FarmManager) = self.manager.into();
 
             let state = self.get_state().expect("state to exist");
             FarmDetailsView {
@@ -378,7 +378,7 @@ mod farm {
         /// Returns view structure with details about the caller's position in the farm.
         #[ink(message)]
         pub fn view_user_position(&self, account: AccountId) -> Option<UserPositionView> {
-            let manager: contract_ref!(FarmManagerT) = self.manager.into();
+            let manager: contract_ref!(FarmManager) = self.manager.into();
 
             Some(UserPositionView {
                 shares: manager.balance_of(account),
@@ -400,7 +400,7 @@ mod farm {
         /// Adds the given amount of shares to the farm under `account`.
         fn add_shares(&mut self, amount: u128) -> Result<(), FarmError> {
             let caller = self.env().caller();
-            let mut manager: contract_ref!(FarmManagerT) = self.manager.into();
+            let mut manager: contract_ref!(FarmManager) = self.manager.into();
 
             manager.deposit_shares(caller, amount);
 
@@ -417,7 +417,7 @@ mod farm {
 
         /// Returns the amount of new rewards per token that have been accumulated for the given account.
         fn update_reward_index(&mut self) -> Result<Vec<u128>, FarmError> {
-            let manager: contract_ref!(FarmManagerT) = self.manager.into();
+            let manager: contract_ref!(FarmManager) = self.manager.into();
 
             let account = self.env().caller();
             let shares = manager.balance_of(account);
