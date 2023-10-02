@@ -22,6 +22,7 @@ pub enum FarmError {
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum FarmStartError {
     StillRunning,
+    FarmAlreadyStarted,
     CallerNotOwner,
     InvalidInitParams,
     FarmEndBeforeStart,

@@ -122,6 +122,10 @@ mod farm {
                 return Err(FarmStartError::CallerNotOwner)
             }
 
+            if self.get_state().is_ok() {
+                return Err(FarmStartError::FarmAlreadyStarted)
+            }
+
             if reward_tokens.len() > MAX_REWARD_TOKENS as usize {
                 return Err(FarmStartError::TooManyRewardTokens)
             }
