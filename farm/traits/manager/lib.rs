@@ -76,4 +76,14 @@ pub trait FarmManager {
     /// Returns a vector of token addresses which are rewarded for participating in this farm.
     #[ink(message)]
     fn reward_tokens(&self) -> Vec<AccountId>;
+
+    /// Creates an instance of the farm that ends at `end`` with `rewards` for participating.
+    /// Returns address of the created farm instance.
+    /// Should return error if caller is not the owner of the manager contract.
+    #[ink(message)]
+    fn instantiate_farm(
+        &mut self,
+        end: u64,
+        rewards: Vec<(AccountId, u128)>,
+    ) -> Result<AccountId, FarmManagerError>;
 }

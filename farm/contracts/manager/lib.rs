@@ -83,52 +83,6 @@ mod manager {
         }
 
         #[ink(message)]
-        pub fn instantiate_farm(
-            &mut self,
-            end: Timestamp,
-            rewards: Vec<(TokenId, u128)>,
-        ) -> Result<AccountId, FarmManagerError> {
-            if self.env().caller() != self.owner {
-                return Err(FarmManagerError::CallerNotOwner)
-            }
-            // There can be only one instance of this farm running at a time.
-            self.check_no_active_farm()?;
-
-            let farm_id = self.latest_farm.unwrap_or_default() + 1;
-            let salt = self
-                .env()
-                .hash_encoded::<Blake2x256, _>(&(self.pool_id, farm_id));
-
-            let mut farm = self._instantiate_farm(&salt)?;
-
-            let farm_address = farm.to_account_id();
-
-            let reward_tokens: Vec<AccountId> =
-                rewards.iter().map(|(token, _amount)| *token).collect();
-
-            for (token, amount) in rewards {
-                let mut psp22: contract_ref!(PSP22) = token.into();
-                psp22.transfer_from(self.env().caller(), farm_address, amount, Vec::new())?;
-            }
-
-            farm.start(end, reward_tokens.clone())?;
-
-            self.latest_farm = Some(farm_id);
-            self.farm_by_id.insert(farm_id, &farm_address);
-            self.farms.insert(farm_address, &());
-
-            FarmManager::emit_event(
-                self.env(),
-                Event::FarmInstantiated(FarmInstantiated {
-                    pool_id: self.pool_id,
-                    owner: self.owner,
-                    address: farm_address,
-                }),
-            );
-            Ok(farm_address)
-        }
-
-        #[ink(message)]
         pub fn set_farm_code_hash(&mut self, farm_code_hash: Hash) -> Result<(), FarmManagerError> {
             if self.env().caller() != self.owner {
                 return Err(FarmManagerError::CallerNotOwner)
@@ -236,6 +190,52 @@ mod manager {
         #[ink(message)]
         fn reward_tokens(&self) -> Vec<AccountId> {
             self.reward_tokens.clone()
+        }
+
+        #[ink(message)]
+        fn instantiate_farm(
+            &mut self,
+            end: Timestamp,
+            rewards: Vec<(TokenId, u128)>,
+        ) -> Result<AccountId, FarmManagerError> {
+            if self.env().caller() != self.owner {
+                return Err(FarmManagerError::CallerNotOwner)
+            }
+            // There can be only one instance of this farm running at a time.
+            self.check_no_active_farm()?;
+
+            let farm_id = self.latest_farm.unwrap_or_default() + 1;
+            let salt = self
+                .env()
+                .hash_encoded::<Blake2x256, _>(&(self.pool_id, farm_id));
+
+            let mut farm = self._instantiate_farm(&salt)?;
+
+            let farm_address = farm.to_account_id();
+
+            let reward_tokens: Vec<AccountId> =
+                rewards.iter().map(|(token, _amount)| *token).collect();
+
+            for (token, amount) in rewards {
+                let mut psp22: contract_ref!(PSP22) = token.into();
+                psp22.transfer_from(self.env().caller(), farm_address, amount, Vec::new())?;
+            }
+
+            farm.start(end, reward_tokens.clone())?;
+
+            self.latest_farm = Some(farm_id);
+            self.farm_by_id.insert(farm_id, &farm_address);
+            self.farms.insert(farm_address, &());
+
+            FarmManager::emit_event(
+                self.env(),
+                Event::FarmInstantiated(FarmInstantiated {
+                    pool_id: self.pool_id,
+                    owner: self.owner,
+                    address: farm_address,
+                }),
+            );
+            Ok(farm_address)
         }
     }
 }
