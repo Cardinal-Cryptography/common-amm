@@ -5,6 +5,32 @@ use ink::{
     primitives::AccountId,
 };
 
+use farm_instance_trait::FarmStartError;
+use psp22_traits::PSP22Error;
+
+#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub enum FarmManagerError {
+    FarmStartError(FarmStartError),
+    PSP22Error(PSP22Error),
+    FarmAlreadyRunning(AccountId),
+    FarmInstantiationFailed,
+    CallerNotOwner,
+    FarmNotFound(u32),
+}
+
+impl From<FarmStartError> for FarmManagerError {
+    fn from(error: FarmStartError) -> Self {
+        FarmManagerError::FarmStartError(error)
+    }
+}
+
+impl From<PSP22Error> for FarmManagerError {
+    fn from(error: PSP22Error) -> Self {
+        FarmManagerError::PSP22Error(error)
+    }
+}
+
 #[ink::trait_definition]
 pub trait FarmManager {
     /// Returns address of the token pool for which this farm is created.
@@ -27,17 +53,22 @@ pub trait FarmManager {
     #[ink(message)]
     fn get_farm_address(&self, farm_id: u32) -> Option<AccountId>;
 
-    /// Withdarws `amount` of shares from `owner`.
+    /// Withdraws `amount` of shares from `owner`.
+    ///
+    /// NOTE: Must be called only be farm instances, never directly,
+    /// at correct moments. Otherwise LP providers will miss some of the rewards.
+    /// Implementation should return error if `caller != known farm instance`.
     #[ink(message)]
-    fn withdraw_shares(
-        &mut self,
-        account: AccountId,
-        amount: u128,
-    ) -> Result<(), psp22_traits::PSP22Error>;
+    fn withdraw_shares(&mut self, account: AccountId, amount: u128)
+        -> Result<(), FarmManagerError>;
 
     /// Deposits `amount` of shares under `owner` account.
+    ///
+    /// NOTE: Must be called only be farm instances, never directly,
+    /// at correct moments. Otherwise LP providers will miss some of the rewards.
+    /// Implementation should return error if `caller != known farm instance`.
     #[ink(message)]
-    fn deposit_shares(&mut self, account: AccountId, amount: u128);
+    fn deposit_shares(&mut self, account: AccountId, amount: u128) -> Result<(), FarmManagerError>;
 
     /// Returns a vector of token addresses which are rewarded for participating in this farm.
     #[ink(message)]

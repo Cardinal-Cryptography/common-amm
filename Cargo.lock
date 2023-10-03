@@ -380,7 +380,6 @@ version = "0.1.0"
 dependencies = [
  "ink",
  "parity-scale-codec",
- "psp22-traits",
  "scale-info",
 ]
 
@@ -388,6 +387,7 @@ dependencies = [
 name = "farm-manager-trait"
 version = "0.1.0"
 dependencies = [
+ "farm-instance-trait",
  "ink",
  "parity-scale-codec",
  "psp22-traits",

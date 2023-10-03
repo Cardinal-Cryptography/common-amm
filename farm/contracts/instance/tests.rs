@@ -345,14 +345,15 @@ mod reward_calculation {
 mod farm_start {
     use super::*;
     use crate::{
-        error::{
-            FarmError,
-            FarmStartError,
-        },
+        error::FarmError,
         farm::{
             Farm,
             MAX_REWARD_TOKENS,
         },
+    };
+    use farm_instance_trait::{
+        Farm as FarmT,
+        FarmStartError,
     };
 
     use ink::env::test::set_block_timestamp;

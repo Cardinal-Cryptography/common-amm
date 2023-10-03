@@ -15,10 +15,7 @@ pub use farm::FarmRef;
 
 #[ink::contract]
 mod farm {
-    use crate::error::{
-        FarmError,
-        FarmStartError,
-    };
+    use crate::error::FarmError;
 
     use crate::views::{
         FarmDetailsView,
@@ -50,6 +47,11 @@ mod farm {
     };
 
     use amm_helpers::types::WrappedU256;
+
+    use farm_instance_trait::{
+        Farm as FarmT,
+        FarmStartError,
+    };
 
     use farm_manager_trait::FarmManager;
 
@@ -103,86 +105,6 @@ mod farm {
                 manager,
                 state: Lazy::new(),
             }
-        }
-
-        #[ink(message)]
-        pub fn start(
-            &mut self,
-            end: Timestamp,
-            reward_tokens: Vec<AccountId>,
-        ) -> Result<(), FarmStartError> {
-            let farm_owner = self.owner;
-            if Self::env().caller() != farm_owner {
-                return Err(FarmStartError::CallerNotOwner)
-            }
-
-            if self.get_state().is_ok() {
-                return Err(FarmStartError::FarmAlreadyStarted)
-            }
-
-            if reward_tokens.len() > MAX_REWARD_TOKENS as usize {
-                return Err(FarmStartError::TooManyRewardTokens)
-            }
-
-            let now = Self::env().block_timestamp();
-
-            if now >= end {
-                return Err(FarmStartError::FarmEndBeforeStart)
-            }
-
-            let duration = end as u128 - now as u128;
-
-            let tokens_len = reward_tokens.len();
-
-            let mut reward_rates = Vec::with_capacity(tokens_len);
-            let mut reward_tokens_info = Vec::with_capacity(tokens_len);
-
-            for token_id in reward_tokens {
-                let psp22_ref: ink::contract_ref!(PSP22) = token_id.into();
-
-                let reward_amount = psp22_ref.balance_of(self.env().account_id());
-                if reward_amount == 0 {
-                    return Err(FarmStartError::ZeroRewardAmount)
-                }
-                let reward_rate = reward_amount
-                    .checked_div(duration)
-                    .ok_or(FarmStartError::ArithmeticError)?;
-
-                if reward_rate == 0 {
-                    return Err(FarmStartError::ZeroRewardRate)
-                }
-
-                // Double-check we have enough to cover the whole farm.
-                if duration * reward_rate < reward_amount {
-                    return Err(FarmStartError::InsufficientRewardAmount)
-                }
-
-                let total_unclaimed_rewards = 0;
-                let reward_per_token_stored = WrappedU256::ZERO;
-
-                let info = RewardTokenInfo {
-                    token_id,
-                    reward_rate,
-                    total_unclaimed_rewards,
-                    reward_per_token_stored,
-                };
-
-                reward_tokens_info.push(info);
-                reward_rates.push(reward_rate);
-            }
-
-            let state = State {
-                owner: farm_owner,
-                start: now,
-                end,
-                reward_tokens_info,
-                timestamp_at_last_update: now,
-                user_reward_per_token_paid: Mapping::new(),
-                user_unclaimed_rewards: Mapping::new(),
-            };
-
-            self.state.set(&state);
-            Ok(())
         }
 
         /// Stops the farm in the current block.
@@ -400,7 +322,7 @@ mod farm {
             let caller = self.env().caller();
             let mut manager: contract_ref!(FarmManager) = self.manager.into();
 
-            manager.deposit_shares(caller, amount);
+            manager.deposit_shares(caller, amount)?;
 
             let mut pool: contract_ref!(PSP22) = self.pool.into();
 
@@ -462,7 +384,87 @@ mod farm {
         }
     }
 
-    impl farm_instance_trait::Farm for Farm {
+    impl FarmT for Farm {
+        #[ink(message)]
+        fn start(
+            &mut self,
+            end: Timestamp,
+            reward_tokens: Vec<AccountId>,
+        ) -> Result<(), FarmStartError> {
+            let farm_owner = self.owner;
+            if Self::env().caller() != farm_owner {
+                return Err(FarmStartError::CallerNotOwner)
+            }
+
+            if self.get_state().is_ok() {
+                return Err(FarmStartError::FarmAlreadyStarted)
+            }
+
+            if reward_tokens.len() > MAX_REWARD_TOKENS as usize {
+                return Err(FarmStartError::TooManyRewardTokens)
+            }
+
+            let now = Self::env().block_timestamp();
+
+            if now >= end {
+                return Err(FarmStartError::FarmEndBeforeStart)
+            }
+
+            let duration = end as u128 - now as u128;
+
+            let tokens_len = reward_tokens.len();
+
+            let mut reward_rates = Vec::with_capacity(tokens_len);
+            let mut reward_tokens_info = Vec::with_capacity(tokens_len);
+
+            for token_id in reward_tokens {
+                let psp22_ref: ink::contract_ref!(PSP22) = token_id.into();
+
+                let reward_amount = psp22_ref.balance_of(self.env().account_id());
+                if reward_amount == 0 {
+                    return Err(FarmStartError::ZeroRewardAmount)
+                }
+                let reward_rate = reward_amount
+                    .checked_div(duration)
+                    .ok_or(FarmStartError::ArithmeticError)?;
+
+                if reward_rate == 0 {
+                    return Err(FarmStartError::ZeroRewardRate)
+                }
+
+                // Double-check we have enough to cover the whole farm.
+                if duration * reward_rate < reward_amount {
+                    return Err(FarmStartError::InsufficientRewardAmount)
+                }
+
+                let total_unclaimed_rewards = 0;
+                let reward_per_token_stored = WrappedU256::ZERO;
+
+                let info = RewardTokenInfo {
+                    token_id,
+                    reward_rate,
+                    total_unclaimed_rewards,
+                    reward_per_token_stored,
+                };
+
+                reward_tokens_info.push(info);
+                reward_rates.push(reward_rate);
+            }
+
+            let state = State {
+                owner: farm_owner,
+                start: now,
+                end,
+                reward_tokens_info,
+                timestamp_at_last_update: now,
+                user_reward_per_token_paid: Mapping::new(),
+                user_unclaimed_rewards: Mapping::new(),
+            };
+
+            self.state.set(&state);
+            Ok(())
+        }
+
         #[ink(message)]
         fn pool_id(&self) -> AccountId {
             self.pool

@@ -9,7 +9,10 @@ mod manager {
 
     use amm_farm::FarmRef;
     use farm_instance_trait::Farm as FarmT;
-    use farm_manager_trait::FarmManager as FarmManagerTrait;
+    use farm_manager_trait::{
+        FarmManager as FarmManagerTrait,
+        FarmManagerError,
+    };
     use ink::{
         codegen::EmitEvent,
         contract_ref,
@@ -21,34 +24,10 @@ mod manager {
 
     use ink::prelude::vec::Vec;
 
-    use amm_farm::error::FarmStartError;
     use psp22_traits::{
         PSP22Error,
         PSP22,
     };
-
-    #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
-    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-    pub enum FarmManagerError {
-        FarmStartError(FarmStartError),
-        PSP22Error(PSP22Error),
-        FarmAlreadyRunning(AccountId),
-        FarmInstantiationFailed,
-        CallerNotOwner,
-        FarmNotFound(u32),
-    }
-
-    impl From<FarmStartError> for FarmManagerError {
-        fn from(error: FarmStartError) -> Self {
-            FarmManagerError::FarmStartError(error)
-        }
-    }
-
-    impl From<PSP22Error> for FarmManagerError {
-        fn from(error: PSP22Error) -> Self {
-            FarmManagerError::PSP22Error(error)
-        }
-    }
 
     #[ink(event)]
     pub struct FarmInstantiated {
@@ -82,7 +61,9 @@ mod manager {
         /// List of farms created by this manager.
         /// Notably, latest_farm could be currently active farm (depending on its is_running status)
         /// and all farms with lower indexes are past, finished farm instances.
-        farms: Mapping<FarmId, AccountId>,
+        farm_by_id: Mapping<FarmId, AccountId>,
+        /// All farms created by this manager.
+        farms: Mapping<AccountId, ()>,
     }
 
     impl FarmManager {
@@ -96,6 +77,7 @@ mod manager {
                 farm_code_hash,
                 reward_tokens,
                 latest_farm: None,
+                farm_by_id: Mapping::new(),
                 farms: Mapping::new(),
             }
         }
@@ -129,7 +111,8 @@ mod manager {
             farm.start(end, reward_tokens.clone())?;
 
             self.latest_farm = Some(farm_id);
-            self.farms.insert(farm_id, &farm_address);
+            self.farm_by_id.insert(farm_id, &farm_address);
+            self.farms.insert(farm_address, &());
 
             FarmManager::emit_event(
                 self.env(),
@@ -167,7 +150,7 @@ mod manager {
         fn check_no_active_farm(&self) -> Result<(), FarmManagerError> {
             if let Some(latest_farm_id) = self.latest_farm {
                 let farm_address = self
-                    .farms
+                    .farm_by_id
                     .get(latest_farm_id)
                     .ok_or(FarmManagerError::FarmNotFound(latest_farm_id))?;
                 let farm: contract_ref!(FarmT) = farm_address.into();
@@ -200,7 +183,11 @@ mod manager {
         }
 
         #[ink(message)]
-        fn withdraw_shares(&mut self, account: AccountId, amount: u128) -> Result<(), PSP22Error> {
+        fn withdraw_shares(
+            &mut self,
+            account: AccountId,
+            amount: u128,
+        ) -> Result<(), FarmManagerError> {
             let shares = self.shares.get(account).unwrap_or(0);
 
             match shares.checked_sub(amount) {
@@ -209,25 +196,30 @@ mod manager {
                     self.total_shares -= amount;
                     Ok(())
                 }
-                None => Err(PSP22Error::InsufficientBalance),
+                None => Err(PSP22Error::InsufficientBalance.into()),
             }
         }
 
         #[ink(message)]
-        fn deposit_shares(&mut self, account: AccountId, amount: u128) {
+        fn deposit_shares(
+            &mut self,
+            account: AccountId,
+            amount: u128,
+        ) -> Result<(), FarmManagerError> {
             let shares = self.shares.get(account).unwrap_or(0);
             self.shares.insert(account, &(shares + amount));
             self.total_shares += amount;
+            Ok(())
         }
 
         #[ink(message)]
         fn latest_farm_id(&self) -> Option<AccountId> {
-            self.latest_farm.and_then(|id| self.farms.get(id))
+            self.latest_farm.and_then(|id| self.farm_by_id.get(id))
         }
 
         #[ink(message)]
         fn get_farm_address(&self, farm_id: u32) -> Option<AccountId> {
-            self.farms.get(farm_id)
+            self.farm_by_id.get(farm_id)
         }
 
         #[ink(message)]
