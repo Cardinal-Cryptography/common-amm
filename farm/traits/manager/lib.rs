@@ -84,6 +84,6 @@ pub trait FarmManager {
     fn instantiate_farm(
         &mut self,
         end: u64,
-        rewards: Vec<(AccountId, u128)>,
+        rewards: Vec<u128>,
     ) -> Result<AccountId, FarmManagerError>;
 }

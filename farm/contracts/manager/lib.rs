@@ -196,7 +196,7 @@ mod manager {
         fn instantiate_farm(
             &mut self,
             end: Timestamp,
-            rewards: Vec<(TokenId, u128)>,
+            rewards: Vec<u128>,
         ) -> Result<AccountId, FarmManagerError> {
             if self.env().caller() != self.owner {
                 return Err(FarmManagerError::CallerNotOwner)
@@ -213,15 +213,12 @@ mod manager {
 
             let farm_address = farm.to_account_id();
 
-            let reward_tokens: Vec<AccountId> =
-                rewards.iter().map(|(token, _amount)| *token).collect();
-
-            for (token, amount) in rewards {
-                let mut psp22: contract_ref!(PSP22) = token.into();
-                psp22.transfer_from(self.env().caller(), farm_address, amount, Vec::new())?;
+            for (amount, token) in rewards.iter().zip(self.reward_tokens.iter()) {
+                let mut psp22: contract_ref!(PSP22) = (*token).into();
+                psp22.transfer_from(self.env().caller(), farm_address, *amount, Vec::new())?;
             }
 
-            farm.start(end, reward_tokens.clone())?;
+            farm.start(end, self.reward_tokens.clone())?;
 
             self.latest_farm = Some(farm_id);
             self.farm_by_id.insert(farm_id, &farm_address);
