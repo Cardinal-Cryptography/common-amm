@@ -88,6 +88,9 @@ mod manager {
             end: Timestamp,
             rewards: Vec<(TokenId, u128)>,
         ) -> Result<AccountId, FarmManagerError> {
+            if self.env().caller() != self.owner {
+                return Err(FarmManagerError::CallerNotOwner)
+            }
             // There can be only one instance of this farm running at a time.
             self.check_no_active_farm()?;
 
