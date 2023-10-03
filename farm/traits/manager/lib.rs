@@ -16,7 +16,10 @@ pub enum FarmManagerError {
     FarmAlreadyRunning(AccountId),
     FarmInstantiationFailed,
     CallerNotOwner,
+    /// Unknown farm address registered under id.
     FarmNotFound(u32),
+    /// Address not registered as a farm.
+    FarmUnknown(AccountId),
 }
 
 impl From<FarmStartError> for FarmManagerError {

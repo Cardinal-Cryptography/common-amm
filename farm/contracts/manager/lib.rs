@@ -62,7 +62,7 @@ mod manager {
         /// Notably, latest_farm could be currently active farm (depending on its is_running status)
         /// and all farms with lower indexes are past, finished farm instances.
         farm_by_id: Mapping<FarmId, AccountId>,
-        /// All farms created by this manager.
+        /// All farms created via this manager.
         farms: Mapping<AccountId, ()>,
     }
 
@@ -188,6 +188,10 @@ mod manager {
             account: AccountId,
             amount: u128,
         ) -> Result<(), FarmManagerError> {
+            let caller = self.env().caller();
+            if !self.farms.contains(&caller) {
+                return Err(FarmManagerError::FarmUnknown(caller))
+            }
             let shares = self.shares.get(account).unwrap_or(0);
 
             match shares.checked_sub(amount) {
@@ -206,6 +210,10 @@ mod manager {
             account: AccountId,
             amount: u128,
         ) -> Result<(), FarmManagerError> {
+            let caller = self.env().caller();
+            if !self.farms.contains(&caller) {
+                return Err(FarmManagerError::FarmUnknown(caller))
+            }
             let shares = self.shares.get(account).unwrap_or(0);
             self.shares.insert(account, &(shares + amount));
             self.total_shares += amount;
