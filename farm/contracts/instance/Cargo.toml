@@ -37,6 +37,7 @@ std = [
     "openbrush/std",
     "primitive-types/std",
     "primitive-types/scale-info",
+    "farm-manager-trait/std",
     "sp-arithmetic/std",
     "amm-helpers/std",
 ]

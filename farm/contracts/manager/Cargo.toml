@@ -42,6 +42,7 @@ std = [
     "primitive-types/scale-info",
     "sp-arithmetic/std",
     "amm-helpers/std",
+    "farm-manager-trait/std",
 ]
 ink-as-dependency = []
 
