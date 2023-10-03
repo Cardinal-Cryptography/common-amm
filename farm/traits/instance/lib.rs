@@ -22,6 +22,8 @@ use ink::primitives::{
     Hash,
 };
 
+use ink::prelude::vec::Vec;
+
 #[ink::trait_definition]
 pub trait Farm {
     /// Starts farm instance.
