@@ -12,8 +12,7 @@ This is an unaudited full dex implementation ready to be used.
 
 ### Versions
 
-[ink! 4.2.1](https://github.com/paritytech/ink/tree/v4.2.1)  
-[openbrush 3.1.1](https://github.com/727-Ventures/openbrush-contracts/tree/3.1.1)
+[ink! 4.3.0](https://github.com/paritytech/ink/tree/v4.3.0)  
 
 ### License
 
