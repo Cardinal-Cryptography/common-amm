@@ -5,7 +5,7 @@ import Token from '../types/contracts/psp22_token';
 import Router from '../types/contracts/router_contract';
 import Factory from '../types/contracts/factory_contract';
 import * as token from './token';
-import { TOTAL_SUPPLY, STABLE_TOTAL_SUPPLY, ONE_STABLECOIN } from './constants';
+import { TOTAL_SUPPLY, STABLE_TOTAL_SUPPLY, ONE_THOUSAND_STABLECOIN } from './constants';
 import { addLiquidityNative } from './utils';
 import { parseUnits } from './shared';
 
@@ -70,23 +70,23 @@ async function main(): Promise<void> {
     deployer.address,
   );
   console.log('added aplo liquidity');
-  await usdc.tx.approve(router.address, ONE_STABLECOIN);
+  await usdc.tx.approve(router.address, ONE_THOUSAND_STABLECOIN);
   console.log('approved usdc to spend by router');
   await addLiquidityNative(
     router,
     usdc,
-    ONE_STABLECOIN,
-    ONE_STABLECOIN,
+    ONE_THOUSAND_STABLECOIN,
+    ONE_THOUSAND_STABLECOIN,
     deployer.address,
   );
   console.log('added usdc liquidity');
-  await usdt.tx.approve(router.address, ONE_STABLECOIN);
+  await usdt.tx.approve(router.address, ONE_THOUSAND_STABLECOIN);
   console.log('approved usdt to spend by router');
   await addLiquidityNative(
     router,
     usdt,
-    ONE_STABLECOIN,
-    ONE_STABLECOIN,
+    ONE_THOUSAND_STABLECOIN,
+    ONE_THOUSAND_STABLECOIN,
     deployer.address,
   );
   console.log('added usdt liquidity');

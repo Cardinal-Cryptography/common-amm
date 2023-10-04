@@ -1,6 +1,6 @@
 import Token from '../types/contracts/psp22_token';
 import Router from '../types/contracts/router_contract';
-import { ONE_WAZERO, DEADLINE } from './constants';
+import { DEADLINE, ONE_THOUSAND_WAZERO } from './constants';
 import { Addresses } from './shared';
 import fs from 'fs';
 
@@ -24,11 +24,11 @@ export const addLiquidityNative = async (
     token.address,
     amountDesired,
     amountMin,
-    ONE_WAZERO,
+    ONE_THOUSAND_WAZERO,
     to,
     DEADLINE,
     {
-      value: ONE_WAZERO,
+      value: ONE_THOUSAND_WAZERO,
     },
   );
 };
