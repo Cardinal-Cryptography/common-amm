@@ -7,4 +7,7 @@ export type Addresses = {
   factoryAddress: string;
   wnativeAddress: string;
   routerAddress: string;
+  dogeAddress?: string;
+  usdcAddress?: string;
+  usdtAddress?: string;
 };
