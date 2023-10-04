@@ -19,8 +19,8 @@ export async function estimateInit(
 ): Promise<WeightV2> {
   return estimateContractInit(api, deployer, 'psp22_token.contract', [
     TOTAL_SUPPLY,
-    'Apollo Token',
-    'APLO',
+    'Doge Coin',
+    'DOGE',
     18,
   ]);
 }

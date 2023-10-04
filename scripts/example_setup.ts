@@ -29,15 +29,15 @@ async function main(): Promise<void> {
   /// Create tokens
 
   const tokenInitGas = await token.estimateInit(api, deployer);
-  const { address: aploAddress } = await tokenFactory.new(
+  const { address: dogeAddress } = await tokenFactory.new(
     TOTAL_SUPPLY,
-    'Apollo Token',
-    'APLO',
+    'Doge Coin',
+    'DOGE',
     18,
     { gasLimit: tokenInitGas },
   );
-  console.log('aplo token address:', aploAddress);
-  const aplo = new Token(aploAddress, deployer, api);
+  console.log('doge coin address', dogeAddress);
+  const doge = new Token(dogeAddress, deployer, api);
   const { address: usdcAddress } = await tokenFactory.new(
     STABLE_TOTAL_SUPPLY,
     'USD Coin',
@@ -58,18 +58,18 @@ async function main(): Promise<void> {
   const usdt = new Token(usdtAddress, deployer, api);
 
   /// Add liquidity
-  const aploAmount = parseUnits(100, 18).toString();
+  const dogeAmount = parseUnits(100, 18).toString();
 
-  await aplo.tx.approve(router.address, aploAmount);
-  console.log('approved aplo to spend by router');
+  await doge.tx.approve(router.address, dogeAmount);
+  console.log('approved doge to spend by router');
   await addLiquidityNative(
     router,
-    aplo,
-    aploAmount,
-    aploAmount,
+    doge,
+    dogeAmount,
+    dogeAmount,
     deployer.address,
   );
-  console.log('added aplo liquidity');
+  console.log('added doge liquidity');
   await usdc.tx.approve(router.address, ONE_THOUSAND_STABLECOIN);
   console.log('approved usdc to spend by router');
   await addLiquidityNative(
@@ -93,17 +93,17 @@ async function main(): Promise<void> {
 
   /// Query pair addresses
   const {
-    value: { ok: aploSbyAddress },
-  } = await factory.query.getPair(aplo.address, wnativeAddress);
-  console.log('aploSbyAddress', aploSbyAddress);
+    value: { ok: dogeWAzeroAddress },
+  } = await factory.query.getPair(doge.address, wnativeAddress);
+  console.log('dogeWAzeroAddress', dogeWAzeroAddress);
   const {
-    value: { ok: usdcSbyAddress },
+    value: { ok: usdcWAzeroAddress },
   } = await factory.query.getPair(usdc.address, wnativeAddress);
-  console.log('usdcSbyAddress', usdcSbyAddress);
+  console.log('usdcWAzeroAddress', usdcWAzeroAddress);
   const {
-    value: { ok: usdtSbyAddress },
+    value: { ok: usdtWAzeroAddress },
   } = await factory.query.getPair(usdt.address, wnativeAddress);
-  console.log('usdtSbyAddress', usdtSbyAddress);
+  console.log('usdtWAzeroAddress', usdtWAzeroAddress);
 
   await api.disconnect();
 }
