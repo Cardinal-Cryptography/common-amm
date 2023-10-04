@@ -1,6 +1,6 @@
 # Common AMM
 
-This repository contains implementations of AMM DEXes written for Common product. 
+This repository contains implementations of AMM DEXes written for Common product.
 
 There will be multiple AMM models implemented, each being the most suitable model for a certain token pair (stablecoin pairs being created in a CFM based on Curve StableSwap, PSP22 token pair on UniswapV2, etc.)
 
@@ -12,8 +12,7 @@ This is an unaudited full dex implementation ready to be used.
 
 ### Versions
 
-[ink! 4.2.1](https://github.com/paritytech/ink/tree/v4.2.1)  
-[openbrush 3.1.1](https://github.com/727-Ventures/openbrush-contracts/tree/3.1.1)
+[ink! 4.3.0](https://github.com/paritytech/ink/tree/v4.3.0)
 
 ### License
 
