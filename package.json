@@ -1,5 +1,5 @@
 {
-  "name": "uniswap-v2",
+  "name": "common-amm",
   "version": "0.1.0",
   "private": true,
   "scripts": {
