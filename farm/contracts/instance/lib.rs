@@ -337,7 +337,6 @@ mod farm {
             Ok(())
         }
 
-
         fn bump(&mut self) -> Result<(), FarmError> {
             let manager: contract_ref!(FarmManager) = self.manager.into();
             let total_shares = manager.total_supply();
@@ -347,13 +346,15 @@ mod farm {
             Ok(())
         }
 
-        fn move_user_rewards_to_claimable(&mut self, user: AccountId) -> Result<Vec<u128>, FarmError> {
+        fn move_user_rewards_to_claimable(
+            &mut self,
+            user: AccountId,
+        ) -> Result<Vec<u128>, FarmError> {
             let manager: contract_ref!(FarmManager) = self.manager.into();
             let total_shares = manager.total_supply();
             let mut state = self.get_state()?;
             state.move_user_rewards_to_claimable(total_shares, user)
-        } 
-
+        }
 
         fn update_reward_index(&mut self) -> Result<Vec<u128>, FarmError> {
             self.bump()?;
@@ -517,8 +518,11 @@ mod farm {
     }
 
     impl State {
-
-        pub fn move_user_rewards_to_claimable(&mut self,  user_shares: u128, user: UserId) -> Result<Vec<u128>, FarmError> {
+        pub fn move_user_rewards_to_claimable(
+            &mut self,
+            user_shares: u128,
+            user: UserId,
+        ) -> Result<Vec<u128>, FarmError> {
             if user_shares == 0 {
                 return Ok(vec![0; self.reward_tokens_info.len()])
             }
@@ -535,17 +539,22 @@ mod farm {
 
             let mut new_rewards = vec![0u128; self.reward_tokens_info.len()];
             for (idx, reward_token) in self.reward_tokens_info.iter().enumerate() {
-                let rewards_per_share_delta = reward_token.cumulative_reward_per_share.0.checked_sub(rewards_per_share_paid_so_far[idx].0).unwrap().into();
-                new_rewards[idx] = rewards_earned_by_shares(
-                    user_shares,
-                    rewards_per_share_delta,
-                )?;
-                uncollected_user_rewards[idx] = uncollected_user_rewards[idx].saturating_add(new_rewards[idx]);
+                let rewards_per_share_delta = reward_token
+                    .cumulative_reward_per_share
+                    .0
+                    .checked_sub(rewards_per_share_paid_so_far[idx].0)
+                    .unwrap()
+                    .into();
+                new_rewards[idx] = rewards_earned_by_shares(user_shares, rewards_per_share_delta)?;
+                uncollected_user_rewards[idx] =
+                    uncollected_user_rewards[idx].saturating_add(new_rewards[idx]);
                 rewards_per_share_paid_so_far[idx] = reward_token.cumulative_reward_per_share;
             }
 
-            self.user_reward_per_share_paid.insert(user, &rewards_per_share_paid_so_far);
-            self.user_claimable_rewards.insert(user, &uncollected_user_rewards);
+            self.user_reward_per_share_paid
+                .insert(user, &rewards_per_share_paid_so_far);
+            self.user_claimable_rewards
+                .insert(user, &uncollected_user_rewards);
 
             Ok(new_rewards)
         }
@@ -555,47 +564,34 @@ mod farm {
             total_shares: u128,
             current_timestamp: Timestamp,
         ) -> Result<(), FarmError> {
-            
             let past = core::cmp::max(self.timestamp_at_last_update, self.start) as u128;
             let now = core::cmp::min(current_timestamp, self.end) as u128;
             if past > now {
-                return Ok(());
+                return Ok(())
             }
 
             for reward_token in self.reward_tokens_info.iter_mut() {
                 let reward_rate = reward_token.reward_rate;
-                let reward_delta = reward_per_share_in_time_interval(
-                    reward_rate,
-                    total_shares,
-                    past,
-                    now,
-                )?;
+                let reward_delta =
+                    reward_per_share_in_time_interval(reward_rate, total_shares, past, now)?;
                 let new_cumulative = reward_token.cumulative_reward_per_share.0 + reward_delta;
                 reward_token.cumulative_reward_per_share = new_cumulative.into();
-                reward_token.total_unclaimed_rewards += rewards_earned_by_shares(
-                    total_shares,
-                    reward_delta,
-                )?;
+                reward_token.total_unclaimed_rewards +=
+                    rewards_earned_by_shares(total_shares, reward_delta)?;
             }
             self.timestamp_at_last_update = current_timestamp;
             Ok(())
         }
 
         /// Returns the amount of rewards earned by the given account.
-        pub fn rewards_earned(
-            &self,
-            account: AccountId,
-        ) -> Result<Vec<u128>, FarmError> {
-
+        pub fn rewards_earned(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
             let uncollected_user_rewards = self
                 .user_claimable_rewards
                 .get(account)
                 .unwrap_or(vec![0; self.reward_tokens_info.len()]);
 
-
             Ok(uncollected_user_rewards)
         }
-
     }
 
     use openbrush::modifier_definition;
@@ -745,12 +741,9 @@ pub fn rewards_earned(
     rewards_earned_by_shares(shares, r)
 }
 
-pub fn rewards_earned_by_shares(
-    shares: u128,
-    rewards_per_share: U256,
-) -> Result<u128, MathError> {
-
-        rewards_per_share.checked_mul(U256::from(shares))
+pub fn rewards_earned_by_shares(shares: u128, rewards_per_share: U256) -> Result<u128, MathError> {
+    rewards_per_share
+        .checked_mul(U256::from(shares))
         .ok_or(MathError::Overflow)?
         .checked_div(U256::from(SCALING_FACTOR))
         .ok_or(MathError::DivByZero)?
