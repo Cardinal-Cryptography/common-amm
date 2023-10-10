@@ -1,12 +1,6 @@
-use openbrush::{
-    contracts::psp22::PSP22Error,
-    traits::Balance,
-};
+use psp22::PSP22Error;
 
-#[openbrush::wrapper]
-pub type WnativeRef = dyn Wnative;
-
-#[openbrush::trait_definition]
+#[ink::trait_definition]
 pub trait Wnative {
     /// Deposit NATIVE to wrap it
     #[ink(message, payable)]
@@ -14,5 +8,5 @@ pub trait Wnative {
 
     /// Unwrap NATIVE
     #[ink(message)]
-    fn withdraw(&mut self, amount: Balance) -> Result<(), PSP22Error>;
+    fn withdraw(&mut self, value: u128) -> Result<(), PSP22Error>;
 }

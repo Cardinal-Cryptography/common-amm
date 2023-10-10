@@ -22,8 +22,8 @@ mod zero_address {
 
     #[test]
     fn test_zero_address() {
-        let P = RistrettoPoint::hash_from_bytes::<Sha512>(ZERO_ADDRESS_MSG.as_bytes());
-        let zero_address_address = P.compress();
+        let p = RistrettoPoint::hash_from_bytes::<Sha512>(ZERO_ADDRESS_MSG.as_bytes());
+        let zero_address_address = p.compress();
         assert_eq!(super::ZERO_ADDRESS, zero_address_address.to_bytes());
     }
 }

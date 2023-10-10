@@ -1,25 +1,15 @@
-use ink::LangError;
-use openbrush::{
-    contracts::{
-        reentrancy_guard::*,
-        traits::{
-            ownable::*,
-            psp22::PSP22Error,
-        },
-    },
-    traits::{
-        AccountId,
-        Balance,
-        Timestamp,
-    },
+use crate::{
+    Balance,
+    Timestamp,
 };
-
 use amm_helpers::types::WrappedU256;
+use ink::{
+    primitives::AccountId,
+    LangError,
+};
+use psp22::PSP22Error;
 
-#[openbrush::wrapper]
-pub type PairRef = dyn Pair;
-
-#[openbrush::trait_definition]
+#[ink::trait_definition]
 pub trait Pair {
     /// Returns amounts of tokens this pair holds at `Timestamp`.
     ///
@@ -94,8 +84,8 @@ pub trait Pair {
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum PairError {
     PSP22Error(PSP22Error),
-    OwnableError(OwnableError),
-    ReentrancyGuardError(ReentrancyGuardError),
+    // OwnableError(OwnableError),
+    // ReentrancyGuardError(ReentrancyGuardError),
     LangError(LangError),
     TransferError,
     K,
@@ -146,11 +136,11 @@ pub enum PairError {
     CastOverflow2,
 }
 
-impl From<OwnableError> for PairError {
-    fn from(error: OwnableError) -> Self {
-        PairError::OwnableError(error)
-    }
-}
+// impl From<OwnableError> for PairError {
+//    fn from(error: OwnableError) -> Self {
+//        PairError::OwnableError(error)
+//    }
+//}
 
 impl From<PSP22Error> for PairError {
     fn from(error: PSP22Error) -> Self {
@@ -158,11 +148,11 @@ impl From<PSP22Error> for PairError {
     }
 }
 
-impl From<ReentrancyGuardError> for PairError {
-    fn from(error: ReentrancyGuardError) -> Self {
-        PairError::ReentrancyGuardError(error)
-    }
-}
+// impl From<ReentrancyGuardError> for PairError {
+//    fn from(error: ReentrancyGuardError) -> Self {
+//        PairError::ReentrancyGuardError(error)
+//    }
+//}
 
 impl From<LangError> for PairError {
     fn from(error: LangError) -> Self {

@@ -1,27 +1,22 @@
-use super::{
-    factory::FactoryError,
-    pair::PairError,
-};
-use crate::helpers::{
-    helper::HelperError,
-    transfer_helper::TransferHelperError,
+use crate::{
+    helpers::{
+        helper::HelperError,
+        transfer_helper::TransferHelperError,
+    },
+    traits::{
+        factory::FactoryError,
+        pair::PairError,
+    },
+    Balance,
 };
 use ink::{
     prelude::vec::Vec,
+    primitives::AccountId,
     LangError,
 };
-use openbrush::{
-    contracts::psp22::PSP22Error,
-    traits::{
-        AccountId,
-        Balance,
-    },
-};
+use psp22::PSP22Error;
 
-#[openbrush::wrapper]
-pub type RouterRef = dyn Router;
-
-#[openbrush::trait_definition]
+#[ink::trait_definition]
 pub trait Router {
     /// Returns address of the `Factory` contract for this `Router` instance.
     #[ink(message)]
@@ -36,7 +31,7 @@ pub trait Router {
     /// Will add at least `*_min` amount of tokens and up to `*_desired`
     /// while still maintaining the constant `k` product of the pair.
     ///
-    /// If succesful, liquidity tokens will be minted for `to` account.
+    /// If successful, liquidity tokens will be minted for `to` account.
     #[ink(message)]
     fn add_liquidity(
         &mut self,

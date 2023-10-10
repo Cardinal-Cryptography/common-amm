@@ -1,16 +1,15 @@
-use crate::traits::{
-    factory::{
-        Factory,
-        FactoryRef,
+use crate::{
+    traits::{
+        factory::Factory,
+        pair::Pair,
     },
-    pair::PairRef,
+    Env,
 };
 use amm_helpers::math::casted_mul;
-use ink::prelude::vec::Vec;
-use openbrush::traits::{
-    AccountId,
-    AccountIdExt,
-    Balance,
+use ink::{
+    contract_ref,
+    prelude::vec::Vec,
+    primitives::AccountId,
 };
 
 /// Evaluate `$x:expr` and if not true return `Err($y:expr)`.
@@ -37,8 +36,6 @@ pub fn sort_tokens(
         (token_b, token_a)
     };
 
-    ensure!(!token_0.is_zero(), HelperError::ZeroAddress);
-
     Ok((token_0, token_1))
 }
 
@@ -50,8 +47,8 @@ pub fn pair_for_on_chain(
     token_a: AccountId,
     token_b: AccountId,
 ) -> Option<AccountId> {
-    let factory_ref: FactoryRef = (*factory).into();
-    factory_ref.get_pair(token_a, token_b)
+    let factory: contract_ref!(Factory, Env) = (*factory).into();
+    factory.get_pair(token_a, token_b)
 }
 
 /// Returns balances of token reserves for particular `Factory` instance.
@@ -59,11 +56,12 @@ pub fn get_reserves(
     factory: &AccountId,
     token_a: AccountId,
     token_b: AccountId,
-) -> Result<(Balance, Balance), HelperError> {
+) -> Result<(u128, u128), HelperError> {
     let (token_0, _) = sort_tokens(token_a, token_b)?;
     let pair_contract =
         pair_for_on_chain(factory, token_a, token_b).ok_or(HelperError::PairNotFound)?;
-    let (reserve_0, reserve_1, _) = PairRef::get_reserves(&pair_contract);
+    let pair_contract: contract_ref!(Pair, Env) = pair_contract.into();
+    let (reserve_0, reserve_1, _) = pair_contract.get_reserves();
     if token_a == token_0 {
         Ok((reserve_0, reserve_1))
     } else {
@@ -74,18 +72,14 @@ pub fn get_reserves(
 /// Returns how much of `token_B` tokens should be added
 /// to the pool to maintain the constant product `k = reserve_a * reserve_b`,
 /// given `amount_a` of `token_A`.
-pub fn quote(
-    amount_a: Balance,
-    reserve_a: Balance,
-    reserve_b: Balance,
-) -> Result<Balance, HelperError> {
+pub fn quote(amount_a: u128, reserve_a: u128, reserve_b: u128) -> Result<u128, HelperError> {
     ensure!(amount_a > 0, HelperError::InsufficientAmount);
     ensure!(
         reserve_a > 0 && reserve_b > 0,
         HelperError::InsufficientLiquidity
     );
 
-    let amount_b: Balance = casted_mul(amount_a, reserve_b)
+    let amount_b: u128 = casted_mul(amount_a, reserve_b)
         .checked_div(reserve_a.into())
         .ok_or(HelperError::DivByZero)?
         .try_into()
@@ -98,10 +92,10 @@ pub fn quote(
 /// for `amount_in` of `A` tokens that maintains
 /// the constant product of `k = reserve_a * reserve_b`.
 pub fn get_amount_out(
-    amount_in: Balance,
-    reserve_a: Balance,
-    reserve_b: Balance,
-) -> Result<Balance, HelperError> {
+    amount_in: u128,
+    reserve_a: u128,
+    reserve_b: u128,
+) -> Result<u128, HelperError> {
     ensure!(amount_in > 0, HelperError::InsufficientAmount);
     ensure!(
         reserve_a > 0 && reserve_b > 0,
@@ -119,7 +113,7 @@ pub fn get_amount_out(
         .checked_add(amount_in_with_fee)
         .ok_or(HelperError::AddOverFlow)?;
 
-    let amount_out: Balance = numerator
+    let amount_out: u128 = numerator
         .checked_div(denominator)
         .ok_or(HelperError::DivByZero2)?
         .try_into()
@@ -132,10 +126,10 @@ pub fn get_amount_out(
 /// to get exactly `amount_out` of `B` token while maintaining
 /// the constant product of `k = reserve_a * reserve_b`.
 pub fn get_amount_in(
-    amount_out: Balance,
-    reserve_a: Balance,
-    reserve_b: Balance,
-) -> Result<Balance, HelperError> {
+    amount_out: u128,
+    reserve_a: u128,
+    reserve_b: u128,
+) -> Result<u128, HelperError> {
     ensure!(amount_out > 0, HelperError::InsufficientAmount);
     ensure!(
         reserve_a > 0 && reserve_b > 0,
@@ -153,7 +147,7 @@ pub fn get_amount_in(
         997,
     );
 
-    let amount_in: Balance = numerator
+    let amount_in: u128 = numerator
         .checked_div(denominator)
         .ok_or(HelperError::DivByZero)?
         .checked_add(1.into())
@@ -172,9 +166,9 @@ pub fn get_amount_in(
 /// Returns list of swap outcomes along the path.
 pub fn get_amounts_out(
     factory: &AccountId,
-    amount_in: Balance,
+    amount_in: u128,
     path: &Vec<AccountId>,
-) -> Result<Vec<Balance>, HelperError> {
+) -> Result<Vec<u128>, HelperError> {
     ensure!(path.len() >= 2, HelperError::InvalidPath);
 
     let mut amounts = Vec::with_capacity(path.len());
@@ -192,9 +186,9 @@ pub fn get_amounts_out(
 /// tokens at the end of the swaps.
 pub fn get_amounts_in(
     factory: &AccountId,
-    amount_out: Balance,
+    amount_out: u128,
     path: &Vec<AccountId>,
-) -> Result<Vec<Balance>, HelperError> {
+) -> Result<Vec<u128>, HelperError> {
     ensure!(path.len() >= 2, HelperError::InvalidPath);
 
     let mut amounts = Vec::with_capacity(path.len());

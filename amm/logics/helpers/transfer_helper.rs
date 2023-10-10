@@ -1,30 +1,32 @@
-use crate::traits::wnative::WnativeRef;
-use ink::{
-    env::DefaultEnvironment,
-    prelude::vec::Vec,
+use crate::{
+    traits::wnative::Wnative,
+    Balance,
+    Env,
 };
-use openbrush::{
-    contracts::psp22::{
-        PSP22Error,
-        PSP22Ref,
+use ink::{
+    codegen::TraitCallBuilder,
+    contract_ref,
+    prelude::{
+        string::String,
+        vec::Vec,
     },
-    traits::{
-        AccountId,
-        Balance,
-        String,
-    },
+    primitives::AccountId,
+};
+use psp22::{
+    PSP22Error,
+    PSP22,
 };
 
 /// Transfers `value` amount of `token` to an account controlled by `to` address.
 #[inline]
-pub fn safe_transfer(token: AccountId, to: AccountId, value: Balance) -> Result<(), PSP22Error> {
-    PSP22Ref::transfer(&token, to, value, Vec::new())
+pub fn safe_transfer(token: AccountId, to: AccountId, value: u128) -> Result<(), PSP22Error> {
+    let mut token: contract_ref!(PSP22, Env) = token.into();
+    token.transfer(to, value, Vec::new())
 }
 
 /// Transfers `value` amount of native tokens to an `to` address.
-pub fn safe_transfer_native(to: AccountId, value: Balance) -> Result<(), TransferHelperError> {
-    ink::env::transfer::<DefaultEnvironment>(to, value)
-        .map_err(|_| TransferHelperError::TransferFailed)
+pub fn safe_transfer_native(to: AccountId, value: u128) -> Result<(), TransferHelperError> {
+    ink::env::transfer::<Env>(to, value).map_err(|_| TransferHelperError::TransferFailed)
 }
 
 /// Transfers `value` amount of `token` tokens `from` account `to` address.
@@ -33,15 +35,20 @@ pub fn safe_transfer_from(
     token: AccountId,
     from: AccountId,
     to: AccountId,
-    value: Balance,
+    value: u128,
 ) -> Result<(), PSP22Error> {
-    PSP22Ref::transfer_from(&token, from, to, value, Vec::new())
+    let mut token: contract_ref!(PSP22, Env) = token.into();
+    token.transfer_from(from, to, value, Vec::new())
 }
 
 /// Wraps `value` amount of native tokens with a contract under `wnative` address.
 #[inline]
 pub fn wrap(wnative: &AccountId, value: Balance) -> Result<(), PSP22Error> {
-    match WnativeRef::deposit_builder(wnative)
+    let mut wnative: contract_ref!(Wnative, Env) = (*wnative).into();
+
+    match wnative
+        .call_mut()
+        .deposit()
         .transferred_value(value)
         .try_invoke()
     {
@@ -57,8 +64,9 @@ pub fn wrap(wnative: &AccountId, value: Balance) -> Result<(), PSP22Error> {
 
 /// Unwraps `value` amount of wrapped native tokens.
 #[inline]
-pub fn unwrap(wnative: &AccountId, value: Balance) -> Result<(), PSP22Error> {
-    WnativeRef::withdraw(wnative, value)
+pub fn unwrap(wnative: &AccountId, value: u128) -> Result<(), PSP22Error> {
+    let mut wnative: contract_ref!(Wnative, Env) = (*wnative).into();
+    wnative.withdraw(value)
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
