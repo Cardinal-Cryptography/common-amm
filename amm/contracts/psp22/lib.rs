@@ -1,31 +1,18 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
-#![feature(min_specialization)]
 
-#[openbrush::contract]
+#[ink::contract]
 pub mod token {
-    use ink::{
-        codegen::{
-            EmitEvent,
-            Env,
-        },
-        prelude::vec::Vec,
+    use ink::prelude::{
+        string::String,
+        vec::Vec,
     };
-    use openbrush::{
-        contracts::psp22::extensions::metadata::*,
-        traits::{
-            Storage,
-            String,
-        },
+    use psp22::{
+        PSP22Data,
+        PSP22Error,
+        PSP22Event,
+        PSP22Metadata,
+        PSP22,
     };
-
-    #[ink(event)]
-    pub struct Transfer {
-        #[ink(topic)]
-        from: Option<AccountId>,
-        #[ink(topic)]
-        to: Option<AccountId>,
-        value: Balance,
-    }
 
     #[ink(event)]
     pub struct Approval {
@@ -33,103 +20,106 @@ pub mod token {
         owner: AccountId,
         #[ink(topic)]
         spender: AccountId,
-        value: Balance,
+        amount: u128,
+    }
+
+    #[ink(event)]
+    pub struct Transfer {
+        #[ink(topic)]
+        from: Option<AccountId>,
+        #[ink(topic)]
+        to: Option<AccountId>,
+        value: u128,
     }
 
     #[ink(storage)]
-    #[derive(Default, Storage)]
     pub struct MyPSP22 {
-        #[storage_field]
-        psp22: psp22::Data,
-        #[storage_field]
-        metadata: metadata::Data,
-    }
-
-    impl psp22::Internal for MyPSP22 {
-        fn _emit_transfer_event(
-            &self,
-            from: Option<AccountId>,
-            to: Option<AccountId>,
-            amount: Balance,
-        ) {
-            self.env().emit_event(Transfer {
-                from,
-                to,
-                value: amount,
-            });
-        }
-
-        fn _emit_approval_event(&self, owner: AccountId, spender: AccountId, amount: Balance) {
-            self.env().emit_event(Approval {
-                owner,
-                spender,
-                value: amount,
-            });
-        }
+        data: PSP22Data,
+        name: Option<String>,
+        symbol: Option<String>,
+        decimals: u8,
     }
 
     impl MyPSP22 {
         #[ink(constructor)]
         pub fn new(
-            total_supply: Balance,
+            total_supply: u128,
             name: Option<String>,
             symbol: Option<String>,
             decimals: u8,
         ) -> Self {
-            let mut instance = Self::default();
-            instance.metadata.name = name;
-            instance.metadata.symbol = symbol;
-            instance.metadata.decimals = decimals;
-            instance
-                ._mint_to(instance.env().caller(), total_supply)
-                .expect("Should mint");
-            instance
+            Self {
+                data: PSP22Data::new(total_supply, Self::env().caller()),
+                name,
+                symbol,
+                decimals,
+            }
+        }
+
+        fn emit_events(&self, events: Vec<PSP22Event>) {
+            for event in events {
+                match event {
+                    PSP22Event::Transfer { from, to, value } => {
+                        self.env().emit_event(Transfer { from, to, value })
+                    }
+                    PSP22Event::Approval {
+                        owner,
+                        spender,
+                        amount,
+                    } => {
+                        self.env().emit_event(Approval {
+                            owner,
+                            spender,
+                            amount,
+                        })
+                    }
+                }
+            }
         }
     }
 
     impl PSP22Metadata for MyPSP22 {
         #[ink(message)]
         fn token_name(&self) -> Option<String> {
-            self.metadata.name.clone()
+            self.name.clone()
         }
 
         #[ink(message)]
         fn token_symbol(&self) -> Option<String> {
-            self.metadata.symbol.clone()
+            self.symbol.clone()
         }
 
         #[ink(message)]
         fn token_decimals(&self) -> u8 {
-            self.metadata.decimals
+            self.decimals
         }
     }
 
     impl PSP22 for MyPSP22 {
         #[ink(message)]
-        fn total_supply(&self) -> Balance {
-            self._total_supply()
+        fn total_supply(&self) -> u128 {
+            self.data.total_supply()
         }
 
         #[ink(message)]
-        fn balance_of(&self, owner: AccountId) -> Balance {
-            self._balance_of(&owner)
+        fn balance_of(&self, owner: AccountId) -> u128 {
+            self.data.balance_of(owner)
         }
 
         #[ink(message)]
-        fn allowance(&self, owner: AccountId, spender: AccountId) -> Balance {
-            self._allowance(&owner, &spender)
+        fn allowance(&self, owner: AccountId, spender: AccountId) -> u128 {
+            self.data.allowance(owner, spender)
         }
 
         #[ink(message)]
         fn transfer(
             &mut self,
             to: AccountId,
-            value: Balance,
-            data: Vec<u8>,
+            value: u128,
+            _data: Vec<u8>,
         ) -> Result<(), PSP22Error> {
-            let from = self.env().caller();
-            self._transfer_from_to(from, to, value, data)?;
-            Ok(())
+            let events = self.data.transfer(self.env().caller(), to, value)?;
+            Ok(self.emit_events(events))
         }
 
         #[ink(message)]
@@ -137,56 +127,43 @@ pub mod token {
             &mut self,
             from: AccountId,
             to: AccountId,
-            value: Balance,
-            data: Vec<u8>,
+            value: u128,
+            _data: Vec<u8>,
         ) -> Result<(), PSP22Error> {
-            let caller = self.env().caller();
-            let allowance = self._allowance(&from, &caller);
-
-            if allowance < value {
-                return Err(PSP22Error::InsufficientAllowance)
-            }
-
-            self._approve_from_to(from, caller, allowance - value)?;
-            self._transfer_from_to(from, to, value, data)?;
-            Ok(())
+            let events = self
+                .data
+                .transfer_from(self.env().caller(), from, to, value)?;
+            Ok(self.emit_events(events))
         }
 
         #[ink(message)]
-        fn approve(&mut self, spender: AccountId, value: Balance) -> Result<(), PSP22Error> {
-            let owner = self.env().caller();
-            self._approve_from_to(owner, spender, value)?;
-            Ok(())
+        fn approve(&mut self, spender: AccountId, value: u128) -> Result<(), PSP22Error> {
+            let events = self.data.approve(self.env().caller(), spender, value)?;
+            Ok(self.emit_events(events))
         }
 
         #[ink(message)]
         fn increase_allowance(
             &mut self,
             spender: AccountId,
-            delta_value: Balance,
+            delta_value: u128,
         ) -> Result<(), PSP22Error> {
-            let owner = self.env().caller();
-            self._approve_from_to(
-                owner,
-                spender,
-                self._allowance(&owner, &spender) + delta_value,
-            )
+            let events = self
+                .data
+                .increase_allowance(self.env().caller(), spender, delta_value)?;
+            Ok(self.emit_events(events))
         }
 
         #[ink(message)]
         fn decrease_allowance(
             &mut self,
             spender: AccountId,
-            delta_value: Balance,
+            delta_value: u128,
         ) -> Result<(), PSP22Error> {
-            let owner = self.env().caller();
-            let allowance = self._allowance(&owner, &spender);
-
-            if allowance < delta_value {
-                return Err(PSP22Error::InsufficientAllowance)
-            }
-
-            self._approve_from_to(owner, spender, allowance - delta_value)
+            let events = self
+                .data
+                .decrease_allowance(self.env().caller(), spender, delta_value)?;
+            Ok(self.emit_events(events))
         }
     }
 
@@ -205,9 +182,9 @@ pub mod token {
                 Some(symbol.clone()),
                 decimals,
             );
-            assert_eq!(token.metadata.name.unwrap(), name);
-            assert_eq!(token.metadata.symbol.unwrap(), symbol);
-            assert_eq!(token.metadata.decimals, decimals);
+            assert_eq!(token.name.unwrap(), name);
+            assert_eq!(token.symbol.unwrap(), symbol);
+            assert_eq!(token.decimals, decimals);
         }
     }
 }
