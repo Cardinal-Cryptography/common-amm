@@ -531,7 +531,8 @@ pub mod pair {
             _data: Vec<u8>,
         ) -> Result<(), PSP22Error> {
             let events = self.psp22.transfer(self.env().caller(), to, value)?;
-            Ok(self.emit_events(events))
+            self.emit_events(events);
+            Ok(())
         }
 
         #[ink(message)]
@@ -551,13 +552,15 @@ pub mod pair {
                 self.psp22.approve(from, caller, u128::MAX)?;
                 events.remove(0);
             }
-            Ok(self.emit_events(events))
+            self.emit_events(events);
+            Ok(())
         }
 
         #[ink(message)]
         fn approve(&mut self, spender: AccountId, value: u128) -> Result<(), PSP22Error> {
             let events = self.psp22.approve(self.env().caller(), spender, value)?;
-            Ok(self.emit_events(events))
+            self.emit_events(events);
+            Ok(())
         }
 
         #[ink(message)]
@@ -569,7 +572,8 @@ pub mod pair {
             let events =
                 self.psp22
                     .increase_allowance(self.env().caller(), spender, delta_value)?;
-            Ok(self.emit_events(events))
+            self.emit_events(events);
+            Ok(())
         }
 
         #[ink(message)]
@@ -581,7 +585,8 @@ pub mod pair {
             let events =
                 self.psp22
                     .decrease_allowance(self.env().caller(), spender, delta_value)?;
-            Ok(self.emit_events(events))
+            self.emit_events(events);
+            Ok(())
         }
     }
 

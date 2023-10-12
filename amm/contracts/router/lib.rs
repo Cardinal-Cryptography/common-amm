@@ -75,7 +75,7 @@ pub mod router {
 
         fn _swap(
             &self,
-            amounts: &Vec<Balance>,
+            amounts: &[Balance],
             path: &Vec<AccountId>,
             _to: AccountId,
         ) -> Result<(), RouterError> {
