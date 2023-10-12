@@ -84,8 +84,6 @@ pub trait Pair {
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum PairError {
     PSP22Error(PSP22Error),
-    // OwnableError(OwnableError),
-    // ReentrancyGuardError(ReentrancyGuardError),
     LangError(LangError),
     TransferError,
     K,
@@ -136,23 +134,11 @@ pub enum PairError {
     CastOverflow2,
 }
 
-// impl From<OwnableError> for PairError {
-//    fn from(error: OwnableError) -> Self {
-//        PairError::OwnableError(error)
-//    }
-//}
-
 impl From<PSP22Error> for PairError {
     fn from(error: PSP22Error) -> Self {
         PairError::PSP22Error(error)
     }
 }
-
-// impl From<ReentrancyGuardError> for PairError {
-//    fn from(error: ReentrancyGuardError) -> Self {
-//        PairError::ReentrancyGuardError(error)
-//    }
-//}
 
 impl From<LangError> for PairError {
     fn from(error: LangError) -> Self {

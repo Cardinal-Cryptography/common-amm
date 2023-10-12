@@ -13,6 +13,8 @@ pub const ZERO_ADDRESS: [u8; 32] = [
 #[allow(unused)]
 const ZERO_ADDRESS_MSG: &str = "This is Aleph Zero DEX's zero address.";
 
+pub const MINIMUM_LIQUIDITY: u128 = 1000;
+
 #[cfg(test)]
 mod zero_address {
     use curve25519_dalek::ristretto::RistrettoPoint;
