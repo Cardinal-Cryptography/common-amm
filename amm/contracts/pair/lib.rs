@@ -165,10 +165,6 @@ pub mod pair {
             reserve_0: Balance,
             reserve_1: Balance,
         ) -> Result<(), PairError> {
-            ensure!(
-                balance_0 <= u128::MAX && balance_1 <= u128::MAX,
-                PairError::Overflow
-            );
             let now = Self::env().block_timestamp();
             let last_timestamp = self.pair.block_timestamp_last;
             if now != last_timestamp {
