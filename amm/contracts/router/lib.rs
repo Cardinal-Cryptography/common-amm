@@ -122,6 +122,14 @@ pub mod router {
             }
             Ok(())
         }
+
+        fn check_timestamp(&self, deadline: Timestamp) -> Result<(), RouterError> {
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                RouterError::Expired
+            );
+            Ok(())
+        }
     }
 
     impl Router for RouterContract {
@@ -147,10 +155,7 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<(Balance, Balance, Balance), RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+            self.check_timestamp(deadline)?;
             let (amount_a, amount_b) = self._add_liquidity(
                 token_a,
                 token_b,
@@ -183,10 +188,7 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<(Balance, Balance, Balance), RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+            self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             let received_value = self.env().transferred_value();
 
@@ -228,10 +230,7 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<(Balance, Balance), RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+            self.check_timestamp(deadline)?;
             let pair_contract = pair_for_on_chain(&self.factory, token_a, token_b)
                 .ok_or(RouterError::PairNotFound)?;
 
@@ -281,10 +280,7 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<(Balance, Balance), RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+            self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             let (amount_token, amount_native) = self.remove_liquidity(
                 token,
@@ -310,10 +306,7 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<Balance>, RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+            self.check_timestamp(deadline)?;
             let factory = self.factory;
 
             let amounts = get_amounts_out(&factory, amount_in, &path)?;
@@ -340,10 +333,7 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<Balance>, RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+            self.check_timestamp(deadline)?;
             let factory = self.factory;
             let amounts = get_amounts_in(&factory, amount_out, &path)?;
             ensure!(
@@ -368,10 +358,7 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<Balance>, RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+            self.check_timestamp(deadline)?;
             let factory = self.factory;
 
             let received_value = self.env().transferred_value();
@@ -401,10 +388,7 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<Balance>, RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+            self.check_timestamp(deadline)?;
             let factory = self.factory;
 
             let wnative = self.wnative;
@@ -436,10 +420,7 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<Balance>, RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+            self.check_timestamp(deadline)?;
             let factory = self.factory;
 
             let wnative = self.wnative;
@@ -470,10 +451,7 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<Balance>, RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+            self.check_timestamp(deadline)?;
             let factory = self.factory;
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
