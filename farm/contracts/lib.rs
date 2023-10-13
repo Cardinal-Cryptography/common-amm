@@ -219,7 +219,7 @@ mod farm {
         /// 2. Farm's `end` timestamp is still in the future.
         #[ink(message)]
         pub fn stop(&mut self) -> Result<(), FarmError> {
-            self.ensure_running(true)?;
+            self.ensure_running()?;
             let mut running = self.get_state()?;
 
             // We allow owner of the farm to stop it prematurely
@@ -251,7 +251,7 @@ mod farm {
         #[ink(message)]
         pub fn deposit(&mut self, amount: u128) -> Result<(), FarmError> {
             Self::assert_non_zero_amount(amount)?;
-            self.ensure_running(true)?;
+            self.ensure_running()?;
             self.update_reward_index()?;
             self.add_shares(amount)
         }
@@ -260,7 +260,7 @@ mod farm {
         /// NOTE: Requires that the caller has approved the farm to spend their tokens.
         #[ink(message)]
         pub fn deposit_all(&mut self) -> Result<(), FarmError> {
-            self.ensure_running(true)?;
+            self.ensure_running()?;
             self.update_reward_index()?;
             let token_balance = safe_balance_of(&self.pool.into(), self.env().caller());
             Self::assert_non_zero_amount(token_balance)?;
@@ -447,9 +447,9 @@ mod farm {
             self.state.get().ok_or(FarmError::StateMissing)
         }
 
-        fn ensure_running(&self, should_be_running: bool) -> Result<(), FarmError> {
-            if !should_be_running && self.is_running {
-                return Err(FarmError::StillRunning)
+        fn ensure_running(&self) -> Result<(), FarmError> {
+            if !self.is_running {
+                return Err(FarmError::NotRunning)
             }
             Ok(())
         }
