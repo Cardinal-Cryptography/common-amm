@@ -79,7 +79,6 @@ pub mod router {
             path: &Vec<AccountId>,
             _to: AccountId,
         ) -> Result<(), RouterError> {
-            // let factory = self.data().factory;
             for i in 0..path.len() - 1 {
                 let (input, output) = (path[i], path[i + 1]);
                 let (token_0, _) = sort_tokens(input, output)?;
