@@ -28,8 +28,6 @@ mod farm {
         rewards_earned,
     };
 
-    use openbrush::modifiers;
-
     use primitive_types::U256;
     use psp22_traits::PSP22;
 
