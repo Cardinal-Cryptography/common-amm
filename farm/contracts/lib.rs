@@ -220,8 +220,8 @@ mod farm {
         /// 1. Farm is not in `Running` state.
         /// 2. Farm's `end` timestamp is still in the future.
         #[ink(message)]
-        #[modifiers(ensure_running(true))]
         pub fn stop(&mut self) -> Result<(), FarmError> {
+            self.ensure_running(true)?;
             let mut running = self.get_state()?;
 
             // We allow owner of the farm to stop it prematurely
@@ -251,8 +251,9 @@ mod farm {
 
         /// Deposits the given amount of tokens into the farm.
         #[ink(message)]
-        #[modifiers(ensure_running(true), non_zero_amount(amount))]
+        #[modifiers(non_zero_amount(amount))]
         pub fn deposit(&mut self, amount: u128) -> Result<(), FarmError> {
+            self.ensure_running(true)?;
             self.update_reward_index()?;
             self.add_shares(amount)
         }
@@ -260,8 +261,8 @@ mod farm {
         /// Deposits all of the LP tokens the caller has.
         /// NOTE: Requires that the caller has approved the farm to spend their tokens.
         #[ink(message)]
-        #[modifiers(ensure_running(true))]
         pub fn deposit_all(&mut self) -> Result<(), FarmError> {
+            self.ensure_running(true)?;
             self.update_reward_index()?;
             let token_balance = safe_balance_of(&self.pool.into(), self.env().caller());
             self.add_shares(token_balance)
@@ -446,6 +447,13 @@ mod farm {
         fn get_state(&self) -> Result<State, FarmError> {
             self.state.get().ok_or(FarmError::StateMissing)
         }
+
+        fn ensure_running(&self, should_be_running: bool) -> Result<(), FarmError> {
+            if !should_be_running && self.is_running {
+                return Err(FarmError::StillRunning)
+            }
+            Ok(())
+        }
     }
 
     type TokenId = AccountId;
@@ -571,21 +579,6 @@ mod farm {
     }
 
     use openbrush::modifier_definition;
-
-    #[modifier_definition]
-    pub fn ensure_running<F, T>(
-        instance: &mut Farm,
-        body: F,
-        should_be_running: bool,
-    ) -> Result<T, FarmError>
-    where
-        F: FnOnce(&mut Farm) -> Result<T, FarmError>,
-    {
-        if !should_be_running && instance.is_running {
-            return Err(FarmError::StillRunning)
-        }
-        body(instance)
-    }
 
     #[modifier_definition]
     pub fn non_zero_amount<F, T>(instance: &mut Farm, body: F, amount: u128) -> Result<T, FarmError>
