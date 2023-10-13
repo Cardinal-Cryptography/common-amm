@@ -251,8 +251,8 @@ mod farm {
 
         /// Deposits the given amount of tokens into the farm.
         #[ink(message)]
-        #[modifiers(non_zero_amount(amount))]
         pub fn deposit(&mut self, amount: u128) -> Result<(), FarmError> {
+            Self::assert_non_zero_amount(amount)?;
             self.ensure_running(true)?;
             self.update_reward_index()?;
             self.add_shares(amount)
@@ -265,13 +265,14 @@ mod farm {
             self.ensure_running(true)?;
             self.update_reward_index()?;
             let token_balance = safe_balance_of(&self.pool.into(), self.env().caller());
+            Self::assert_non_zero_amount(token_balance)?;
             self.add_shares(token_balance)
         }
 
         /// Withdraws the given amount of shares from the farm.
         #[ink(message)]
-        #[modifiers(non_zero_amount(amount))]
         pub fn withdraw(&mut self, amount: u128) -> Result<(), FarmError> {
+            Self::assert_non_zero_amount(amount)?;
             self.update_reward_index()?;
             let caller = self.env().caller();
 
@@ -454,6 +455,13 @@ mod farm {
             }
             Ok(())
         }
+
+        fn assert_non_zero_amount(amount: u128) -> Result<(), FarmError> {
+            if amount == 0 {
+                return Err(FarmError::InvalidAmountArgument)
+            }
+            Ok(())
+        }
     }
 
     type TokenId = AccountId;
@@ -576,19 +584,6 @@ mod farm {
                 })
                 .collect()
         }
-    }
-
-    use openbrush::modifier_definition;
-
-    #[modifier_definition]
-    pub fn non_zero_amount<F, T>(instance: &mut Farm, body: F, amount: u128) -> Result<T, FarmError>
-    where
-        F: FnOnce(&mut Farm) -> Result<T, FarmError>,
-    {
-        if amount == 0 {
-            return Err(FarmError::InvalidAmountArgument)
-        }
-        body(instance)
     }
 
     use ink::codegen::TraitCallBuilder;
