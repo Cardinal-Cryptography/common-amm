@@ -13,13 +13,10 @@ ink = { version = "=4.3.0", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = [
     "derive",
 ] }
-scale-info = { version = "2.3", default-features = false, features = [
+scale-info = { version = "2.9", default-features = false, features = [
     "derive",
 ], optional = true }
 
-openbrush = { version = "3.2.0", default-features = false, features = [
-    "psp22",
-] }
 amm = { path = "../../logics", default-features = false }
 
 [lib]
@@ -33,7 +30,6 @@ std = [
     "scale/std",
     "scale-info",
     "scale-info/std",
-    "openbrush/std",
     "amm/std",
 ]
 ink-as-dependency = []

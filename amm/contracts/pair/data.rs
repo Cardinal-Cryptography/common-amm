@@ -1,15 +1,13 @@
-use crate::helpers::ZERO_ADDRESS;
-use amm_helpers::types::WrappedU256;
-use openbrush::traits::{
-    AccountId,
+use amm::{
+    helpers::ZERO_ADDRESS,
     Balance,
     Timestamp,
 };
+use amm_helpers::types::WrappedU256;
+use ink::primitives::AccountId;
 
-pub const STORAGE_KEY: u32 = openbrush::storage_unique_key!(Data);
-
+#[ink::storage_item]
 #[derive(Debug)]
-#[openbrush::upgradeable_storage(STORAGE_KEY)]
 pub struct Data {
     pub factory: AccountId,
     pub token_0: AccountId,
