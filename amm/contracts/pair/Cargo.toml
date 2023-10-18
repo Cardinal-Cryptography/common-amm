@@ -14,10 +14,7 @@ scale-info = { version = "2.9", default-features = false, features = [
     "derive",
 ], optional = true }
 
-psp22 = { git = "https://github.com/Cardinal-Cryptography/PSP22.git", default-features = false, features = [
-    "mintable",
-    "burnable",
-]}
+psp22 = { git = "https://github.com/Cardinal-Cryptography/PSP22.git", default-features = false }
 
 amm = { path = "../../logics", default-features = false }
 amm-helpers = { path = "../../../helpers", default-features = false }
