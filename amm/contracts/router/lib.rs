@@ -45,7 +45,7 @@ pub mod router {
             amount_a_min: Balance,
             amount_b_min: Balance,
         ) -> Result<(Balance, Balance), RouterError> {
-            if pair_for_on_chain(&self.factory, token_a, token_b).is_none() {
+            if self.get_pair(token_a, token_b).is_err() {
                 let mut factory: contract_ref!(Factory) = self.factory.into();
                 factory.create_pair(token_a, token_b)?;
             };
@@ -91,13 +91,11 @@ pub mod router {
                 // If last pair in the path, transfer tokens to the `_to` recipient.
                 // Otherwise, transfer to the next Pair contract instance.
                 let to = if i < path.len() - 2 {
-                    pair_for_on_chain(&self.factory, output, path[i + 2])
-                        .ok_or(RouterError::PairNotFound)?
+                    self.get_pair(output, path[i + 2])?
                 } else {
                     _to
                 };
-                let pair = pair_for_on_chain(&self.factory, input, output)
-                    .ok_or(RouterError::PairNotFound)?;
+                let pair = self.get_pair(input, output)?;
                 let mut pair: contract_ref!(Pair) = pair.into();
 
                 match pair
@@ -123,6 +121,21 @@ pub mod router {
             Ok(())
         }
 
+        /// Returns address of a `Pair` contract instance (if exists) for
+        /// `(token_a, token_b)` pair registered in `factory` Factory instance.
+        #[inline]
+        fn get_pair(
+            &self,
+            token_a: AccountId,
+            token_b: AccountId,
+        ) -> Result<AccountId, RouterError> {
+            let factory: contract_ref!(Factory) = self.factory.into();
+            factory
+                .get_pair(token_a, token_b)
+                .ok_or(RouterError::PairNotFound)
+        }
+
+        /// Checks if the current block timestamp is not after the deadline.
         fn check_timestamp(&self, deadline: Timestamp) -> Result<(), RouterError> {
             ensure!(
                 deadline >= self.env().block_timestamp(),
@@ -165,8 +178,7 @@ pub mod router {
                 amount_b_min,
             )?;
 
-            let pair_contract = pair_for_on_chain(&self.factory, token_a, token_b)
-                .ok_or(RouterError::PairNotFound)?;
+            let pair_contract = self.get_pair(token_a, token_b)?;
 
             let caller = self.env().caller();
             safe_transfer_from(token_a, caller, pair_contract, amount_a)?;
@@ -201,8 +213,7 @@ pub mod router {
                 amount_native_min,
             )?;
 
-            let pair_contract = pair_for_on_chain(&self.factory, token, wnative)
-                .ok_or(RouterError::PairNotFound)?;
+            let pair_contract = self.get_pair(token, wnative)?;
 
             let caller = self.env().caller();
             safe_transfer_from(token, caller, pair_contract, amount_a)?;
@@ -231,8 +242,7 @@ pub mod router {
             deadline: u64,
         ) -> Result<(Balance, Balance), RouterError> {
             self.check_timestamp(deadline)?;
-            let pair_contract = pair_for_on_chain(&self.factory, token_a, token_b)
-                .ok_or(RouterError::PairNotFound)?;
+            let pair_contract = self.get_pair(token_a, token_b)?;
 
             safe_transfer_from(pair_contract, self.env().caller(), pair_contract, liquidity)?;
 
@@ -317,7 +327,7 @@ pub mod router {
             safe_transfer_from(
                 path[0],
                 self.env().caller(),
-                pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
+                self.get_pair(path[0], path[1])?,
                 amounts[0],
             )?;
             self._swap(&amounts, &path, to)?;
@@ -343,7 +353,7 @@ pub mod router {
             safe_transfer_from(
                 path[0],
                 self.env().caller(),
-                pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
+                self.get_pair(path[0], path[1])?,
                 amounts[0],
             )?;
             self._swap(&amounts, &path, to)?;
@@ -370,11 +380,7 @@ pub mod router {
                 RouterError::InsufficientOutputAmount
             );
             wrap(&wnative, received_value)?;
-            safe_transfer(
-                wnative,
-                pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
-                amounts[0],
-            )?;
+            safe_transfer(wnative, self.get_pair(path[0], path[1])?, amounts[0])?;
             self._swap(&amounts, &path, to)?;
             Ok(amounts)
         }
@@ -401,7 +407,7 @@ pub mod router {
             safe_transfer_from(
                 path[0],
                 self.env().caller(),
-                pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
+                self.get_pair(path[0], path[1])?,
                 amounts[0],
             )?;
             self._swap(&amounts, &path, self.env().account_id())?;
@@ -434,7 +440,7 @@ pub mod router {
             safe_transfer_from(
                 path[0],
                 self.env().caller(),
-                pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
+                self.get_pair(path[0], path[1])?,
                 amounts[0],
             )?;
             self._swap(&amounts, &path, self.env().account_id())?;
@@ -464,11 +470,7 @@ pub mod router {
                 RouterError::ExcessiveInputAmount
             );
             wrap(&wnative, native_in)?;
-            safe_transfer(
-                wnative,
-                pair_for_on_chain(&factory, path[0], path[1]).ok_or(RouterError::PairNotFound)?,
-                native_in,
-            )?;
+            safe_transfer(wnative, self.get_pair(path[0], path[1])?, native_in)?;
             self._swap(&amounts, &path, to)?;
             if received_native > native_in {
                 safe_transfer_native(self.env().caller(), received_native - native_in)?
