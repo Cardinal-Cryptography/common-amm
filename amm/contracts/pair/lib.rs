@@ -9,10 +9,7 @@ pub mod pair {
         ensure,
         helpers::{
             helper::update_cumulative,
-            transfer_helper::{
-                balance_of,
-                safe_transfer,
-            },
+            transfer_helper::safe_transfer,
             MINIMUM_LIQUIDITY,
             ZERO_ADDRESS,
         },
@@ -111,6 +108,13 @@ pub mod pair {
             instance.pair.token_1 = token_b;
             instance.pair.factory = caller;
             instance
+        }
+
+        #[inline]
+        fn token_balances(&self, who: AccountId) -> (Balance, Balance) {
+            let token_0: contract_ref!(PSP22) = self.pair.token_0.into();
+            let token_1: contract_ref!(PSP22) = self.pair.token_1.into();
+            (token_0.balance_of(who), token_1.balance_of(who))
         }
 
         fn mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError> {
@@ -234,8 +238,7 @@ pub mod pair {
         fn mint(&mut self, to: AccountId) -> Result<Balance, PairError> {
             let reserves = self.get_reserves();
             let contract = self.env().account_id();
-            let balance_0 = balance_of(self.pair.token_0, contract);
-            let balance_1 = balance_of(self.pair.token_1, contract);
+            let (balance_0, balance_1) = self.token_balances(contract);
             let amount_0_transferred = balance_0
                 .checked_sub(reserves.0)
                 .ok_or(PairError::SubUnderFlow1)?;
@@ -301,8 +304,7 @@ pub mod pair {
             let contract = self.env().account_id();
             let token_0 = self.pair.token_0;
             let token_1 = self.pair.token_1;
-            let balance_0_before = balance_of(token_0, contract);
-            let balance_1_before = balance_of(token_1, contract);
+            let (balance_0_before, balance_1_before) = self.token_balances(contract);
             let liquidity = self.balance_of(contract);
 
             let fee_on = self.mint_fee(reserves.0, reserves.1)?;
@@ -329,8 +331,7 @@ pub mod pair {
             safe_transfer(token_0, to, amount_0)?;
             safe_transfer(token_1, to, amount_1)?;
 
-            let balance_0_after = balance_of(token_0, contract);
-            let balance_1_after = balance_of(token_1, contract);
+            let (balance_0_after, balance_1_after) = self.token_balances(contract);
 
             self.update(balance_0_after, balance_1_after, reserves.0, reserves.1)?;
 
@@ -376,8 +377,7 @@ pub mod pair {
                 safe_transfer(token_1, to, amount_1_out)?;
             }
             let contract = self.env().account_id();
-            let balance_0 = balance_of(token_0, contract);
-            let balance_1 = balance_of(token_1, contract);
+            let (balance_0, balance_1) = self.token_balances(contract);
 
             let amount_0_in = if balance_0
                 > reserves
@@ -459,8 +459,7 @@ pub mod pair {
             let reserve_1 = self.pair.reserve_1;
             let token_0 = self.pair.token_0;
             let token_1 = self.pair.token_1;
-            let balance_0 = balance_of(token_0, contract);
-            let balance_1 = balance_of(token_1, contract);
+            let (balance_0, balance_1) = self.token_balances(contract);
             safe_transfer(
                 token_0,
                 to,
@@ -483,10 +482,7 @@ pub mod pair {
             let contract = self.env().account_id();
             let reserve_0 = self.pair.reserve_0;
             let reserve_1 = self.pair.reserve_1;
-            let token_0 = self.pair.token_0;
-            let token_1 = self.pair.token_1;
-            let balance_0 = balance_of(token_0, contract);
-            let balance_1 = balance_of(token_1, contract);
+            let (balance_0, balance_1) = self.token_balances(contract);
             self.update(balance_0, balance_1, reserve_0, reserve_1)
         }
 

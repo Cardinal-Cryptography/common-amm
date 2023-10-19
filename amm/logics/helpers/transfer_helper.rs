@@ -17,12 +17,6 @@ use psp22::{
     PSP22,
 };
 
-#[inline]
-pub fn balance_of(token: AccountId, who: AccountId) -> Balance {
-    let token: contract_ref!(PSP22, Env) = token.into();
-    token.balance_of(who)
-}
-
 /// Transfers `value` amount of `token` to an account controlled by `to` address.
 #[inline]
 pub fn safe_transfer(token: AccountId, to: AccountId, value: Balance) -> Result<(), PSP22Error> {
