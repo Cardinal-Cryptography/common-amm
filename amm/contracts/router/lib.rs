@@ -1,7 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+mod helpers;
+
 #[ink::contract]
 pub mod router {
+    use crate::helpers::tokens_sorted;
     use amm::{
         ensure,
         helpers::{
@@ -50,7 +53,8 @@ pub mod router {
                 factory.create_pair(token_a, token_b)?;
             };
 
-            let (reserve_a, reserve_b) = get_reserves(&self.factory, token_a, token_b)?;
+            let (reserve_a, reserve_b) = self.get_reserves(token_a, token_b)?;
+
             if reserve_a == 0 && reserve_b == 0 {
                 return Ok((amount_a_desired, amount_b_desired))
             }
@@ -81,9 +85,8 @@ pub mod router {
         ) -> Result<(), RouterError> {
             for i in 0..path.len() - 1 {
                 let (input, output) = (path[i], path[i + 1]);
-                let (token_0, _) = sort_tokens(input, output)?;
                 let amount_out = amounts[i + 1];
-                let (amount_0_out, amount_1_out) = if input == token_0 {
+                let (amount_0_out, amount_1_out) = if tokens_sorted(input, output)? {
                     (0, amount_out)
                 } else {
                     (amount_out, 0)
@@ -133,6 +136,21 @@ pub mod router {
             factory
                 .get_pair(token_a, token_b)
                 .ok_or(RouterError::PairNotFound)
+        }
+
+        fn get_reserves(
+            &self,
+            token_a: AccountId,
+            token_b: AccountId,
+        ) -> Result<(Balance, Balance), RouterError> {
+            let pair = self.get_pair(token_a, token_b)?;
+            let pair: contract_ref!(Pair) = pair.into();
+            let (reserve_0, reserve_1, _) = pair.get_reserves();
+            if tokens_sorted(token_a, token_b)? {
+                Ok((reserve_0, reserve_1))
+            } else {
+                Ok((reserve_1, reserve_0))
+            }
         }
 
         /// Checks if the current block timestamp is not after the deadline.
@@ -267,8 +285,7 @@ pub mod router {
                 }
                 Err(_) => Err(RouterError::TransferError),
             }?;
-            let (token_0, _) = sort_tokens(token_a, token_b)?;
-            let (amount_a, amount_b) = if token_a == token_0 {
+            let (amount_a, amount_b) = if tokens_sorted(token_a, token_b)? {
                 (amount_0, amount_1)
             } else {
                 (amount_1, amount_0)
