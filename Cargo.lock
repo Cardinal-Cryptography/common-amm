@@ -863,6 +863,7 @@ name = "router_contract"
 version = "0.1.0"
 dependencies = [
  "amm",
+ "amm-helpers",
  "ink",
  "parity-scale-codec",
  "primitive-types",

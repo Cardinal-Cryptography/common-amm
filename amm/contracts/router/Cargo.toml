@@ -18,6 +18,7 @@ scale-info = { version = "2.9", default-features = false, features = [
 ], optional = true }
 
 amm = { path = "../../logics", default-features = false }
+amm-helpers = { path = "../../../helpers", default-features = false }
 
 [lib]
 name = "router_contract"
