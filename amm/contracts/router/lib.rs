@@ -1,10 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-mod helpers;
-
 #[ink::contract]
 pub mod router {
-    use crate::helpers::tokens_sorted;
     use amm::{
         ensure,
         helpers::transfer_helper::*,
@@ -83,8 +80,9 @@ pub mod router {
         ) -> Result<(), RouterError> {
             for i in 0..path.len() - 1 {
                 let (input, output) = (path[i], path[i + 1]);
+                ensure!(input != output, RouterError::IdenticalAddresses);
                 let amount_out = amounts[i + 1];
-                let (amount_0_out, amount_1_out) = if tokens_sorted(input, output)? {
+                let (amount_0_out, amount_1_out) = if input < output {
                     (0, amount_out)
                 } else {
                     (amount_out, 0)
@@ -187,10 +185,11 @@ pub mod router {
             token_a: AccountId,
             token_b: AccountId,
         ) -> Result<(Balance, Balance), RouterError> {
+            ensure!(token_a != token_b, RouterError::IdenticalAddresses);
             let pair = self.get_pair(token_a, token_b)?;
             let pair: contract_ref!(Pair) = pair.into();
             let (reserve_0, reserve_1, _) = pair.get_reserves();
-            if tokens_sorted(token_a, token_b)? {
+            if token_a < token_b {
                 Ok((reserve_0, reserve_1))
             } else {
                 Ok((reserve_1, reserve_0))
@@ -304,6 +303,7 @@ pub mod router {
             deadline: u64,
         ) -> Result<(Balance, Balance), RouterError> {
             self.check_timestamp(deadline)?;
+            ensure!(token_a != token_b, RouterError::IdenticalAddresses);
             let pair_contract = self.get_pair(token_a, token_b)?;
 
             safe_transfer_from(pair_contract, self.env().caller(), pair_contract, liquidity)?;
@@ -329,7 +329,7 @@ pub mod router {
                 }
                 Err(_) => Err(RouterError::TransferError),
             }?;
-            let (amount_a, amount_b) = if tokens_sorted(token_a, token_b)? {
+            let (amount_a, amount_b) = if token_a < token_b {
                 (amount_0, amount_1)
             } else {
                 (amount_1, amount_0)
