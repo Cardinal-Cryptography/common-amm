@@ -1,4 +1,3 @@
-pub mod helper;
 pub mod transfer_helper;
 
 /// Zero address for which the private key is unknown.
@@ -20,6 +19,18 @@ const ZERO_ADDRESS_MSG: &str = "This is Aleph Zero DEX's zero address.";
 /// NOTE: This value is taken from UniswapV2 whitepaper and is correct
 /// only for liquidity tokens with precision = 18.
 pub const MINIMUM_LIQUIDITY: u128 = 1000;
+
+/// Evaluate `$x:expr` and if not true return `Err($y:expr)`.
+///
+/// Used as `ensure!(expression_to_ensure, expression_to_return_on_false)`.
+#[macro_export]
+macro_rules! ensure {
+    ( $x:expr, $y:expr $(,)? ) => {{
+        if !$x {
+            return Err($y.into())
+        }
+    }};
+}
 
 #[cfg(test)]
 mod zero_address {

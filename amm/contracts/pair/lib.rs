@@ -4,11 +4,13 @@ mod data;
 
 #[ink::contract]
 pub mod pair {
-    use crate::data::Data;
+    use crate::data::{
+        update_cumulative,
+        Data,
+    };
     use amm::{
         ensure,
         helpers::{
-            helper::update_cumulative,
             transfer_helper::safe_transfer,
             MINIMUM_LIQUIDITY,
             ZERO_ADDRESS,

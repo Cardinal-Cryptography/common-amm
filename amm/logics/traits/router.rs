@@ -1,8 +1,5 @@
 use crate::{
-    helpers::{
-        helper::HelperError,
-        transfer_helper::TransferHelperError,
-    },
+    helpers::transfer_helper::TransferHelperError,
     traits::{
         factory::FactoryError,
         pair::PairError,
@@ -245,7 +242,6 @@ pub enum RouterError {
     PSP22Error(PSP22Error),
     FactoryError(FactoryError),
     PairError(PairError),
-    HelperError(HelperError),
     TransferHelperError(TransferHelperError),
     LangError(LangError),
     TransferError,
@@ -284,7 +280,6 @@ impl_froms!(
     PSP22Error,
     FactoryError,
     PairError,
-    HelperError,
     TransferHelperError,
     LangError
 );
