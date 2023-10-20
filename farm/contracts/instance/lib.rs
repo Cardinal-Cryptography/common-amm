@@ -23,8 +23,8 @@ mod farm {
     };
 
     use crate::{
-        reward_per_token,
-        rewards_earned,
+        calculate_rewards_earned,
+        reward_per_share,
     };
 
     use openbrush::modifiers;
@@ -227,14 +227,14 @@ mod farm {
             let mut state = self.get_state()?;
 
             let user_rewards = state
-                .user_unclaimed_rewards
+                .user_claimable_rewards
                 .take(caller)
                 .ok_or(FarmError::CallerNotFarmer)?;
 
             if !self.is_running()? {
                 // We can remove the user from the map only when the farm is already finished.
                 // That's b/c it won't be earning any more rewards for this particular farm.
-                state.user_reward_per_token_paid.remove(caller);
+                state.user_reward_per_share_paid.remove(caller);
             }
 
             for (idx, user_reward) in user_rewards.clone().into_iter().enumerate() {
@@ -362,7 +362,7 @@ mod farm {
                     rewards_per_token[idx].into();
             }
 
-            state.user_reward_per_token_paid.insert(
+            state.user_reward_per_share_paid.insert(
                 account,
                 &rewards_per_token
                     .clone()
@@ -371,7 +371,7 @@ mod farm {
                     .collect::<Vec<_>>(),
             );
             state
-                .user_unclaimed_rewards
+                .user_claimable_rewards
                 .insert(account, &unclaimed_rewards);
 
             self.state.set(&state);
@@ -457,8 +457,8 @@ mod farm {
                 end,
                 reward_tokens_info,
                 timestamp_at_last_update: now,
-                user_reward_per_token_paid: Mapping::new(),
-                user_unclaimed_rewards: Mapping::new(),
+                user_reward_per_share_paid: Mapping::new(),
+                user_claimable_rewards: Mapping::new(),
             };
 
             self.state.set(&state);
@@ -530,9 +530,9 @@ mod farm {
         /// Reward per token paid to the user for each reward token.
         // We need to track this separately for each reward token as each can have different reward rate.
         // Vectors should be relatively small (probably < 5).
-        pub user_reward_per_token_paid: Mapping<UserId, Vec<WrappedU256>>,
+        pub user_reward_per_share_paid: Mapping<UserId, Vec<WrappedU256>>,
         /// Rewards that have not been claimed (withdrawn) by the user yet.
-        pub user_unclaimed_rewards: Mapping<UserId, Vec<u128>>,
+        pub user_claimable_rewards: Mapping<UserId, Vec<u128>>,
     }
 
     impl State {
@@ -550,7 +550,7 @@ mod farm {
 
             for reward_token in self.reward_tokens_info.iter() {
                 let reward_rate = reward_token.reward_rate;
-                let rpr = reward_per_token(
+                let rpr = reward_per_share(
                     reward_token.reward_per_token_stored.0,
                     reward_rate,
                     total_shares,
@@ -571,19 +571,19 @@ mod farm {
             rewards_per_token: &[U256],
         ) -> Result<Vec<u128>, FarmError> {
             let rewards_per_token_paid_so_far = self
-                .user_reward_per_token_paid
+                .user_reward_per_share_paid
                 .get(account)
                 .unwrap_or(vec![WrappedU256::ZERO; rewards_per_token.len()]);
 
             let uncollected_user_rewards = self
-                .user_unclaimed_rewards
+                .user_claimable_rewards
                 .get(account)
                 .unwrap_or(vec![0; rewards_per_token.len()]);
 
             let mut unclaimed_user_rewards = vec![];
 
             for i in 0..rewards_per_token.len() {
-                let rewards_earned = rewards_earned(
+                let rewards_earned = calculate_rewards_earned(
                     shares,
                     rewards_per_token[i],
                     rewards_per_token_paid_so_far[i].0,
@@ -701,44 +701,115 @@ use primitive_types::U256;
 ///
 /// where:
 /// - r_j0 - reward per token stored at the last time any user interacted with the farm
-/// - R - total amount of rewards available for distribution
+/// - R - reward rate (rewards distributed per unit of time)
 /// - T - total shares in the farm
 /// - t_j - last time user interacted with the farm, usually _now_.
 /// - t_j0 - last time user "claimed" rewards.
 /// - r_j - rewards due to user for providing liquidity from t_j0 to t_j
 ///
 /// See https://github.com/stakewithus/notes/blob/main/excalidraw/staking-rewards.png for more.
-pub fn reward_per_token(
-    reward_per_token_stored: U256,
+pub fn reward_per_share(
+    cumulative_reward_per_share: U256,
     reward_rate: u128,
-    total_supply: u128,
+    total_shares: u128,
     last_update_time: u128,
     last_time_reward_applicable: u128,
 ) -> Result<U256, MathError> {
-    if total_supply == 0 {
-        return Ok(reward_per_token_stored)
+    if total_shares == 0 {
+        return Ok(cumulative_reward_per_share)
     }
 
-    casted_mul(reward_rate, last_time_reward_applicable - last_update_time)
-        .checked_mul(U256::from(SCALING_FACTOR))
-        .ok_or(MathError::Overflow)?
-        .checked_div(U256::from(total_supply))
-        .ok_or(MathError::DivByZero)?
-        .checked_add(reward_per_token_stored)
-        .ok_or(MathError::Overflow)
+    reward_per_share_in_time_interval(
+        reward_rate,
+        total_shares,
+        last_update_time,
+        last_time_reward_applicable,
+    )?
+    .checked_add(cumulative_reward_per_share)
+    .ok_or(MathError::Overflow)
 }
 
-/// Returns rewards earned by the user given `rewards_per_token` for some period of time.
-pub fn rewards_earned(
+/// Calculates the reward per share in a given time interval.
+///
+/// # Arguments
+///
+/// * `reward_rate` - The rate at which rewards are distributed.
+/// * `total_shares` - The total number of shares.
+/// * `from_timestamp` - The starting timestamp of the interval.
+/// * `to_timestamp` - The ending timestamp of the interval.
+///
+/// # Errors
+///
+/// Returns a `MathError::Overflow` if the multiplication overflows, or a `MathError::DivByZero`
+/// if `total_shares` is zero.
+///
+/// # Returns
+///
+/// Returns the reward per share as a `U256` value.
+pub fn reward_per_share_in_time_interval(
+    reward_rate: u128,
+    total_shares: u128,
+    from_timestamp: u128,
+    to_timestamp: u128,
+) -> Result<U256, MathError> {
+    if total_shares == 0 || from_timestamp > to_timestamp {
+        return Ok(0.into())
+    }
+
+    casted_mul(reward_rate, to_timestamp - from_timestamp)
+        .checked_mul(U256::from(SCALING_FACTOR))
+        .ok_or(MathError::Overflow)?
+        .checked_div(U256::from(total_shares))
+        .ok_or(MathError::DivByZero)
+}
+
+/// Returns rewards earned by the user given `rewards_per_share` for some period of time.
+/// Calculates the rewards earned based on the number of shares, rewards per share, and paid reward per share.
+///
+/// # Arguments
+///
+/// * `shares` - The number of shares.
+/// * `rewards_per_share` - The rewards per share.
+/// * `paid_reward_per_share` - The paid reward per share.
+///
+/// # Errors
+///
+/// Returns a `MathError::Underflow` if the subtraction of `paid_reward_per_share` from `rewards_per_share` results in an underflow.
+///
+/// # Returns
+///
+/// The rewards earned as a `u128` value.
+pub fn calculate_rewards_earned(
     shares: u128,
-    rewards_per_token: U256,
-    paid_reward_per_token: U256,
+    rewards_per_share: U256,
+    paid_reward_per_share: U256,
 ) -> Result<u128, MathError> {
-    let r = rewards_per_token
-        .checked_sub(paid_reward_per_token)
+    let r = rewards_per_share
+        .checked_sub(paid_reward_per_share)
         .ok_or(MathError::Underflow)?;
 
-    r.checked_mul(U256::from(shares))
+    rewards_earned_by_shares(shares, r)
+}
+
+/// Calculates the amount of rewards earned by a given number of shares, based on the rewards per share.
+/// 
+/// # Arguments
+/// 
+/// * `shares` - The number of shares for which to calculate the rewards earned.
+/// * `rewards_per_share` - The rewards per share value used to calculate the rewards earned.
+/// 
+/// # Errors
+/// 
+/// Returns a `MathError::Overflow` if the multiplication of `rewards_per_share` and `shares` overflows.
+/// Returns a `MathError::DivByZero` if the division of the multiplication result by the scaling factor overflows.
+/// Returns a `MathError::CastOverflow` if the result of the division cannot be cast to `u128`.
+/// 
+/// # Returns
+/// 
+/// The amount of rewards earned by the given number of shares, as a `u128`.
+pub fn rewards_earned_by_shares(shares: u128, rewards_per_share: U256) -> Result<u128, MathError> {
+    rewards_per_share
+        .checked_mul(U256::from(shares))
         .ok_or(MathError::Overflow)?
         .checked_div(U256::from(SCALING_FACTOR))
         .ok_or(MathError::DivByZero)?

@@ -38,7 +38,7 @@ mod reward_calculation {
         last_update_time: u128,
         last_time_reward_applicable: u128,
     ) -> U256 {
-        crate::reward_per_token(
+        crate::reward_per_share(
             reward_per_token_stored,
             reward_rate,
             total_supply,
@@ -49,7 +49,7 @@ mod reward_calculation {
     }
 
     fn rewards_earned(shares: u128, rewards_per_token: U256, paid_reward_per_token: U256) -> u128 {
-        crate::rewards_earned(shares, rewards_per_token, paid_reward_per_token)
+        crate::calculate_rewards_earned(shares, rewards_per_token, paid_reward_per_token)
             .expect("to calculate rewards earned")
     }
 
