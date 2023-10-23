@@ -1,5 +1,4 @@
 use crate::{
-    helpers::transfer_helper::TransferHelperError,
     traits::{
         factory::FactoryError,
         pair::PairError,
@@ -242,7 +241,6 @@ pub enum RouterError {
     PSP22Error(PSP22Error),
     FactoryError(FactoryError),
     PairError(PairError),
-    TransferHelperError(TransferHelperError),
     LangError(LangError),
     TransferError,
     PairNotFound,
@@ -276,10 +274,4 @@ macro_rules! impl_froms {
     };
 }
 
-impl_froms!(
-    PSP22Error,
-    FactoryError,
-    PairError,
-    TransferHelperError,
-    LangError
-);
+impl_froms!(PSP22Error, FactoryError, PairError, LangError);

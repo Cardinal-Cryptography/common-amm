@@ -4,7 +4,6 @@
 pub mod router {
     use amm::{
         ensure,
-        helpers::transfer_helper::*,
         traits::{
             factory::Factory,
             pair::Pair,
@@ -12,6 +11,7 @@ pub mod router {
                 Router,
                 RouterError,
             },
+            wnative::Wnative,
         },
     };
     use amm_helpers::math::casted_mul;
@@ -20,6 +20,10 @@ pub mod router {
         contract_ref,
         env::CallFlags,
         prelude::vec::Vec,
+    };
+    use psp22::{
+        PSP22Error,
+        PSP22,
     };
 
     #[ink(storage)]
@@ -34,7 +38,60 @@ pub mod router {
             Self { factory, wnative }
         }
 
-        fn _add_liquidity(
+        #[inline]
+        fn factory_ref(&self) -> contract_ref!(Factory) {
+            self.factory.into()
+        }
+
+        #[inline]
+        fn wnative_ref(&self) -> contract_ref!(Wnative) {
+            self.wnative.into()
+        }
+
+        /// Returns address of a `Pair` contract instance (if exists) for
+        /// `(token_a, token_b)` pair registered in `factory` Factory instance.
+        #[inline]
+        fn get_pair(
+            &self,
+            token_a: AccountId,
+            token_b: AccountId,
+        ) -> Result<AccountId, RouterError> {
+            self.factory_ref()
+                .get_pair(token_a, token_b)
+                .ok_or(RouterError::PairNotFound)
+        }
+
+        #[inline]
+        fn get_reserves(
+            &self,
+            token_a: AccountId,
+            token_b: AccountId,
+        ) -> Result<(Balance, Balance), RouterError> {
+            ensure!(token_a != token_b, RouterError::IdenticalAddresses);
+            let pair: contract_ref!(Pair) = self.get_pair(token_a, token_b)?.into();
+            let (reserve_0, reserve_1, _) = pair.get_reserves();
+            if token_a < token_b {
+                Ok((reserve_0, reserve_1))
+            } else {
+                Ok((reserve_1, reserve_0))
+            }
+        }
+
+        #[inline]
+        fn wrap(&self, value: Balance) -> Result<(), RouterError> {
+            match self
+                .wnative_ref()
+                .call_mut()
+                .deposit()
+                .transferred_value(value)
+                .try_invoke()
+            {
+                Ok(res) => Ok(res??),
+                Err(_) => Err(RouterError::TransferError),
+            }
+        }
+
+        fn calculate_liquidity(
             &self,
             token_a: AccountId,
             token_b: AccountId,
@@ -44,8 +101,7 @@ pub mod router {
             amount_b_min: Balance,
         ) -> Result<(Balance, Balance), RouterError> {
             if self.get_pair(token_a, token_b).is_err() {
-                let mut factory: contract_ref!(Factory) = self.factory.into();
-                factory.create_pair(token_a, token_b)?;
+                self.factory_ref().create_pair(token_a, token_b)?;
             };
 
             let (reserve_a, reserve_b) = self.get_reserves(token_a, token_b)?;
@@ -94,15 +150,15 @@ pub mod router {
                 } else {
                     _to
                 };
-                let pair = self.get_pair(input, output)?;
-                let mut pair: contract_ref!(Pair) = pair.into();
 
+                let mut pair: contract_ref!(Pair) = self.get_pair(input, output)?.into();
                 match pair
                     .call_mut()
                     .swap(amount_0_out, amount_1_out, to)
                     .call_flags(CallFlags::default().set_allow_reentry(true))
                     .try_invoke()
                 {
+                    // TODO simplify
                     Ok(res) => {
                         match res {
                             Ok(v) => {
@@ -123,7 +179,7 @@ pub mod router {
         /// Computes the amounts of tokens that have to be supplied
         /// at each step of the exchange `path`, to get exactly `amount_out`
         /// tokens at the end of the swaps.
-        pub fn _get_amounts_in(
+        fn calculate_amounts_in(
             &self,
             amount_out: Balance,
             path: &Vec<AccountId>,
@@ -149,7 +205,7 @@ pub mod router {
         /// using tokens from the previous trade.
         ///
         /// Returns list of swap outcomes along the path.
-        pub fn _get_amounts_out(
+        fn calculate_amounts_out(
             &self,
             amount_in: Balance,
             path: &Vec<AccountId>,
@@ -166,37 +222,8 @@ pub mod router {
             Ok(amounts)
         }
 
-        /// Returns address of a `Pair` contract instance (if exists) for
-        /// `(token_a, token_b)` pair registered in `factory` Factory instance.
-        #[inline]
-        fn get_pair(
-            &self,
-            token_a: AccountId,
-            token_b: AccountId,
-        ) -> Result<AccountId, RouterError> {
-            let factory: contract_ref!(Factory) = self.factory.into();
-            factory
-                .get_pair(token_a, token_b)
-                .ok_or(RouterError::PairNotFound)
-        }
-
-        fn get_reserves(
-            &self,
-            token_a: AccountId,
-            token_b: AccountId,
-        ) -> Result<(Balance, Balance), RouterError> {
-            ensure!(token_a != token_b, RouterError::IdenticalAddresses);
-            let pair = self.get_pair(token_a, token_b)?;
-            let pair: contract_ref!(Pair) = pair.into();
-            let (reserve_0, reserve_1, _) = pair.get_reserves();
-            if token_a < token_b {
-                Ok((reserve_0, reserve_1))
-            } else {
-                Ok((reserve_1, reserve_0))
-            }
-        }
-
         /// Checks if the current block timestamp is not after the deadline.
+        #[inline]
         fn check_timestamp(&self, deadline: Timestamp) -> Result<(), RouterError> {
             ensure!(
                 deadline >= self.env().block_timestamp(),
@@ -230,7 +257,7 @@ pub mod router {
             deadline: u64,
         ) -> Result<(Balance, Balance, Balance), RouterError> {
             self.check_timestamp(deadline)?;
-            let (amount_a, amount_b) = self._add_liquidity(
+            let (amount_a, amount_b) = self.calculate_liquidity(
                 token_a,
                 token_b,
                 amount_a_desired,
@@ -242,8 +269,8 @@ pub mod router {
             let pair_contract = self.get_pair(token_a, token_b)?;
 
             let caller = self.env().caller();
-            safe_transfer_from(token_a, caller, pair_contract, amount_a)?;
-            safe_transfer_from(token_b, caller, pair_contract, amount_b)?;
+            psp22_transfer_from(token_a, caller, pair_contract, amount_a)?;
+            psp22_transfer_from(token_b, caller, pair_contract, amount_b)?;
 
             let mut pair: contract_ref!(Pair) = pair_contract.into();
             let liquidity = pair.mint(to)?;
@@ -265,7 +292,7 @@ pub mod router {
             let wnative = self.wnative;
             let received_value = self.env().transferred_value();
 
-            let (amount_a, amount_native) = self._add_liquidity(
+            let (amount_a, amount_native) = self.calculate_liquidity(
                 token,
                 wnative,
                 amount_token_desired,
@@ -277,15 +304,17 @@ pub mod router {
             let pair_contract = self.get_pair(token, wnative)?;
 
             let caller = self.env().caller();
-            safe_transfer_from(token, caller, pair_contract, amount_a)?;
-            wrap(&wnative, amount_native)?;
-            safe_transfer(wnative, pair_contract, amount_native)?;
+            psp22_transfer_from(token, caller, pair_contract, amount_a)?;
+            self.wrap(amount_native)?;
+            psp22_transfer(wnative, pair_contract, amount_native)?;
 
             let mut pair: contract_ref!(Pair) = pair_contract.into();
             let liquidity = pair.mint(to)?;
 
             if received_value > amount_native {
-                safe_transfer_native(caller, received_value - amount_native)?
+                self.env()
+                    .transfer(caller, received_value - amount_native)
+                    .map_err(|_| RouterError::TransferError)?;
             }
 
             Ok((amount_a, amount_native, liquidity))
@@ -306,7 +335,7 @@ pub mod router {
             ensure!(token_a != token_b, RouterError::IdenticalAddresses);
             let pair_contract = self.get_pair(token_a, token_b)?;
 
-            safe_transfer_from(pair_contract, self.env().caller(), pair_contract, liquidity)?;
+            psp22_transfer_from(pair_contract, self.env().caller(), pair_contract, liquidity)?;
 
             let mut pair: contract_ref!(Pair) = pair_contract.into();
 
@@ -362,9 +391,11 @@ pub mod router {
                 self.env().account_id(),
                 deadline,
             )?;
-            safe_transfer(token, to, amount_token)?;
-            unwrap(&wnative, amount_native)?;
-            safe_transfer_native(to, amount_native)?;
+            psp22_transfer(token, to, amount_token)?;
+            self.wnative_ref().withdraw(amount_native)?;
+            self.env()
+                .transfer(to, amount_native)
+                .map_err(|_| RouterError::TransferError)?;
             Ok((amount_token, amount_native))
         }
 
@@ -378,12 +409,12 @@ pub mod router {
             deadline: u64,
         ) -> Result<Vec<Balance>, RouterError> {
             self.check_timestamp(deadline)?;
-            let amounts = self._get_amounts_out(amount_in, &path)?;
+            let amounts = self.calculate_amounts_out(amount_in, &path)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
                 RouterError::InsufficientOutputAmount
             );
-            safe_transfer_from(
+            psp22_transfer_from(
                 path[0],
                 self.env().caller(),
                 self.get_pair(path[0], path[1])?,
@@ -403,12 +434,12 @@ pub mod router {
             deadline: u64,
         ) -> Result<Vec<Balance>, RouterError> {
             self.check_timestamp(deadline)?;
-            let amounts = self._get_amounts_in(amount_out, &path)?;
+            let amounts = self.calculate_amounts_in(amount_out, &path)?;
             ensure!(
                 amounts[0] <= amount_in_max,
                 RouterError::ExcessiveInputAmount
             );
-            safe_transfer_from(
+            psp22_transfer_from(
                 path[0],
                 self.env().caller(),
                 self.get_pair(path[0], path[1])?,
@@ -430,13 +461,13 @@ pub mod router {
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
             ensure!(path[0] == wnative, RouterError::InvalidPath);
-            let amounts = self._get_amounts_out(received_value, &path)?;
+            let amounts = self.calculate_amounts_out(received_value, &path)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
                 RouterError::InsufficientOutputAmount
             );
-            wrap(&wnative, received_value)?;
-            safe_transfer(wnative, self.get_pair(path[0], path[1])?, amounts[0])?;
+            self.wrap(received_value)?;
+            psp22_transfer(wnative, self.get_pair(path[0], path[1])?, amounts[0])?;
             self.swap(&amounts, &path, to)?;
             Ok(amounts)
         }
@@ -453,12 +484,12 @@ pub mod router {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
-            let amounts = self._get_amounts_in(amount_out, &path)?;
+            let amounts = self.calculate_amounts_in(amount_out, &path)?;
             ensure!(
                 amounts[0] <= amount_in_max,
                 RouterError::ExcessiveInputAmount
             );
-            safe_transfer_from(
+            psp22_transfer_from(
                 path[0],
                 self.env().caller(),
                 self.get_pair(path[0], path[1])?,
@@ -466,8 +497,10 @@ pub mod router {
             )?;
             self.swap(&amounts, &path, self.env().account_id())?;
             let native_out = amounts[amounts.len() - 1];
-            unwrap(&wnative, native_out)?;
-            safe_transfer_native(to, native_out)?;
+            self.wnative_ref().withdraw(native_out)?;
+            self.env()
+                .transfer(to, native_out)
+                .map_err(|_| RouterError::TransferError)?;
             Ok(amounts)
         }
 
@@ -483,21 +516,23 @@ pub mod router {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
-            let amounts = self._get_amounts_out(amount_in, &path)?;
+            let amounts = self.calculate_amounts_out(amount_in, &path)?;
             let native_out = amounts[amounts.len() - 1];
             ensure!(
                 native_out >= amount_out_min,
                 RouterError::InsufficientOutputAmount
             );
-            safe_transfer_from(
+            psp22_transfer_from(
                 path[0],
                 self.env().caller(),
                 self.get_pair(path[0], path[1])?,
                 amounts[0],
             )?;
             self.swap(&amounts, &path, self.env().account_id())?;
-            unwrap(&wnative, native_out)?;
-            safe_transfer_native(to, native_out)?;
+            self.wnative_ref().withdraw(native_out)?;
+            self.env()
+                .transfer(to, native_out)
+                .map_err(|_| RouterError::TransferError)?;
             Ok(amounts)
         }
 
@@ -513,17 +548,19 @@ pub mod router {
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
             ensure!(path[0] == wnative, RouterError::InvalidPath);
-            let amounts = self._get_amounts_in(amount_out, &path)?;
+            let amounts = self.calculate_amounts_in(amount_out, &path)?;
             let native_in = amounts[0];
             ensure!(
                 native_in <= received_native,
                 RouterError::ExcessiveInputAmount
             );
-            wrap(&wnative, native_in)?;
-            safe_transfer(wnative, self.get_pair(path[0], path[1])?, native_in)?;
+            self.wrap(native_in)?;
+            psp22_transfer(wnative, self.get_pair(path[0], path[1])?, native_in)?;
             self.swap(&amounts, &path, to)?;
             if received_native > native_in {
-                safe_transfer_native(self.env().caller(), received_native - native_in)?
+                self.env()
+                    .transfer(self.env().caller(), received_native - native_in)
+                    .map_err(|_| RouterError::TransferError)?;
             }
             Ok(amounts)
         }
@@ -633,7 +670,7 @@ pub mod router {
             amount_in: Balance,
             path: Vec<AccountId>,
         ) -> Result<Vec<Balance>, RouterError> {
-            self._get_amounts_out(amount_in, &path)
+            self.calculate_amounts_out(amount_in, &path)
         }
 
         #[ink(message)]
@@ -642,8 +679,25 @@ pub mod router {
             amount_out: Balance,
             path: Vec<AccountId>,
         ) -> Result<Vec<Balance>, RouterError> {
-            self._get_amounts_in(amount_out, &path)
+            self.calculate_amounts_in(amount_out, &path)
         }
+    }
+
+    #[inline]
+    fn psp22_transfer(token: AccountId, to: AccountId, value: Balance) -> Result<(), PSP22Error> {
+        let mut token: contract_ref!(PSP22) = token.into();
+        token.transfer(to, value, Vec::new())
+    }
+
+    #[inline]
+    fn psp22_transfer_from(
+        token: AccountId,
+        from: AccountId,
+        to: AccountId,
+        value: Balance,
+    ) -> Result<(), PSP22Error> {
+        let mut token: contract_ref!(PSP22) = token.into();
+        token.transfer_from(from, to, value, Vec::new())
     }
 
     #[cfg(test)]

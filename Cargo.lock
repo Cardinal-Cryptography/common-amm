@@ -867,6 +867,7 @@ dependencies = [
  "ink",
  "parity-scale-codec",
  "primitive-types",
+ "psp22",
  "scale-info",
 ]
 
