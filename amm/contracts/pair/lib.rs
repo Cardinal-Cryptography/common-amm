@@ -11,7 +11,6 @@ pub mod pair {
     use amm::{
         ensure,
         helpers::{
-            transfer_helper::safe_transfer,
             MINIMUM_LIQUIDITY,
             ZERO_ADDRESS,
         },
@@ -113,15 +112,30 @@ pub mod pair {
         }
 
         #[inline]
+        fn token_0(&self) -> contract_ref!(PSP22) {
+            self.pair.token_0.into()
+        }
+
+        #[inline]
+        fn token_1(&self) -> contract_ref!(PSP22) {
+            self.pair.token_0.into()
+        }
+
+        #[inline]
+        fn factory(&self) -> contract_ref!(Factory) {
+            self.pair.factory.into()
+        }
+
+        #[inline]
         fn token_balances(&self, who: AccountId) -> (Balance, Balance) {
-            let token_0: contract_ref!(PSP22) = self.pair.token_0.into();
-            let token_1: contract_ref!(PSP22) = self.pair.token_1.into();
-            (token_0.balance_of(who), token_1.balance_of(who))
+            (
+                self.token_0().balance_of(who),
+                self.token_1().balance_of(who),
+            )
         }
 
         fn mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError> {
-            let factory_ref: contract_ref!(Factory) = self.pair.factory.into();
-            let fee_to = factory_ref.fee_to();
+            let fee_to = self.factory().fee_to();
             let fee_on = fee_to != ZERO_ADDRESS.into();
             let k_last: U256 = self.pair.k_last.into();
             if fee_on {
@@ -304,8 +318,6 @@ pub mod pair {
         fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError> {
             let reserves = self.get_reserves();
             let contract = self.env().account_id();
-            let token_0 = self.pair.token_0;
-            let token_1 = self.pair.token_1;
             let (balance_0_before, balance_1_before) = self.token_balances(contract);
             let liquidity = self.balance_of(contract);
 
@@ -330,8 +342,8 @@ pub mod pair {
             let events = self.psp22.burn(contract, liquidity)?;
             self.emit_events(events);
 
-            safe_transfer(token_0, to, amount_0)?;
-            safe_transfer(token_1, to, amount_1)?;
+            self.token_0().transfer(to, amount_0, Vec::new())?;
+            self.token_1().transfer(to, amount_1, Vec::new())?;
 
             let (balance_0_after, balance_1_after) = self.token_balances(contract);
 
@@ -373,10 +385,10 @@ pub mod pair {
 
             ensure!(to != token_0 && to != token_1, PairError::InvalidTo);
             if amount_0_out > 0 {
-                safe_transfer(token_0, to, amount_0_out)?;
+                self.token_0().transfer(to, amount_0_out, Vec::new())?;
             }
             if amount_1_out > 0 {
-                safe_transfer(token_1, to, amount_1_out)?;
+                self.token_1().transfer(to, amount_1_out, Vec::new())?;
             }
             let contract = self.env().account_id();
             let (balance_0, balance_1) = self.token_balances(contract);
@@ -459,23 +471,17 @@ pub mod pair {
             let contract = self.env().account_id();
             let reserve_0 = self.pair.reserve_0;
             let reserve_1 = self.pair.reserve_1;
-            let token_0 = self.pair.token_0;
-            let token_1 = self.pair.token_1;
             let (balance_0, balance_1) = self.token_balances(contract);
-            safe_transfer(
-                token_0,
-                to,
+            let (amount_0, amount_1) = (
                 balance_0
                     .checked_sub(reserve_0)
                     .ok_or(PairError::SubUnderFlow12)?,
-            )?;
-            safe_transfer(
-                token_1,
-                to,
                 balance_1
                     .checked_sub(reserve_1)
                     .ok_or(PairError::SubUnderFlow13)?,
-            )?;
+            );
+            self.token_0().transfer(to, amount_0, Vec::new())?;
+            self.token_1().transfer(to, amount_1, Vec::new())?;
             Ok(())
         }
 
