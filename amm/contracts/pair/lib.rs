@@ -118,7 +118,7 @@ pub mod pair {
 
         #[inline]
         fn token_1(&self) -> contract_ref!(PSP22) {
-            self.pair.token_0.into()
+            self.pair.token_1.into()
         }
 
         #[inline]
