@@ -142,7 +142,7 @@ mod farm {
                     to_refund.push((token_id, 0));
                     continue
                 }
-                let psp22_ref: ink::contract_ref!(PSP22) = token_id.into();
+                let psp22_ref = token_id.into();
                 let balance: Balance = safe_balance_of(&psp22_ref, self.env().account_id());
                 let refund_amount = balance.saturating_sub(reserved);
                 to_refund.push((token_id, refund_amount));
@@ -161,9 +161,8 @@ mod farm {
             self.state.set(&running);
 
             for (token_id, refund_amount) in to_refund {
-                let mut psp22_ref: ink::contract_ref!(PSP22) = token_id.into();
-
                 if refund_amount > 0 {
+                    let mut psp22_ref = token_id.into();
                     safe_transfer(&mut psp22_ref, running.owner, refund_amount)?;
                 }
             }
@@ -530,7 +529,7 @@ mod farm {
         ) -> Result<(), FarmError> {
             let past = core::cmp::max(self.timestamp_at_last_update, self.start) as u128;
             let now = core::cmp::min(current_timestamp, self.end) as u128;
-            if past > now || past == now || self.timestamp_at_last_update == current_timestamp {
+            if past >= now || self.timestamp_at_last_update == current_timestamp {
                 return Ok(())
             }
 
