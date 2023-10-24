@@ -13,6 +13,14 @@ pub const ZERO_ADDRESS: [u8; 32] = [
 #[allow(unused)]
 const ZERO_ADDRESS_MSG: &str = "This is Aleph Zero DEX's zero address.";
 
+/// Minimum liquidity threshold that is subtracted
+/// from the minted liquidity and sent to the `ZERO_ADDRESS`.
+/// Prevents price manipulation and saturation.
+/// See UniswapV2 whitepaper for more details.
+/// NOTE: This value is taken from UniswapV2 whitepaper and is correct
+/// only for liquidity tokens with precision = 18.
+pub const MINIMUM_LIQUIDITY: u128 = 1000;
+
 #[cfg(test)]
 mod zero_address {
     use curve25519_dalek::ristretto::RistrettoPoint;
@@ -22,8 +30,8 @@ mod zero_address {
 
     #[test]
     fn test_zero_address() {
-        let P = RistrettoPoint::hash_from_bytes::<Sha512>(ZERO_ADDRESS_MSG.as_bytes());
-        let zero_address_address = P.compress();
+        let p = RistrettoPoint::hash_from_bytes::<Sha512>(ZERO_ADDRESS_MSG.as_bytes());
+        let zero_address_address = p.compress();
         assert_eq!(super::ZERO_ADDRESS, zero_address_address.to_bytes());
     }
 }

@@ -14,7 +14,6 @@ scale-info = { version = "2.3", default-features = false, features = [
     "derive",
 ], optional = true }
 
-openbrush = { version = "3.2.0", default-features = false }
 primitive-types = { version = "0.12.1", default-features = false, features = [
     "codec",
 ] }
@@ -34,7 +33,6 @@ std = [
     "scale/std",
     "scale-info/std",
     "psp22-traits/std",
-    "openbrush/std",
     "primitive-types/std",
     "primitive-types/scale-info",
     "farm-manager-trait/std",

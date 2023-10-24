@@ -1,14 +1,8 @@
 use crate::traits::pair::PairError;
-use ink::{
-    contract_ref,
-    env::DefaultEnvironment,
-    primitives::{
-        AccountId,
-        Hash,
-    },
+use ink::primitives::{
+    AccountId,
+    Hash,
 };
-
-pub type FactoryRef = contract_ref!(Factory, DefaultEnvironment);
 
 /// Factory trait for tracking all pairs within the UniswapV2 DEX.
 /// Creates new, unique instances of `Pair` smart contract per token pairs.

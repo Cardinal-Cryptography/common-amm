@@ -1,41 +1,43 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
-#![feature(min_specialization)]
 
-#[openbrush::contract]
+mod data;
+
+#[ink::contract]
 pub mod pair {
+    use crate::data::Data;
     use amm::{
         ensure,
         helpers::{
-            transfer_helper::safe_transfer,
+            helper::update_cumulative,
+            transfer_helper::{
+                balance_of,
+                safe_transfer,
+            },
+            MINIMUM_LIQUIDITY,
             ZERO_ADDRESS,
         },
-        impls::pair::{
+        traits::{
+            factory::Factory,
             pair::{
-                Internal,
-                MINIMUM_LIQUIDITY,
+                Pair,
+                PairError,
             },
-            *,
         },
-        traits::pair::*,
     };
     use amm_helpers::{
         math::casted_mul,
         types::WrappedU256,
     };
     use ink::{
-        codegen::{
-            EmitEvent,
-            Env,
-        },
+        contract_ref,
         prelude::vec::Vec,
     };
-    use openbrush::{
-        contracts::{
-            psp22::*,
-            reentrancy_guard::*,
-        },
-        modifiers,
-        traits::Storage,
+    use primitive_types::U256;
+    use psp22::{
+        PSP22Data,
+        PSP22Error,
+        PSP22Event,
+        PSP22,
     };
     use sp_arithmetic::traits::IntegerSquareRoot;
 
@@ -90,18 +92,123 @@ pub mod pair {
         owner: AccountId,
         #[ink(topic)]
         spender: AccountId,
-        value: Balance,
+        amount: Balance,
     }
 
     #[ink(storage)]
-    #[derive(Default, Storage)]
+    #[derive(Default)]
     pub struct PairContract {
-        #[storage_field]
-        psp22: psp22::Data,
-        #[storage_field]
-        guard: reentrancy_guard::Data,
-        #[storage_field]
-        pair: data::Data,
+        psp22: PSP22Data,
+        pair: Data,
+    }
+
+    impl PairContract {
+        #[ink(constructor)]
+        pub fn new(token_a: AccountId, token_b: AccountId) -> Self {
+            let mut instance = Self::default();
+            let caller = instance.env().caller();
+            instance.pair.token_0 = token_a;
+            instance.pair.token_1 = token_b;
+            instance.pair.factory = caller;
+            instance
+        }
+
+        fn mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError> {
+            let factory_ref: contract_ref!(Factory) = self.pair.factory.into();
+            let fee_to = factory_ref.fee_to();
+            let fee_on = fee_to != ZERO_ADDRESS.into();
+            let k_last: U256 = self.pair.k_last.into();
+            if fee_on {
+                // Section 2.4 Protocol fee in the whitepaper.
+                if !k_last.is_zero() {
+                    let root_k: Balance = casted_mul(reserve_0, reserve_1)
+                        .integer_sqrt()
+                        .try_into()
+                        .map_err(|_| PairError::CastOverflow1)?;
+                    let root_k_last = k_last
+                        .integer_sqrt()
+                        .try_into()
+                        .map_err(|_| PairError::CastOverflow2)?;
+                    if root_k > root_k_last {
+                        let total_supply = self.psp22.total_supply();
+                        let numerator = total_supply
+                            .checked_mul(
+                                root_k
+                                    .checked_sub(root_k_last)
+                                    .ok_or(PairError::SubUnderFlow14)?,
+                            )
+                            .ok_or(PairError::MulOverFlow13)?;
+                        let denominator = root_k
+                            .checked_mul(5)
+                            .ok_or(PairError::MulOverFlow13)?
+                            .checked_add(root_k_last)
+                            .ok_or(PairError::AddOverflow1)?;
+                        let liquidity = numerator
+                            .checked_div(denominator)
+                            .ok_or(PairError::DivByZero5)?;
+                        if liquidity > 0 {
+                            let events = self.psp22.mint(fee_to, liquidity)?;
+                            self.emit_events(events)
+                        }
+                    }
+                }
+            } else if !k_last.is_zero() {
+                self.pair.k_last = 0.into();
+            }
+            Ok(fee_on)
+        }
+
+        fn update(
+            &mut self,
+            balance_0: Balance,
+            balance_1: Balance,
+            reserve_0: Balance,
+            reserve_1: Balance,
+        ) -> Result<(), PairError> {
+            let now = Self::env().block_timestamp();
+            let last_timestamp = self.pair.block_timestamp_last;
+            if now != last_timestamp {
+                let (price_0_cumulative_last, price_1_cumulative_last) = update_cumulative(
+                    self.pair.price_0_cumulative_last,
+                    self.pair.price_1_cumulative_last,
+                    now.saturating_sub(last_timestamp).into(),
+                    reserve_0,
+                    reserve_1,
+                );
+                self.pair.price_0_cumulative_last = price_0_cumulative_last;
+                self.pair.price_1_cumulative_last = price_1_cumulative_last;
+            }
+            self.pair.reserve_0 = balance_0;
+            self.pair.reserve_1 = balance_1;
+            self.pair.block_timestamp_last = now;
+
+            self.env().emit_event(Sync {
+                reserve_0: balance_0,
+                reserve_1: balance_1,
+            });
+            Ok(())
+        }
+
+        fn emit_events(&self, events: Vec<PSP22Event>) {
+            for event in events {
+                match event {
+                    PSP22Event::Transfer { from, to, value } => {
+                        self.env().emit_event(Transfer { from, to, value })
+                    }
+                    PSP22Event::Approval {
+                        owner,
+                        spender,
+                        amount,
+                    } => {
+                        self.env().emit_event(Approval {
+                            owner,
+                            spender,
+                            amount,
+                        })
+                    }
+                }
+            }
+        }
     }
 
     impl Pair for PairContract {
@@ -123,13 +230,12 @@ pub mod pair {
             self.pair.price_1_cumulative_last
         }
 
-        #[modifiers(non_reentrant)]
         #[ink(message)]
         fn mint(&mut self, to: AccountId) -> Result<Balance, PairError> {
             let reserves = self.get_reserves();
             let contract = self.env().account_id();
-            let balance_0 = PSP22Ref::balance_of(&self.pair.token_0, contract);
-            let balance_1 = PSP22Ref::balance_of(&self.pair.token_1, contract);
+            let balance_0 = balance_of(self.pair.token_0, contract);
+            let balance_1 = balance_of(self.pair.token_1, contract);
             let amount_0_transferred = balance_0
                 .checked_sub(reserves.0)
                 .ok_or(PairError::SubUnderFlow1)?;
@@ -137,8 +243,8 @@ pub mod pair {
                 .checked_sub(reserves.1)
                 .ok_or(PairError::SubUnderFlow2)?;
 
-            let fee_on = self._mint_fee(reserves.0, reserves.1)?;
-            let total_supply = self.psp22.supply;
+            let fee_on = self.mint_fee(reserves.0, reserves.1)?;
+            let total_supply = self.psp22.total_supply();
 
             let liquidity;
             if total_supply == 0 {
@@ -149,7 +255,8 @@ pub mod pair {
                     .integer_sqrt()
                     .checked_sub(MINIMUM_LIQUIDITY)
                     .ok_or(PairError::SubUnderFlow3)?;
-                self._mint_to(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
+                let events = self.psp22.mint(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
+                self.emit_events(events)
             } else {
                 let liquidity_1 = amount_0_transferred
                     .checked_mul(total_supply)
@@ -161,41 +268,45 @@ pub mod pair {
                     .ok_or(PairError::MulOverFlow3)?
                     .checked_div(reserves.1)
                     .ok_or(PairError::DivByZero2)?;
-                liquidity = min(liquidity_1, liquidity_2);
+                liquidity = if liquidity_1 < liquidity_2 {
+                    liquidity_1
+                } else {
+                    liquidity_2
+                };
             }
 
             ensure!(liquidity > 0, PairError::InsufficientLiquidityMinted);
 
-            self._mint_to(to, liquidity)?;
+            let events = self.psp22.mint(to, liquidity)?;
+            self.emit_events(events);
 
-            self._update(balance_0, balance_1, reserves.0, reserves.1)?;
+            self.update(balance_0, balance_1, reserves.0, reserves.1)?;
 
             if fee_on {
                 self.pair.k_last = casted_mul(reserves.0, reserves.1).into();
             }
 
-            self._emit_mint_event(
-                self.env().caller(),
-                amount_0_transferred,
-                amount_1_transferred,
-            );
+            self.env().emit_event(Mint {
+                sender: self.env().caller(),
+                amount_0: amount_0_transferred,
+                amount_1: amount_1_transferred,
+            });
 
             Ok(liquidity)
         }
 
-        #[modifiers(non_reentrant)]
         #[ink(message)]
         fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError> {
             let reserves = self.get_reserves();
             let contract = self.env().account_id();
             let token_0 = self.pair.token_0;
             let token_1 = self.pair.token_1;
-            let balance_0_before = PSP22Ref::balance_of(&token_0, contract);
-            let balance_1_before = PSP22Ref::balance_of(&token_1, contract);
-            let liquidity = self._balance_of(&contract);
+            let balance_0_before = balance_of(token_0, contract);
+            let balance_1_before = balance_of(token_1, contract);
+            let liquidity = self.balance_of(contract);
 
-            let fee_on = self._mint_fee(reserves.0, reserves.1)?;
-            let total_supply = self.psp22.supply;
+            let fee_on = self.mint_fee(reserves.0, reserves.1)?;
+            let total_supply = self.psp22.total_supply();
             let amount_0 = liquidity
                 .checked_mul(balance_0_before)
                 .ok_or(PairError::MulOverFlow5)?
@@ -212,26 +323,31 @@ pub mod pair {
                 PairError::InsufficientLiquidityBurned
             );
 
-            self._burn_from(contract, liquidity)?;
+            let events = self.psp22.burn(contract, liquidity)?;
+            self.emit_events(events);
 
             safe_transfer(token_0, to, amount_0)?;
             safe_transfer(token_1, to, amount_1)?;
 
-            let balance_0_after = PSP22Ref::balance_of(&token_0, contract);
-            let balance_1_after = PSP22Ref::balance_of(&token_1, contract);
+            let balance_0_after = balance_of(token_0, contract);
+            let balance_1_after = balance_of(token_1, contract);
 
-            self._update(balance_0_after, balance_1_after, reserves.0, reserves.1)?;
+            self.update(balance_0_after, balance_1_after, reserves.0, reserves.1)?;
 
             if fee_on {
                 self.pair.k_last = casted_mul(reserves.0, reserves.1).into();
             }
 
-            self._emit_burn_event(self.env().caller(), amount_0, amount_1, to);
+            self.env().emit_event(Burn {
+                sender: self.env().caller(),
+                amount_0,
+                amount_1,
+                to,
+            });
 
             Ok((amount_0, amount_1))
         }
 
-        #[modifiers(non_reentrant)]
         #[ink(message)]
         fn swap(
             &mut self,
@@ -260,8 +376,8 @@ pub mod pair {
                 safe_transfer(token_1, to, amount_1_out)?;
             }
             let contract = self.env().account_id();
-            let balance_0 = PSP22Ref::balance_of(&token_0, contract);
-            let balance_1 = PSP22Ref::balance_of(&token_1, contract);
+            let balance_0 = balance_of(token_0, contract);
+            let balance_1 = balance_of(token_1, contract);
 
             let amount_0_in = if balance_0
                 > reserves
@@ -323,20 +439,19 @@ pub mod pair {
                 PairError::K
             );
 
-            self._update(balance_0, balance_1, reserves.0, reserves.1)?;
+            self.update(balance_0, balance_1, reserves.0, reserves.1)?;
 
-            self._emit_swap_event(
-                self.env().caller(),
+            self.env().emit_event(Swap {
+                sender: self.env().caller(),
                 amount_0_in,
                 amount_1_in,
                 amount_0_out,
                 amount_1_out,
                 to,
-            );
+            });
             Ok(())
         }
 
-        #[modifiers(non_reentrant)]
         #[ink(message)]
         fn skim(&mut self, to: AccountId) -> Result<(), PairError> {
             let contract = self.env().account_id();
@@ -344,8 +459,8 @@ pub mod pair {
             let reserve_1 = self.pair.reserve_1;
             let token_0 = self.pair.token_0;
             let token_1 = self.pair.token_1;
-            let balance_0 = PSP22Ref::balance_of(&token_0, contract);
-            let balance_1 = PSP22Ref::balance_of(&token_1, contract);
+            let balance_0 = balance_of(token_0, contract);
+            let balance_1 = balance_of(token_1, contract);
             safe_transfer(
                 token_0,
                 to,
@@ -363,7 +478,6 @@ pub mod pair {
             Ok(())
         }
 
-        #[modifiers(non_reentrant)]
         #[ink(message)]
         fn sync(&mut self) -> Result<(), PairError> {
             let contract = self.env().account_id();
@@ -371,9 +485,9 @@ pub mod pair {
             let reserve_1 = self.pair.reserve_1;
             let token_0 = self.pair.token_0;
             let token_1 = self.pair.token_1;
-            let balance_0 = PSP22Ref::balance_of(&token_0, contract);
-            let balance_1 = PSP22Ref::balance_of(&token_1, contract);
-            self._update(balance_0, balance_1, reserve_0, reserve_1)
+            let balance_0 = balance_of(token_0, contract);
+            let balance_1 = balance_of(token_1, contract);
+            self.update(balance_0, balance_1, reserve_0, reserve_1)
         }
 
         #[ink(message)]
@@ -387,175 +501,93 @@ pub mod pair {
         }
     }
 
-    fn min(x: u128, y: u128) -> u128 {
-        if x < y {
-            return x
-        }
-        y
-    }
-
     impl PSP22 for PairContract {
+        #[ink(message)]
+        fn total_supply(&self) -> u128 {
+            self.psp22.total_supply()
+        }
+
+        #[ink(message)]
+        fn balance_of(&self, owner: AccountId) -> u128 {
+            self.psp22.balance_of(owner)
+        }
+
+        #[ink(message)]
+        fn allowance(&self, owner: AccountId, spender: AccountId) -> u128 {
+            self.psp22.allowance(owner, spender)
+        }
+
+        #[ink(message)]
+        fn transfer(
+            &mut self,
+            to: AccountId,
+            value: u128,
+            _data: Vec<u8>,
+        ) -> Result<(), PSP22Error> {
+            let events = self.psp22.transfer(self.env().caller(), to, value)?;
+            self.emit_events(events);
+            Ok(())
+        }
+
         #[ink(message)]
         fn transfer_from(
             &mut self,
             from: AccountId,
             to: AccountId,
-            value: Balance,
-            data: Vec<u8>,
-        ) -> Result<(), PSP22Error> {
-            let caller = self.env().caller();
-            let allowance = self._allowance(&from, &caller);
-
-            // In uniswapv2 max allowance never decrease
-            if allowance != u128::MAX {
-                ensure!(allowance >= value, PSP22Error::InsufficientAllowance);
-                self._approve_from_to(from, caller, allowance - value)?;
-            }
-            self._transfer_from_to(from, to, value, data)?;
-            Ok(())
-        }
-    }
-
-    impl psp22::Internal for PairContract {
-        // in uniswapv2 no check for zero account
-        fn _mint_to(&mut self, account: AccountId, amount: Balance) -> Result<(), PSP22Error> {
-            let mut new_balance = self._balance_of(&account);
-            new_balance += amount;
-            self.psp22.balances.insert(&account, &new_balance);
-            self.psp22.supply += amount;
-            self._emit_transfer_event(None, Some(account), amount);
-            Ok(())
-        }
-
-        fn _burn_from(&mut self, account: AccountId, amount: Balance) -> Result<(), PSP22Error> {
-            let mut from_balance = self._balance_of(&account);
-
-            ensure!(from_balance >= amount, PSP22Error::InsufficientBalance);
-
-            from_balance -= amount;
-            self.psp22.balances.insert(&account, &from_balance);
-            self.psp22.supply -= amount;
-            self._emit_transfer_event(Some(account), None, amount);
-            Ok(())
-        }
-
-        fn _approve_from_to(
-            &mut self,
-            owner: AccountId,
-            spender: AccountId,
-            amount: Balance,
-        ) -> Result<(), PSP22Error> {
-            self.psp22.allowances.insert(&(&owner, &spender), &amount);
-            self._emit_approval_event(owner, spender, amount);
-            Ok(())
-        }
-
-        fn _transfer_from_to(
-            &mut self,
-            from: AccountId,
-            to: AccountId,
-            amount: Balance,
+            value: u128,
             _data: Vec<u8>,
         ) -> Result<(), PSP22Error> {
-            let from_balance = self._balance_of(&from);
-
-            ensure!(from_balance >= amount, PSP22Error::InsufficientBalance);
-
-            self.psp22.balances.insert(&from, &(from_balance - amount));
-            let to_balance = self._balance_of(&to);
-            self.psp22.balances.insert(&to, &(to_balance + amount));
-
-            self._emit_transfer_event(Some(from), Some(to), amount);
+            let caller = self.env().caller();
+            let infinite_allowance = self.psp22.allowance(from, caller) == u128::MAX;
+            let mut events = self
+                .psp22
+                .transfer_from(self.env().caller(), from, to, value)?;
+            if infinite_allowance {
+                self.psp22.approve(from, caller, u128::MAX)?;
+                events.remove(0);
+            }
+            self.emit_events(events);
             Ok(())
         }
 
-        fn _emit_approval_event(&self, owner: AccountId, spender: AccountId, amount: Balance) {
-            self.env().emit_event(Approval {
-                owner,
-                spender,
-                value: amount,
-            });
+        #[ink(message)]
+        fn approve(&mut self, spender: AccountId, value: u128) -> Result<(), PSP22Error> {
+            let events = self.psp22.approve(self.env().caller(), spender, value)?;
+            self.emit_events(events);
+            Ok(())
         }
 
-        fn _emit_transfer_event(
-            &self,
-            from: Option<AccountId>,
-            to: Option<AccountId>,
-            amount: Balance,
-        ) {
-            self.env().emit_event(Transfer {
-                from,
-                to,
-                value: amount,
-            });
+        #[ink(message)]
+        fn increase_allowance(
+            &mut self,
+            spender: AccountId,
+            delta_value: u128,
+        ) -> Result<(), PSP22Error> {
+            let events =
+                self.psp22
+                    .increase_allowance(self.env().caller(), spender, delta_value)?;
+            self.emit_events(events);
+            Ok(())
+        }
+
+        #[ink(message)]
+        fn decrease_allowance(
+            &mut self,
+            spender: AccountId,
+            delta_value: u128,
+        ) -> Result<(), PSP22Error> {
+            let events =
+                self.psp22
+                    .decrease_allowance(self.env().caller(), spender, delta_value)?;
+            self.emit_events(events);
+            Ok(())
         }
     }
 
-    impl pair::Internal for PairContract {
-        fn _emit_mint_event(&self, sender: AccountId, amount_0: Balance, amount_1: Balance) {
-            self.env().emit_event(Mint {
-                sender,
-                amount_0,
-                amount_1,
-            })
-        }
-
-        fn _emit_burn_event(
-            &self,
-            sender: AccountId,
-            amount_0: Balance,
-            amount_1: Balance,
-            to: AccountId,
-        ) {
-            self.env().emit_event(Burn {
-                sender,
-                amount_0,
-                amount_1,
-                to,
-            })
-        }
-
-        fn _emit_swap_event(
-            &self,
-            sender: AccountId,
-            amount_0_in: Balance,
-            amount_1_in: Balance,
-            amount_0_out: Balance,
-            amount_1_out: Balance,
-            to: AccountId,
-        ) {
-            self.env().emit_event(Swap {
-                sender,
-                amount_0_in,
-                amount_1_in,
-                amount_0_out,
-                amount_1_out,
-                to,
-            })
-        }
-
-        fn _emit_sync_event(&self, reserve_0: Balance, reserve_1: Balance) {
-            self.env().emit_event(Sync {
-                reserve_0,
-                reserve_1,
-            })
-        }
-    }
-
-    impl PairContract {
-        #[ink(constructor)]
-        pub fn new(token_a: AccountId, token_b: AccountId) -> Self {
-            let mut instance = Self::default();
-            let caller = instance.env().caller();
-            instance.pair.token_0 = token_a;
-            instance.pair.token_1 = token_b;
-            instance.pair.factory = caller;
-            instance
-        }
-    }
     #[cfg(test)]
     mod tests {
         use super::*;
+        use sp_arithmetic::FixedU128;
 
         #[ink::test]
         fn initialize_works() {
@@ -564,6 +596,28 @@ pub mod pair {
             let pair = PairContract::new(token_0, token_1);
             assert_eq!(pair.get_token_0(), token_0);
             assert_eq!(pair.get_token_1(), token_1);
+        }
+
+        #[ink::test]
+        fn update_cumulative_from_zero_time_elapsed() {
+            let (cumulative0, cumulative1) =
+                update_cumulative(0.into(), 0.into(), 0.into(), 10, 10);
+            assert_eq!(cumulative0, 0.into());
+            assert_eq!(cumulative1, 0.into());
+        }
+
+        #[ink::test]
+        fn update_cumulative_from_one_time_elapsed() {
+            let (cumulative0, cumulative1) =
+                update_cumulative(0.into(), 0.into(), 1.into(), 10, 10);
+            assert_eq!(
+                FixedU128::from_inner(U256::from(cumulative0).as_u128()),
+                1.into()
+            );
+            assert_eq!(
+                FixedU128::from_inner(U256::from(cumulative1).as_u128()),
+                1.into()
+            );
         }
     }
 }
