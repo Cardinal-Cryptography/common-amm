@@ -262,17 +262,15 @@ mod farm {
         #[ink(message)]
         pub fn claimable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
             let manager: contract_ref!(FarmManager) = self.manager.into();
-
-            let shares = manager.balance_of(account);
-            if shares == 0 {
+            let user_shares = manager.balance_of(account);
+            if user_shares == 0 {
                 return Err(FarmError::CallerNotFarmer)
             }
-
             let total_shares = manager.total_supply();
-
             let mut state = self.get_state()?;
             state.update_rewards(total_shares, self.env().block_timestamp())?;
-            state.move_unclaimed_rewards_to_claimable(shares, account)?;
+            let _newly_earned_rewards =
+                state.move_unclaimed_rewards_to_claimable(user_shares, account)?;
             state.unclaimed_rewards(account)
             // note that without state.set() this is still immutable
         }
@@ -334,31 +332,15 @@ mod farm {
 
         /// Returns the amount of new rewards per token that have been accumulated for the given account.
         fn update_reward_index(&mut self) -> Result<Vec<u128>, FarmError> {
-            self.update_rewards()?;
-            self.update_user_rewards(self.env().caller())
-        }
-
-        /// Updates the rewards for the farm instance.
-        ///
-        /// # Errors
-        ///
-        /// Returns a `FarmError` if the farm instance state cannot be retrieved or updated.
-        fn update_rewards(&mut self) -> Result<(), FarmError> {
-            let manager: contract_ref!(FarmManager) = self.manager.into();
-            let total_shares = manager.total_supply();
-            let mut state = self.get_state()?;
-            state.update_rewards(total_shares, self.env().block_timestamp())?;
-            self.state.set(&state);
-            Ok(())
-        }
-
-        fn update_user_rewards(&mut self, account: AccountId) -> Result<Vec<u128>, FarmError> {
+            let account = self.env().caller();
             let manager: contract_ref!(FarmManager) = self.manager.into();
             let user_shares = manager.balance_of(account);
             if user_shares == 0 {
                 return Err(FarmError::CallerNotFarmer)
             }
+            let total_shares = manager.total_supply();
             let mut state = self.get_state()?;
+            state.update_rewards(total_shares, self.env().block_timestamp())?;
             let newly_earned_rewards =
                 state.move_unclaimed_rewards_to_claimable(user_shares, account)?;
             self.state.set(&state);
@@ -522,7 +504,7 @@ mod farm {
     }
 
     impl State {
-        /// Updates the rewards that should be paid out to liquidity providers, based on the total shares and current timestamp.
+        /// Updates the rewards that should be paid out to liquidity providers since the last update.
         /// Returns an error if there was an issue calculating the rewards.
         pub fn update_rewards(
             &mut self,
