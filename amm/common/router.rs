@@ -1,8 +1,6 @@
 use crate::{
-    traits::{
-        factory::FactoryError,
-        pair::PairError,
-    },
+    factory::FactoryError,
+    pair::PairError,
     Balance,
 };
 use ink::{

@@ -2,7 +2,7 @@
 
 #[ink::contract]
 pub mod wnative {
-    use amm::traits::wnative::Wnative;
+    use common::wnative::Wnative;
     use ink::prelude::{
         string::String,
         vec::Vec,

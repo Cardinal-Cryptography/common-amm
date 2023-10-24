@@ -2,13 +2,13 @@
 
 #[ink::contract]
 pub mod factory {
-    use amm::{
+    use common::{
         ensure,
-        helpers::ZERO_ADDRESS,
-        traits::factory::{
+        factory::{
             Factory,
             FactoryError,
         },
+        ZERO_ADDRESS,
     };
     use ink::{
         codegen::EmitEvent,
@@ -202,7 +202,7 @@ pub mod factory {
         fn initialize_works() {
             let accounts = default_accounts::<ink::env::DefaultEnvironment>();
             let factory = FactoryContract::new(accounts.alice, Hash::default());
-            assert_eq!(factory.fee_to, amm::helpers::ZERO_ADDRESS.into());
+            assert_eq!(factory.fee_to, common::ZERO_ADDRESS.into());
         }
     }
 }

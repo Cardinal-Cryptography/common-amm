@@ -8,23 +8,19 @@ pub mod pair {
         update_cumulative,
         Data,
     };
-    use amm::{
-        ensure,
-        helpers::{
-            MINIMUM_LIQUIDITY,
-            ZERO_ADDRESS,
-        },
-        traits::{
-            factory::Factory,
-            pair::{
-                Pair,
-                PairError,
-            },
-        },
-    };
     use amm_helpers::{
         math::casted_mul,
         types::WrappedU256,
+    };
+    use common::{
+        ensure,
+        factory::Factory,
+        pair::{
+            Pair,
+            PairError,
+        },
+        MINIMUM_LIQUIDITY,
+        ZERO_ADDRESS,
     };
     use ink::{
         contract_ref,

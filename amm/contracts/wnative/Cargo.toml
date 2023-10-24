@@ -14,7 +14,7 @@ scale-info = { version = "2.9", default-features = false, features = [
     "derive",
 ], optional = true }
 
-amm = { path = "../../logics", default-features = false }
+common = { path = "../../common", default-features = false }
 
 psp22 = { git = "https://github.com/Cardinal-Cryptography/PSP22.git", default-features = false }
 
@@ -29,7 +29,7 @@ std = [
     "scale/std",
     "scale-info",
     "scale-info/std",
-    "amm/std",
+    "common/std",
     "psp22/std",
 ]
 ink-as-dependency = []

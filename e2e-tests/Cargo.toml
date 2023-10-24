@@ -19,7 +19,7 @@ aleph_client = "3.0.0"
 ink_primitives = "4.2.1"
 ink-wrapper-types = "0.5.0"
 
-amm = { path = "../amm/logics" }
+common = { path = "../amm/common" }
 
 [lib]
 doctest = false

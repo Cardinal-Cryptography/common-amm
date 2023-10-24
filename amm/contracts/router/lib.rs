@@ -2,19 +2,17 @@
 
 #[ink::contract]
 pub mod router {
-    use amm::{
-        ensure,
-        traits::{
-            factory::Factory,
-            pair::Pair,
-            router::{
-                Router,
-                RouterError,
-            },
-            wnative::Wnative,
-        },
-    };
     use amm_helpers::math::casted_mul;
+    use common::{
+        ensure,
+        factory::Factory,
+        pair::Pair,
+        router::{
+            Router,
+            RouterError,
+        },
+        wnative::Wnative,
+    };
     use ink::{
         codegen::TraitCallBuilder,
         contract_ref,

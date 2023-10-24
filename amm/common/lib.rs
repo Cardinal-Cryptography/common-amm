@@ -1,3 +1,14 @@
+#![cfg_attr(not(feature = "std"), no_std, no_main)]
+
+pub mod factory;
+pub mod pair;
+pub mod router;
+pub mod wnative;
+
+pub use ink::env::DefaultEnvironment as Env;
+pub type Balance = <Env as ink::env::Environment>::Balance;
+pub type Timestamp = <Env as ink::env::Environment>::Timestamp;
+
 /// Zero address for which the private key is unknown.
 /// This is used for the feeTo and feeToSetter addresses in the factory contract a
 /// and for sending MINIMUM_LIQUIDITY when minting tokens in Pair contract.
