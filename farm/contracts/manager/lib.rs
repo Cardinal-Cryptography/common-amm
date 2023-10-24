@@ -146,7 +146,7 @@ mod manager {
             amount: u128,
         ) -> Result<(), FarmManagerError> {
             let caller = self.env().caller();
-            if !self.farms.contains(&caller) {
+            if !self.farms.contains(caller) {
                 return Err(FarmManagerError::FarmUnknown(caller))
             }
             let shares = self.shares.get(account).unwrap_or(0);
@@ -168,7 +168,7 @@ mod manager {
             amount: u128,
         ) -> Result<(), FarmManagerError> {
             let caller = self.env().caller();
-            if !self.farms.contains(&caller) {
+            if !self.farms.contains(caller) {
                 return Err(FarmManagerError::FarmUnknown(caller))
             }
             let shares = self.shares.get(account).unwrap_or(0);

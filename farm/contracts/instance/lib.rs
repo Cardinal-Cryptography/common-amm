@@ -22,14 +22,10 @@ mod farm {
         UserPositionView,
     };
 
-    use crate::{
-        calculate_rewards_earned,
-        reward_per_share,
-    };
+    use crate::calculate_rewards_earned;
 
     use openbrush::modifiers;
 
-    use primitive_types::U256;
     use psp22_traits::PSP22;
 
     use ink::{
@@ -133,6 +129,7 @@ mod farm {
         #[ink(message)]
         #[modifiers(ensure_running(false))]
         pub fn withdraw_reward_tokens(&mut self) -> Result<(), FarmError> {
+            self.update_reward_index()?;
             let mut running = self.get_state()?;
 
             let mut to_refund: Vec<(AccountId, u128)> =
@@ -140,7 +137,7 @@ mod farm {
 
             for reward_token in running.reward_tokens_info.iter() {
                 let token_id = reward_token.token_id;
-                let reserved = reward_token.total_unclaimed_rewards;
+                let reserved = reward_token.unclaimed_rewards_total;
                 if reserved == 0 {
                     // If there are no yet-unclaimed rewards, nothing is reserved
                     // and we can skip this reward token (most probably all iterations will be skipped).
@@ -158,7 +155,7 @@ mod farm {
                 .clone()
                 .into_iter()
                 .map(|mut rti| {
-                    rti.total_unclaimed_rewards = 0;
+                    rti.unclaimed_rewards_total = 0;
                     rti
                 })
                 .collect();
@@ -241,9 +238,9 @@ mod farm {
                 if user_reward > 0 {
                     let mut psp22_ref: ink::contract_ref!(PSP22) =
                         state.reward_tokens_info[idx].token_id.into();
-                    state.reward_tokens_info[idx].total_unclaimed_rewards = state
+                    state.reward_tokens_info[idx].unclaimed_rewards_total = state
                         .reward_tokens_info[idx]
-                        .total_unclaimed_rewards
+                        .unclaimed_rewards_total
                         .saturating_sub(user_reward);
                     safe_transfer(&mut psp22_ref, caller, user_reward)?;
                 }
@@ -271,13 +268,13 @@ mod farm {
                 return Err(FarmError::CallerNotFarmer)
             }
 
-            let state = self.get_state()?;
-            let rewards_per_token =
-                state.rewards_per_token(manager.total_supply(), self.env().block_timestamp())?;
+            let total_shares = manager.total_supply();
 
-            let user_rewards = state.rewards_earned(account, shares, &rewards_per_token)?;
-
-            Ok(user_rewards)
+            let mut state = self.get_state()?;
+            state.update_rewards(total_shares, self.env().block_timestamp())?;
+            state.move_unclaimed_rewards_to_claimable(shares, account)?;
+            state.unclaimed_rewards(account)
+            // note that without state.set() this is still immutable
         }
 
         /// Returns view structure with details about the currently active farm.
@@ -337,46 +334,35 @@ mod farm {
 
         /// Returns the amount of new rewards per token that have been accumulated for the given account.
         fn update_reward_index(&mut self) -> Result<Vec<u128>, FarmError> {
-            let manager: contract_ref!(FarmManager) = self.manager.into();
+            self.update_rewards()?;
+            self.update_user_rewards(self.env().caller())
+        }
 
-            let account = self.env().caller();
-            let shares = manager.balance_of(account);
-            if shares == 0 {
+        /// Updates the rewards for the farm instance.
+        ///
+        /// # Errors
+        ///
+        /// Returns a `FarmError` if the farm instance state cannot be retrieved or updated.
+        fn update_rewards(&mut self) -> Result<(), FarmError> {
+            let manager: contract_ref!(FarmManager) = self.manager.into();
+            let total_shares = manager.total_supply();
+            let mut state = self.get_state()?;
+            state.update_rewards(total_shares, self.env().block_timestamp())?;
+            self.state.set(&state);
+            Ok(())
+        }
+
+        fn update_user_rewards(&mut self, account: AccountId) -> Result<Vec<u128>, FarmError> {
+            let manager: contract_ref!(FarmManager) = self.manager.into();
+            let user_shares = manager.balance_of(account);
+            if user_shares == 0 {
                 return Err(FarmError::CallerNotFarmer)
             }
-            let total_shares = manager.total_supply();
-
             let mut state = self.get_state()?;
-
-            let rewards_per_token =
-                state.rewards_per_token(total_shares, self.env().block_timestamp())?;
-            let unclaimed_rewards = state.rewards_earned(account, shares, &rewards_per_token)?;
-
-            for (idx, rewards_distributable) in state
-                .rewards_distributable(self.env().block_timestamp())
-                .iter()
-                .enumerate()
-            {
-                state.reward_tokens_info[idx].total_unclaimed_rewards += *rewards_distributable;
-                state.reward_tokens_info[idx].reward_per_token_stored =
-                    rewards_per_token[idx].into();
-            }
-
-            state.user_reward_per_share_paid.insert(
-                account,
-                &rewards_per_token
-                    .clone()
-                    .into_iter()
-                    .map(WrappedU256::from)
-                    .collect::<Vec<_>>(),
-            );
-            state
-                .user_claimable_rewards
-                .insert(account, &unclaimed_rewards);
-
+            let newly_earned_rewards =
+                state.move_unclaimed_rewards_to_claimable(user_shares, account)?;
             self.state.set(&state);
-
-            Ok(unclaimed_rewards)
+            Ok(newly_earned_rewards)
         }
 
         fn get_state(&self) -> Result<State, FarmError> {
@@ -437,14 +423,14 @@ mod farm {
                     return Err(FarmStartError::InsufficientRewardAmount)
                 }
 
-                let total_unclaimed_rewards = 0;
-                let reward_per_token_stored = WrappedU256::ZERO;
+                let unclaimed_rewards_total = 0;
+                let cumulative_reward_per_share = WrappedU256::ZERO;
 
                 let info = RewardTokenInfo {
                     token_id,
                     reward_rate,
-                    total_unclaimed_rewards,
-                    reward_per_token_stored,
+                    unclaimed_rewards_total,
+                    cumulative_reward_per_share,
                 };
 
                 reward_tokens_info.push(info);
@@ -510,9 +496,9 @@ mod farm {
         pub reward_rate: u128,
         /// Totals of unclaimed rewards.
         // Necessary for not letting owner, re-claim more than allowed to once the farm is stopped.
-        pub total_unclaimed_rewards: u128,
+        pub unclaimed_rewards_total: u128,
         /// Reward counter at the last farm change.
-        pub reward_per_token_stored: WrappedU256,
+        pub cumulative_reward_per_share: WrappedU256,
     }
 
     #[ink::storage_item]
@@ -536,62 +522,84 @@ mod farm {
     }
 
     impl State {
-        /// Calculates rewards per token due for providing liquidity to the farm
-        /// since the last update until `last_timestamp_applicable`.
-        ///
-        /// Returned value is a vector of numbers, one for each reward token in the farm.
-        pub fn rewards_per_token(
-            &self,
+        /// Updates the rewards that should be paid out to liquidity providers, based on the total shares and current timestamp.
+        /// Returns an error if there was an issue calculating the rewards.
+        pub fn update_rewards(
+            &mut self,
             total_shares: u128,
             current_timestamp: Timestamp,
-        ) -> Result<Vec<U256>, FarmError> {
-            let mut rewards_per_token: Vec<U256> =
-                Vec::with_capacity(self.reward_tokens_info.len());
+        ) -> Result<(), FarmError> {
+            let past = core::cmp::max(self.timestamp_at_last_update, self.start) as u128;
+            let now = core::cmp::min(current_timestamp, self.end) as u128;
+            if past > now || past == now || self.timestamp_at_last_update == current_timestamp {
+                return Ok(())
+            }
 
-            for reward_token in self.reward_tokens_info.iter() {
+            for reward_token in self.reward_tokens_info.iter_mut() {
                 let reward_rate = reward_token.reward_rate;
-                let rpr = reward_per_share(
-                    reward_token.reward_per_token_stored.0,
+                let reward_delta = crate::rewards_per_share_in_time_interval(
                     reward_rate,
                     total_shares,
-                    self.timestamp_at_last_update as u128,
-                    core::cmp::min(current_timestamp, self.end) as u128,
+                    past,
+                    now,
                 )?;
-                rewards_per_token.push(rpr);
+                let new_cumulative_reward_rate =
+                    reward_token.cumulative_reward_per_share.0 + reward_delta;
+                reward_token.cumulative_reward_per_share = new_cumulative_reward_rate.into();
+                reward_token.unclaimed_rewards_total +=
+                    crate::rewards_earned_by_shares(total_shares, reward_delta)?;
             }
 
-            Ok(rewards_per_token)
+            self.timestamp_at_last_update = current_timestamp;
+
+            Ok(())
         }
 
-        /// Returns the amount of rewards earned by the given account.
-        pub fn rewards_earned(
-            &self,
+        pub fn move_unclaimed_rewards_to_claimable(
+            &mut self,
+            user_shares: u128,
             account: AccountId,
-            shares: u128,
-            rewards_per_token: &[U256],
         ) -> Result<Vec<u128>, FarmError> {
-            let rewards_per_token_paid_so_far = self
-                .user_reward_per_share_paid
-                .get(account)
-                .unwrap_or(vec![WrappedU256::ZERO; rewards_per_token.len()]);
-
-            let uncollected_user_rewards = self
-                .user_claimable_rewards
-                .get(account)
-                .unwrap_or(vec![0; rewards_per_token.len()]);
-
-            let mut unclaimed_user_rewards = vec![];
-
-            for i in 0..rewards_per_token.len() {
-                let rewards_earned = calculate_rewards_earned(
-                    shares,
-                    rewards_per_token[i],
-                    rewards_per_token_paid_so_far[i].0,
-                )?;
-                unclaimed_user_rewards.push(rewards_earned + uncollected_user_rewards[i]);
+            if user_shares == 0 {
+                return Err(FarmError::CallerNotOwner)
             }
 
-            Ok(unclaimed_user_rewards)
+            let mut rewards_per_token_paid_so_far = self
+                .user_reward_per_share_paid
+                .get(account)
+                .unwrap_or(vec![WrappedU256::ZERO; self.reward_tokens_info.len()]);
+
+            let mut uncollected_user_rewards = self
+                .user_claimable_rewards
+                .get(account)
+                .unwrap_or(vec![0; self.reward_tokens_info.len()]);
+
+            let mut new_rewards = vec![0u128; self.reward_tokens_info.len()];
+
+            for (idx, token) in self.reward_tokens_info.iter().enumerate() {
+                new_rewards[idx] = calculate_rewards_earned(
+                    user_shares,
+                    token.cumulative_reward_per_share.0,
+                    rewards_per_token_paid_so_far[idx].0,
+                )?;
+                uncollected_user_rewards[idx] =
+                    uncollected_user_rewards[idx].saturating_add(new_rewards[idx]);
+                rewards_per_token_paid_so_far[idx] = token.cumulative_reward_per_share;
+            }
+
+            self.user_claimable_rewards
+                .insert(account, &uncollected_user_rewards);
+            self.user_reward_per_share_paid
+                .insert(account, &rewards_per_token_paid_so_far);
+
+            Ok(new_rewards)
+        }
+
+        /// Returns the unclaimed rewards for the specified account.
+        pub fn unclaimed_rewards(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
+            self.user_claimable_rewards
+                .get(account)
+                .ok_or(FarmError::CallerNotFarmer)
         }
 
         /// Returns rewards distributable to all farmers for the period between now (or farm end)
@@ -719,7 +727,7 @@ pub fn reward_per_share(
         return Ok(cumulative_reward_per_share)
     }
 
-    reward_per_share_in_time_interval(
+    rewards_per_share_in_time_interval(
         reward_rate,
         total_shares,
         last_update_time,
@@ -746,7 +754,7 @@ pub fn reward_per_share(
 /// # Returns
 ///
 /// Returns the reward per share as a `U256` value.
-pub fn reward_per_share_in_time_interval(
+pub fn rewards_per_share_in_time_interval(
     reward_rate: u128,
     total_shares: u128,
     from_timestamp: u128,
@@ -792,20 +800,20 @@ pub fn calculate_rewards_earned(
 }
 
 /// Calculates the amount of rewards earned by a given number of shares, based on the rewards per share.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `shares` - The number of shares for which to calculate the rewards earned.
 /// * `rewards_per_share` - The rewards per share value used to calculate the rewards earned.
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns a `MathError::Overflow` if the multiplication of `rewards_per_share` and `shares` overflows.
 /// Returns a `MathError::DivByZero` if the division of the multiplication result by the scaling factor overflows.
 /// Returns a `MathError::CastOverflow` if the result of the division cannot be cast to `u128`.
-/// 
+///
 /// # Returns
-/// 
+///
 /// The amount of rewards earned by the given number of shares, as a `u128`.
 pub fn rewards_earned_by_shares(shares: u128, rewards_per_share: U256) -> Result<u128, MathError> {
     rewards_per_share

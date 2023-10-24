@@ -48,7 +48,7 @@ mod reward_calculation {
         .expect("to calculate reward per token")
     }
 
-    fn rewards_earned(shares: u128, rewards_per_token: U256, paid_reward_per_token: U256) -> u128 {
+    fn calculate_rewards_earned(shares: u128, rewards_per_token: U256, paid_reward_per_token: U256) -> u128 {
         crate::calculate_rewards_earned(shares, rewards_per_token, paid_reward_per_token)
             .expect("to calculate rewards earned")
     }
@@ -71,7 +71,7 @@ mod reward_calculation {
         // = 0 + 100/100 * 2
         // = 2
         assert_eq!(rewards_per_token, casted_mul(2, SCALING_FACTOR));
-        let reward_earned = rewards_earned(shares, rewards_per_token, U256::zero());
+        let reward_earned = calculate_rewards_earned(shares, rewards_per_token, U256::zero());
         assert_eq!(reward_earned, 200);
     }
 
@@ -110,7 +110,7 @@ mod reward_calculation {
         // = 0 + 100/100 * 2
         // = 2
         assert_eq!(rewards_per_token_from0_till5, casted_mul(2, SCALING_FACTOR));
-        let reward_earned = rewards_earned(shares, rewards_per_token_from0_till5, U256::zero());
+        let reward_earned = calculate_rewards_earned(shares, rewards_per_token_from0_till5, U256::zero());
         assert_eq!(reward_earned, 200);
 
         let shares: u128 = 300;
@@ -129,7 +129,7 @@ mod reward_calculation {
         // = r_j0 + 1
         let expected_second = rewards_per_token_from0_till5 + 1 * SCALING_FACTOR;
         assert_eq!(rewards_per_token_from0_till8, expected_second);
-        let reward_earned = rewards_earned(
+        let reward_earned = calculate_rewards_earned(
             shares,
             rewards_per_token_from0_till8,
             rewards_per_token_from0_till5,
@@ -165,7 +165,7 @@ mod reward_calculation {
         // = 2/3 * SCALING_FACTOR
         let expected = casted_mul(2, SCALING_FACTOR) / 3;
         assert_eq!(rewards_per_token_from0_till5, expected);
-        let reward_earned = rewards_earned(shares, rewards_per_token_from0_till5, U256::zero());
+        let reward_earned = calculate_rewards_earned(shares, rewards_per_token_from0_till5, U256::zero());
         // expected value is 200:
         // = reward_per_token * shares / SCALING_FACTOR
         // = (2/300 * SCALING_FACTOR) * 300 / SCALING_FACTOR
@@ -189,7 +189,7 @@ mod reward_calculation {
         let expected = expected + casted_mul(3, SCALING_FACTOR);
         assert_eq!(rewards_per_token, expected);
         let reward_earned =
-            rewards_earned(shares, rewards_per_token, rewards_per_token_from0_till5);
+            calculate_rewards_earned(shares, rewards_per_token, rewards_per_token_from0_till5);
         assert_eq!(reward_earned, 300);
     }
 
@@ -231,7 +231,7 @@ mod reward_calculation {
         assert_eq!(reward_per_token_from0_till7, expected);
 
         // Alice withdraws 100 at t=7;
-        let alice_reward_earned = rewards_earned(alice, reward_per_token_from0_till7, U256::zero());
+        let alice_reward_earned = calculate_rewards_earned(alice, reward_per_token_from0_till7, U256::zero());
 
         // Expected value is:
         // 2 full rewards for 2 units of time when she's the only farmer.
@@ -257,7 +257,7 @@ mod reward_calculation {
             reward_per_token(reward_per_token_from0_till7, REWARD_RATE, bob, 7, 10);
         let expected_rate = casted_mul(4, SCALING_FACTOR) + U256::from(SCALING_FACTOR) / 6;
         assert_eq!(reward_per_token_from0_till10, expected_rate);
-        let bob_rewards_earned = rewards_earned(bob, reward_per_token_from0_till10, U256::zero());
+        let bob_rewards_earned = calculate_rewards_earned(bob, reward_per_token_from0_till10, U256::zero());
         // 2/3 * 2 worth of reward for 3 units of time when he has 2/3 of shares.
         // 3 full rewards for 3 units of time when he's the only farmer.
         // rewards_earned(BOB) = reward_rate(BOB) * shares(BOB) / SCALING_FACTOR
@@ -308,7 +308,7 @@ mod reward_calculation {
             9,
         );
 
-        let alice_reward_earned = rewards_earned(alice, reward_per_token_from0_till9, U256::zero());
+        let alice_reward_earned = calculate_rewards_earned(alice, reward_per_token_from0_till9, U256::zero());
         assert_eq!(alice_reward_earned, 37 * alice / 12);
 
         let reward_rate_from0_till10 = reward_per_token(
@@ -331,7 +331,7 @@ mod reward_calculation {
         );
         let expected_reward_rate = expected_reward_rate + (SCALING_FACTOR / 4);
         assert_eq!(reward_rate_from0_till11, expected_reward_rate,);
-        let bob_earned = rewards_earned(bob, reward_rate_from0_till11, U256::zero());
+        let bob_earned = calculate_rewards_earned(bob, reward_rate_from0_till11, U256::zero());
         let bob_expected: u128 = (expected_reward_rate * U256::from(bob))
             .checked_div(U256::from(SCALING_FACTOR))
             .expect("to calculate bob_expected")
