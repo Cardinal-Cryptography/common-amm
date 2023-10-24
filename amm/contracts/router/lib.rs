@@ -17,7 +17,10 @@ pub mod router {
         codegen::TraitCallBuilder,
         contract_ref,
         env::CallFlags,
-        prelude::vec::Vec,
+        prelude::{
+            vec,
+            vec::Vec,
+        },
     };
     use psp22::{
         PSP22Error,
@@ -184,10 +187,7 @@ pub mod router {
         ) -> Result<Vec<Balance>, RouterError> {
             ensure!(path.len() >= 2, RouterError::InvalidPath);
 
-            let mut amounts = Vec::with_capacity(path.len());
-            unsafe {
-                amounts.set_len(path.len());
-            }
+            let mut amounts = vec![0; path.len()];
             amounts[path.len() - 1] = amount_out;
             for i in (0..path.len() - 1).rev() {
                 let (reserve_a, reserve_b) = self.get_reserves(path[i], path[i + 1])?;
