@@ -540,6 +540,8 @@ mod farm {
             Ok(())
         }
 
+        /// Computes how much rewards have been earned by the user since the last update
+        /// and updates the user's unclaimed rewards.
         pub fn move_unclaimed_rewards_to_claimable(
             &mut self,
             user_shares: u128,
@@ -549,7 +551,7 @@ mod farm {
                 return Ok(vec![0; self.reward_tokens_info.len()])
             }
 
-            let mut rewards_per_token_paid_so_far = self
+            let mut reward_per_share_paid_so_far = self
                 .user_reward_per_share_paid
                 .get(account)
                 .unwrap_or(vec![WrappedU256::ZERO; self.reward_tokens_info.len()]);
@@ -565,17 +567,17 @@ mod farm {
                 new_rewards[idx] = calculate_rewards_earned(
                     user_shares,
                     token.cumulative_reward_per_share.0,
-                    rewards_per_token_paid_so_far[idx].0,
+                    reward_per_share_paid_so_far[idx].0,
                 )?;
                 uncollected_user_rewards[idx] =
                     uncollected_user_rewards[idx].saturating_add(new_rewards[idx]);
-                rewards_per_token_paid_so_far[idx] = token.cumulative_reward_per_share;
+                reward_per_share_paid_so_far[idx] = token.cumulative_reward_per_share;
             }
 
             self.user_claimable_rewards
                 .insert(account, &uncollected_user_rewards);
             self.user_reward_per_share_paid
-                .insert(account, &rewards_per_token_paid_so_far);
+                .insert(account, &reward_per_share_paid_so_far);
 
             Ok(new_rewards)
         }
