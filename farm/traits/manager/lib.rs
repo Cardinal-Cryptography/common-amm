@@ -48,17 +48,17 @@ pub trait FarmManager {
     #[ink(message)]
     fn balance_of(&self, owner: AccountId) -> u128;
 
-    /// Returns an address of the latest farm instance.
+    /// Returns the address of the latest farm instance.
     #[ink(message)]
     fn latest_farm_id(&self) -> Option<AccountId>;
 
-    /// Returns an address of the farm registered under `farm_id`.
+    /// Returns the address of the farm registered under `farm_id`.
     #[ink(message)]
     fn get_farm_address(&self, farm_id: u32) -> Option<AccountId>;
 
     /// Withdraws `amount` of shares from `owner`.
     ///
-    /// NOTE: Should be called only be farm instances, never directly,
+    /// NOTE: Should be called only by farm instances, never directly,
     /// at correct moments. Otherwise LP providers will miss some of the rewards.
     /// Implementation should return error if `caller != known farm instance`.
     #[ink(message)]
@@ -67,7 +67,7 @@ pub trait FarmManager {
 
     /// Deposits `amount` of shares under `owner` account.
     ///
-    /// NOTE: Should be called only be farm instances, never directly,
+    /// NOTE: Should be called only by farm instances, never directly,
     /// at correct moments. Otherwise LP providers will miss some of the rewards.
     /// Implementation should return error if `caller != known farm instance`.
     #[ink(message)]
@@ -77,7 +77,7 @@ pub trait FarmManager {
     #[ink(message)]
     fn reward_tokens(&self) -> Vec<AccountId>;
 
-    /// Creates an instance of the farm that ends at `end`` with `rewards` for participating.
+    /// Creates an instance of the farm that ends at `end` with `rewards` for participating.
     /// Returns address of the created farm instance.
     /// Should return error if caller is not the owner of the manager contract.
     #[ink(message)]
