@@ -218,7 +218,7 @@ mod farm {
 
             if !self.is_running()? {
                 // We can remove the user from the map only when the farm is already finished.
-                // That's b/c it won't be earning any more rewards for this particular farm.
+                // That's b/c it won't be earning any more rewards for this particular farm instance anymore.
                 state.user_reward_per_share_paid.remove(caller);
             }
 
@@ -549,7 +549,7 @@ mod farm {
             account: AccountId,
         ) -> Result<Vec<u128>, FarmError> {
             if user_shares == 0 {
-                return Err(FarmError::CallerNotOwner)
+                return Err(FarmError::CallerNotFarmer)
             }
 
             let mut rewards_per_token_paid_so_far = self
