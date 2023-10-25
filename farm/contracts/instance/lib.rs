@@ -323,9 +323,6 @@ mod farm {
             let account = self.env().caller();
             let manager: contract_ref!(FarmManager) = self.manager.into();
             let user_shares = manager.balance_of(account);
-            if user_shares == 0 {
-                return Err(FarmError::CallerNotFarmer)
-            }
             let total_shares = manager.total_supply();
             let mut state = self.get_state()?;
             state.update_rewards(total_shares, self.env().block_timestamp())?;
@@ -549,7 +546,7 @@ mod farm {
             account: AccountId,
         ) -> Result<Vec<u128>, FarmError> {
             if user_shares == 0 {
-                return Err(FarmError::CallerNotFarmer)
+                return Ok(vec![0; self.reward_tokens_info.len()])
             }
 
             let mut rewards_per_token_paid_so_far = self
