@@ -243,25 +243,6 @@ mod farm {
             Ok(())
         }
 
-        /// Returns how much reward tokens the caller account has accumulated.
-        // We're using the `account` as an argument, instead of `&self.env().caller()`,
-        // for easier frontend integration.
-        #[ink(message)]
-        pub fn claimable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
-            let manager: contract_ref!(FarmManager) = self.manager.into();
-            let user_shares = manager.balance_of(account);
-            if user_shares == 0 {
-                return Err(FarmError::CallerNotFarmer)
-            }
-            let total_shares = manager.total_supply();
-            let mut state = self.get_state()?;
-            state.update_rewards(total_shares, self.env().block_timestamp())?;
-            let _newly_earned_rewards =
-                state.move_unclaimed_rewards_to_claimable(user_shares, account)?;
-            state.unclaimed_rewards(account)
-            // note that without state.set() this is still immutable
-        }
-
         /// Returns view structure with details about the currently active farm.
         #[ink(message)]
         pub fn view_farm_details(&self) -> FarmDetailsView {
@@ -286,6 +267,24 @@ mod farm {
                 shares: manager.balance_of(account),
                 unclaimed_rewards: self.claimable(account).ok()?,
             })
+        }
+
+        // Returns how much reward tokens the caller account has accumulated.
+        // We're using the `account` as an argument, instead of `&self.env().caller()`,
+        // for easier frontend integration.
+        fn claimable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
+            let manager: contract_ref!(FarmManager) = self.manager.into();
+            let user_shares = manager.balance_of(account);
+            if user_shares == 0 {
+                return Err(FarmError::CallerNotFarmer)
+            }
+            let total_shares = manager.total_supply();
+            let mut state = self.get_state()?;
+            state.update_rewards(total_shares, self.env().block_timestamp())?;
+            let _newly_earned_rewards =
+                state.move_unclaimed_rewards_to_claimable(user_shares, account)?;
+            state.unclaimed_rewards(account)
+            // note that without state.set() this is still immutable
         }
 
         /// Check whether farm is currently running - i.e. whether current timestamp
