@@ -130,40 +130,29 @@ mod farm {
             self.update_reward_index()?;
             let mut running = self.get_state()?;
 
-            let mut to_refund: Vec<(AccountId, u128)> =
-                Vec::with_capacity(running.reward_tokens_info.len());
+            let mut to_refund = Vec::with_capacity(running.reward_tokens_info.len());
 
-            for reward_token in running.reward_tokens_info.iter() {
-                let token_id = reward_token.token_id;
-                let reserved = reward_token.unclaimed_rewards_total;
-                if reserved == 0 {
+            for reward_token in running.reward_tokens_info.iter_mut() {
+                let token_ref = reward_token.token_id.into();
+
+                let reserved_for_rewards = reward_token.unclaimed_rewards_total;
+                if reserved_for_rewards == 0 {
                     // If there are no yet-unclaimed rewards, nothing is reserved
                     // and we can skip this reward token (most probably all iterations will be skipped).
-                    to_refund.push((token_id, 0));
+                    to_refund.push((token_ref, 0));
                     continue
                 }
-                let psp22_ref = token_id.into();
-                let balance: Balance = safe_balance_of(&psp22_ref, self.env().account_id());
-                let refund_amount = balance.saturating_sub(reserved);
-                to_refund.push((token_id, refund_amount));
+                let balance: Balance = safe_balance_of(&token_ref, self.env().account_id());
+                let refund_amount = balance.saturating_sub(reserved_for_rewards);
+                reward_token.unclaimed_rewards_total = 0;
+                to_refund.push((token_ref, refund_amount));
             }
-
-            running.reward_tokens_info = running
-                .reward_tokens_info
-                .clone()
-                .into_iter()
-                .map(|mut rti| {
-                    rti.unclaimed_rewards_total = 0;
-                    rti
-                })
-                .collect();
 
             self.state.set(&running);
 
-            for (token_id, refund_amount) in to_refund {
+            for (mut token_ref, refund_amount) in to_refund {
                 if refund_amount > 0 {
-                    let mut psp22_ref = token_id.into();
-                    safe_transfer(&mut psp22_ref, running.owner, refund_amount)?;
+                    safe_transfer(&mut token_ref, running.owner, refund_amount)?;
                 }
             }
 
