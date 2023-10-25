@@ -56,5 +56,5 @@ pub struct UserPositionView {
     // Amount of LP tokens locked in the farm by the user.
     pub shares: u128,
     // Amount of unclaimed rewards.
-    pub unclaimed_rewards: Vec<u128>,
+    pub unclaimed_rewards: Vec<(AccountId, u128)>,
 }

@@ -272,7 +272,7 @@ mod farm {
         // Returns how much reward tokens the caller account has accumulated.
         // We're using the `account` as an argument, instead of `&self.env().caller()`,
         // for easier frontend integration.
-        fn claimable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
+        fn claimable(&self, account: AccountId) -> Result<Vec<(AccountId, u128)>, FarmError> {
             let manager: contract_ref!(FarmManager) = self.manager.into();
             let user_shares = manager.balance_of(account);
             if user_shares == 0 {
@@ -283,8 +283,12 @@ mod farm {
             state.update_rewards(total_shares, self.env().block_timestamp())?;
             let _newly_earned_rewards =
                 state.move_unclaimed_rewards_to_claimable(user_shares, account)?;
-            state.unclaimed_rewards(account)
-            // note that without state.set() this is still immutable
+            Ok(state
+                .reward_tokens_info
+                .iter()
+                .map(|token| token.token_id)
+                .zip(state.unclaimed_rewards(account)?)
+                .collect())
         }
 
         /// Check whether farm is currently running - i.e. whether current timestamp
