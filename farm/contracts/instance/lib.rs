@@ -130,41 +130,29 @@ mod farm {
             self.update_reward_index()?;
             let mut running = self.get_state()?;
 
-            let mut to_refund: Vec<(AccountId, u128)> =
-                Vec::with_capacity(running.reward_tokens_info.len());
+            let mut to_refund = Vec::with_capacity(running.reward_tokens_info.len());
 
-            for reward_token in running.reward_tokens_info.iter() {
-                let token_id = reward_token.token_id;
-                let reserved = reward_token.unclaimed_rewards_total;
-                if reserved == 0 {
+            for reward_token in running.reward_tokens_info.iter_mut() {
+                let token_ref = reward_token.token_id.into();
+
+                let reserved_for_rewards = reward_token.unclaimed_rewards_total;
+                if reserved_for_rewards == 0 {
                     // If there are no yet-unclaimed rewards, nothing is reserved
                     // and we can skip this reward token (most probably all iterations will be skipped).
-                    to_refund.push((token_id, 0));
+                    to_refund.push((token_ref, 0));
                     continue
                 }
-                let psp22_ref: ink::contract_ref!(PSP22) = token_id.into();
-                let balance: Balance = safe_balance_of(&psp22_ref, self.env().account_id());
-                let refund_amount = balance.saturating_sub(reserved);
-                to_refund.push((token_id, refund_amount));
+                let balance: Balance = safe_balance_of(&token_ref, self.env().account_id());
+                let refund_amount = balance.saturating_sub(reserved_for_rewards);
+                reward_token.unclaimed_rewards_total = 0;
+                to_refund.push((token_ref, refund_amount));
             }
-
-            running.reward_tokens_info = running
-                .reward_tokens_info
-                .clone()
-                .into_iter()
-                .map(|mut rti| {
-                    rti.unclaimed_rewards_total = 0;
-                    rti
-                })
-                .collect();
 
             self.state.set(&running);
 
-            for (token_id, refund_amount) in to_refund {
-                let mut psp22_ref: ink::contract_ref!(PSP22) = token_id.into();
-
+            for (mut token_ref, refund_amount) in to_refund {
                 if refund_amount > 0 {
-                    safe_transfer(&mut psp22_ref, running.owner, refund_amount)?;
+                    safe_transfer(&mut token_ref, running.owner, refund_amount)?;
                 }
             }
 
@@ -187,6 +175,7 @@ mod farm {
             self.ensure_running(true)?;
             self.update_reward_index()?;
             let token_balance = safe_balance_of(&self.pool.into(), self.env().caller());
+            Self::ensure_non_zero_amount(token_balance)?;
             self.add_shares(token_balance)
         }
 
@@ -229,7 +218,7 @@ mod farm {
 
             if !self.is_running()? {
                 // We can remove the user from the map only when the farm is already finished.
-                // That's b/c it won't be earning any more rewards for this particular farm.
+                // That's b/c it won't be earning any more rewards for this particular farm instance anymore.
                 state.user_reward_per_share_paid.remove(caller);
             }
 
@@ -334,9 +323,6 @@ mod farm {
             let account = self.env().caller();
             let manager: contract_ref!(FarmManager) = self.manager.into();
             let user_shares = manager.balance_of(account);
-            if user_shares == 0 {
-                return Err(FarmError::CallerNotFarmer)
-            }
             let total_shares = manager.total_supply();
             let mut state = self.get_state()?;
             state.update_rewards(total_shares, self.env().block_timestamp())?;
@@ -530,7 +516,7 @@ mod farm {
         ) -> Result<(), FarmError> {
             let past = core::cmp::max(self.timestamp_at_last_update, self.start) as u128;
             let now = core::cmp::min(current_timestamp, self.end) as u128;
-            if past > now || past == now || self.timestamp_at_last_update == current_timestamp {
+            if past >= now || self.timestamp_at_last_update == current_timestamp {
                 return Ok(())
             }
 
@@ -554,16 +540,18 @@ mod farm {
             Ok(())
         }
 
+        /// Computes how much rewards have been earned by the user since the last update
+        /// and updates the user's unclaimed rewards.
         pub fn move_unclaimed_rewards_to_claimable(
             &mut self,
             user_shares: u128,
             account: AccountId,
         ) -> Result<Vec<u128>, FarmError> {
             if user_shares == 0 {
-                return Err(FarmError::CallerNotOwner)
+                return Ok(vec![0; self.reward_tokens_info.len()])
             }
 
-            let mut rewards_per_token_paid_so_far = self
+            let mut reward_per_share_paid_so_far = self
                 .user_reward_per_share_paid
                 .get(account)
                 .unwrap_or(vec![WrappedU256::ZERO; self.reward_tokens_info.len()]);
@@ -579,17 +567,17 @@ mod farm {
                 new_rewards[idx] = calculate_rewards_earned(
                     user_shares,
                     token.cumulative_reward_per_share.0,
-                    rewards_per_token_paid_so_far[idx].0,
+                    reward_per_share_paid_so_far[idx].0,
                 )?;
                 uncollected_user_rewards[idx] =
                     uncollected_user_rewards[idx].saturating_add(new_rewards[idx]);
-                rewards_per_token_paid_so_far[idx] = token.cumulative_reward_per_share;
+                reward_per_share_paid_so_far[idx] = token.cumulative_reward_per_share;
             }
 
             self.user_claimable_rewards
                 .insert(account, &uncollected_user_rewards);
             self.user_reward_per_share_paid
-                .insert(account, &rewards_per_token_paid_so_far);
+                .insert(account, &reward_per_share_paid_so_far);
 
             Ok(new_rewards)
         }

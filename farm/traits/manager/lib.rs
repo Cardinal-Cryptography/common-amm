@@ -58,7 +58,7 @@ pub trait FarmManager {
 
     /// Withdraws `amount` of shares from `owner`.
     ///
-    /// NOTE: Must be called only be farm instances, never directly,
+    /// NOTE: Should be called only be farm instances, never directly,
     /// at correct moments. Otherwise LP providers will miss some of the rewards.
     /// Implementation should return error if `caller != known farm instance`.
     #[ink(message)]
@@ -67,7 +67,7 @@ pub trait FarmManager {
 
     /// Deposits `amount` of shares under `owner` account.
     ///
-    /// NOTE: Must be called only be farm instances, never directly,
+    /// NOTE: Should be called only be farm instances, never directly,
     /// at correct moments. Otherwise LP providers will miss some of the rewards.
     /// Implementation should return error if `caller != known farm instance`.
     #[ink(message)]
