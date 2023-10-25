@@ -246,7 +246,6 @@ mod farm {
         /// Returns how much reward tokens the caller account has accumulated.
         // We're using the `account` as an argument, instead of `&self.env().caller()`,
         // for easier frontend integration.
-        // TODO: Rename to `view_claimable`.
         #[ink(message)]
         pub fn claimable(&self, account: AccountId) -> Result<Vec<u128>, FarmError> {
             let manager: contract_ref!(FarmManager) = self.manager.into();
