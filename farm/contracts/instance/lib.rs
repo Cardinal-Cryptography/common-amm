@@ -175,6 +175,7 @@ mod farm {
             self.ensure_running(true)?;
             self.update_reward_index()?;
             let token_balance = safe_balance_of(&self.pool.into(), self.env().caller());
+            Self::ensure_non_zero_amount(token_balance)?;
             self.add_shares(token_balance)
         }
 
