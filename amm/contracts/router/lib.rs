@@ -2,16 +2,9 @@
 
 #[ink::contract]
 pub mod router {
-    use amm_helpers::math::casted_mul;
-    use common::{
+    use amm_helpers::{
         ensure,
-        factory::Factory,
-        pair::Pair,
-        router::{
-            Router,
-            RouterError,
-        },
-        wnative::Wnative,
+        math::casted_mul,
     };
     use ink::{
         codegen::TraitCallBuilder,
@@ -25,6 +18,13 @@ pub mod router {
     use psp22::{
         PSP22Error,
         PSP22,
+    };
+    use traits::{
+        Factory,
+        Pair,
+        Router,
+        RouterError,
+        Wnative,
     };
 
     #[ink(storage)]

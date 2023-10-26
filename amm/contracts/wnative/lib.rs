@@ -2,7 +2,6 @@
 
 #[ink::contract]
 pub mod wnative {
-    use common::wnative::Wnative;
     use ink::prelude::{
         string::String,
         vec::Vec,
@@ -14,6 +13,7 @@ pub mod wnative {
         PSP22Metadata,
         PSP22,
     };
+    use traits::Wnative;
 
     #[ink(storage)]
     #[derive(Default)]

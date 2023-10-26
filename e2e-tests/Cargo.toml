@@ -19,7 +19,8 @@ aleph_client = "3.0.0"
 ink_primitives = "4.2.1"
 ink-wrapper-types = "0.5.0"
 
-common = { path = "../amm/common" }
+traits = { path = "../amm/traits" }
+amm-helpers = { path = "../helpers", default-features = false }
 
 [lib]
 doctest = false

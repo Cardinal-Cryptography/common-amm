@@ -2,13 +2,9 @@
 
 #[ink::contract]
 pub mod factory {
-    use common::{
+    use amm_helpers::{
+        constants::ZERO_ADDRESS,
         ensure,
-        factory::{
-            Factory,
-            FactoryError,
-        },
-        ZERO_ADDRESS,
     };
     use ink::{
         codegen::EmitEvent,
@@ -17,6 +13,10 @@ pub mod factory {
         ToAccountId,
     };
     use pair_contract::pair::PairContractRef;
+    use traits::{
+        Factory,
+        FactoryError,
+    };
 
     #[ink(event)]
     pub struct PairCreated {
@@ -202,7 +202,7 @@ pub mod factory {
         fn initialize_works() {
             let accounts = default_accounts::<ink::env::DefaultEnvironment>();
             let factory = FactoryContract::new(accounts.alice, Hash::default());
-            assert_eq!(factory.fee_to, common::ZERO_ADDRESS.into());
+            assert_eq!(factory.fee_to, amm_helpers::constants::ZERO_ADDRESS.into());
         }
     }
 }

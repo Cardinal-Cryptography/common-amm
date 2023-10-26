@@ -1,14 +1,16 @@
-use amm_helpers::types::WrappedU256;
-use common::{
-    Balance,
-    Timestamp,
-    ZERO_ADDRESS,
+use amm_helpers::{
+    constants::ZERO_ADDRESS,
+    types::WrappedU256,
 };
 use ink::primitives::AccountId;
 use primitive_types::U256;
 use sp_arithmetic::{
     FixedPointNumber,
     FixedU128,
+};
+use traits::{
+    Balance,
+    Timestamp,
 };
 
 #[ink::storage_item]

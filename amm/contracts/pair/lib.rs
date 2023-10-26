@@ -9,18 +9,13 @@ pub mod pair {
         Data,
     };
     use amm_helpers::{
+        constants::{
+            MINIMUM_LIQUIDITY,
+            ZERO_ADDRESS,
+        },
+        ensure,
         math::casted_mul,
         types::WrappedU256,
-    };
-    use common::{
-        ensure,
-        factory::Factory,
-        pair::{
-            Pair,
-            PairError,
-        },
-        MINIMUM_LIQUIDITY,
-        ZERO_ADDRESS,
     };
     use ink::{
         contract_ref,
@@ -34,6 +29,11 @@ pub mod pair {
         PSP22,
     };
     use sp_arithmetic::traits::IntegerSquareRoot;
+    use traits::{
+        Factory,
+        Pair,
+        PairError,
+    };
 
     #[ink(event)]
     pub struct Mint {

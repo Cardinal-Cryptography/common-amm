@@ -1,4 +1,4 @@
-use crate::pair::PairError;
+use crate::PairError;
 use ink::primitives::{
     AccountId,
     Hash,

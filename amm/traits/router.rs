@@ -1,7 +1,7 @@
 use crate::{
-    factory::FactoryError,
-    pair::PairError,
     Balance,
+    FactoryError,
+    PairError,
 };
 use ink::{
     prelude::vec::Vec,

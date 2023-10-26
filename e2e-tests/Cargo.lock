@@ -360,20 +360,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "common"
-version = "0.2.0"
-dependencies = [
- "amm-helpers",
- "ink",
- "ink_metadata",
- "parity-scale-codec",
- "primitive-types",
- "psp22",
- "scale-info",
- "sp-arithmetic 18.0.0",
-]
-
-[[package]]
 name = "contract-metadata"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -625,16 +611,17 @@ name = "e2e-tests"
 version = "0.1.0"
 dependencies = [
  "aleph_client",
+ "amm-helpers",
  "anyhow",
  "assert2",
  "async-trait",
- "common",
  "env_logger",
  "ink-wrapper-types",
  "ink_primitives",
  "parity-scale-codec",
  "rand 0.8.5",
  "tokio",
+ "traits",
 ]
 
 [[package]]
@@ -3493,6 +3480,20 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
+]
+
+[[package]]
+name = "traits"
+version = "0.2.0"
+dependencies = [
+ "amm-helpers",
+ "ink",
+ "ink_metadata",
+ "parity-scale-codec",
+ "primitive-types",
+ "psp22",
+ "scale-info",
+ "sp-arithmetic 18.0.0",
 ]
 
 [[package]]

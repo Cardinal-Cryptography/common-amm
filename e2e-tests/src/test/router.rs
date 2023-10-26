@@ -15,7 +15,7 @@ use aleph_client::{
     Balance,
     SignedConnection,
 };
-use common::MINIMUM_LIQUIDITY;
+use amm_helpers::constants::MINIMUM_LIQUIDITY;
 use ink_wrapper_types::{
     util::ToAccountId,
     Connection,

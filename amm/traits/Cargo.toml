@@ -1,5 +1,5 @@
 [package]
-name = "common"
+name = "traits"
 version = "0.2.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
@@ -23,12 +23,8 @@ primitive-types = { version = "0.12.1", default-features = false, features = [
 sp-arithmetic = { version = "18.0.0", default-features = false }
 amm-helpers = { path = "../../helpers", default-features = false }
 
-[dev-dependencies]
-curve25519-dalek = { version = "4.0.0-rc.2", features = ["digest"] }
-sha2 = "0.10.6"
-
 [lib]
-name = "common"
+name = "traits"
 path = "lib.rs"
 crate-type = ["rlib"]
 
