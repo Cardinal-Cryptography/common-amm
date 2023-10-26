@@ -37,16 +37,16 @@ pub mod pair {
     pub struct Mint {
         #[ink(topic)]
         pub sender: AccountId,
-        pub amount_0: Balance,
-        pub amount_1: Balance,
+        pub amount_0: u128,
+        pub amount_1: u128,
     }
 
     #[ink(event)]
     pub struct Burn {
         #[ink(topic)]
         pub sender: AccountId,
-        pub amount_0: Balance,
-        pub amount_1: Balance,
+        pub amount_0: u128,
+        pub amount_1: u128,
         #[ink(topic)]
         pub to: AccountId,
     }
@@ -55,18 +55,18 @@ pub mod pair {
     pub struct Swap {
         #[ink(topic)]
         pub sender: AccountId,
-        pub amount_0_in: Balance,
-        pub amount_1_in: Balance,
-        pub amount_0_out: Balance,
-        pub amount_1_out: Balance,
+        pub amount_0_in: u128,
+        pub amount_1_in: u128,
+        pub amount_0_out: u128,
+        pub amount_1_out: u128,
         #[ink(topic)]
         pub to: AccountId,
     }
 
     #[ink(event)]
     pub struct Sync {
-        reserve_0: Balance,
-        reserve_1: Balance,
+        reserve_0: u128,
+        reserve_1: u128,
     }
 
     #[ink(event)]
@@ -75,7 +75,7 @@ pub mod pair {
         from: Option<AccountId>,
         #[ink(topic)]
         to: Option<AccountId>,
-        value: Balance,
+        value: u128,
     }
 
     #[ink(event)]
@@ -84,7 +84,7 @@ pub mod pair {
         owner: AccountId,
         #[ink(topic)]
         spender: AccountId,
-        amount: Balance,
+        amount: u128,
     }
 
     #[ink::storage_item]
@@ -93,8 +93,8 @@ pub mod pair {
         pub factory: AccountId,
         pub token_0: AccountId,
         pub token_1: AccountId,
-        pub reserve_0: Balance,
-        pub reserve_1: Balance,
+        pub reserve_0: u128,
+        pub reserve_1: u128,
         pub block_timestamp_last: Timestamp,
         pub price_0_cumulative_last: WrappedU256,
         pub price_1_cumulative_last: WrappedU256,
@@ -151,21 +151,21 @@ pub mod pair {
         }
 
         #[inline]
-        fn token_balances(&self, who: AccountId) -> (Balance, Balance) {
+        fn token_balances(&self, who: AccountId) -> (u128, u128) {
             (
                 self.token_0().balance_of(who),
                 self.token_1().balance_of(who),
             )
         }
 
-        fn mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError> {
+        fn mint_fee(&mut self, reserve_0: u128, reserve_1: u128) -> Result<bool, PairError> {
             let fee_to = self.factory().fee_to();
             let fee_on = fee_to != ZERO_ADDRESS.into();
             let k_last: U256 = self.pair.k_last.into();
             if fee_on {
                 // Section 2.4 Protocol fee in the whitepaper.
                 if !k_last.is_zero() {
-                    let root_k: Balance = casted_mul(reserve_0, reserve_1)
+                    let root_k: u128 = casted_mul(reserve_0, reserve_1)
                         .integer_sqrt()
                         .try_into()
                         .map_err(|_| PairError::CastOverflow1)?;
@@ -204,10 +204,10 @@ pub mod pair {
 
         fn update(
             &mut self,
-            balance_0: Balance,
-            balance_1: Balance,
-            reserve_0: Balance,
-            reserve_1: Balance,
+            balance_0: u128,
+            balance_1: u128,
+            reserve_0: u128,
+            reserve_1: u128,
         ) -> Result<(), PairError> {
             let now = Self::env().block_timestamp();
             let last_timestamp = self.pair.block_timestamp_last;
@@ -257,7 +257,7 @@ pub mod pair {
 
     impl Pair for PairContract {
         #[ink(message)]
-        fn get_reserves(&self) -> (Balance, Balance, Timestamp) {
+        fn get_reserves(&self) -> (u128, u128, Timestamp) {
             (
                 self.pair.reserve_0,
                 self.pair.reserve_1,
@@ -275,7 +275,7 @@ pub mod pair {
         }
 
         #[ink(message)]
-        fn mint(&mut self, to: AccountId) -> Result<Balance, PairError> {
+        fn mint(&mut self, to: AccountId) -> Result<u128, PairError> {
             let reserves = self.get_reserves();
             let contract = self.env().account_id();
             let (balance_0, balance_1) = self.token_balances(contract);
@@ -339,7 +339,7 @@ pub mod pair {
         }
 
         #[ink(message)]
-        fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError> {
+        fn burn(&mut self, to: AccountId) -> Result<(u128, u128), PairError> {
             let reserves = self.get_reserves();
             let contract = self.env().account_id();
             let (balance_0_before, balance_1_before) = self.token_balances(contract);
@@ -390,8 +390,8 @@ pub mod pair {
         #[ink(message)]
         fn swap(
             &mut self,
-            amount_0_out: Balance,
-            amount_1_out: Balance,
+            amount_0_out: u128,
+            amount_1_out: u128,
             to: AccountId,
         ) -> Result<(), PairError> {
             ensure!(
@@ -617,8 +617,8 @@ pub mod pair {
         price_0_cumulative_last: WrappedU256,
         price_1_cumulative_last: WrappedU256,
         time_elapsed: U256,
-        reserve_0: Balance,
-        reserve_1: Balance,
+        reserve_0: u128,
+        reserve_1: u128,
     ) -> (WrappedU256, WrappedU256) {
         let price_cumulative_last_0: WrappedU256 = U256::from(
             FixedU128::checked_from_rational(reserve_1, reserve_0)

@@ -1,7 +1,4 @@
-use crate::{
-    Balance,
-    Timestamp,
-};
+use crate::Timestamp;
 use amm_helpers::types::WrappedU256;
 use ink::{
     primitives::AccountId,
@@ -16,7 +13,7 @@ pub trait Pair {
     /// NOTE: This does not include the tokens that were transferred to the contract
     /// as part of the _current_ transaction.
     #[ink(message)]
-    fn get_reserves(&self) -> (Balance, Balance, Timestamp);
+    fn get_reserves(&self) -> (u128, u128, Timestamp);
 
     /// Returns cumulative prive of the first token.
     ///
@@ -37,13 +34,13 @@ pub trait Pair {
     /// Mints liquidity tokens `to` account.
     /// The amount minted is equivalent to the excess of contract's balance and reserves.
     #[ink(message)]
-    fn mint(&mut self, to: AccountId) -> Result<Balance, PairError>;
+    fn mint(&mut self, to: AccountId) -> Result<u128, PairError>;
 
     /// Burns liquidity transferred to the contract prior to calling this method.
     /// Tokens resulting from the burning of this liquidity tokens are transferred to
     /// an address controlled by `to` account.
     #[ink(message)]
-    fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError>;
+    fn burn(&mut self, to: AccountId) -> Result<(u128, u128), PairError>;
 
     /// Requests a swap on the token pair, with the outcome amounts equal to
     /// `amount_0_out` and `amount_1_out`. Assumes enough tokens have been transferred
@@ -52,8 +49,8 @@ pub trait Pair {
     #[ink(message)]
     fn swap(
         &mut self,
-        amount_0_out: Balance,
-        amount_1_out: Balance,
+        amount_0_out: u128,
+        amount_1_out: u128,
         to: AccountId,
     ) -> Result<(), PairError>;
 
