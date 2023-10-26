@@ -67,12 +67,12 @@ pub trait Router {
     fn add_liquidity_native(
         &mut self,
         token: AccountId,
-        amount_token_desired: Balance,
-        amount_token_min: Balance,
+        amount_token_desired: u128,
+        amount_token_min: u128,
         amount_native_min: Balance,
         to: AccountId,
         deadline: u64,
-    ) -> Result<(Balance, Balance, Balance), RouterError>;
+    ) -> Result<(u128, Balance, u128), RouterError>;
 
     /// Removes `liquidity` amount of tokens from `(token, wrapped_native)`
     /// pair and transfers tokens `to` account.
@@ -84,12 +84,12 @@ pub trait Router {
     fn remove_liquidity_native(
         &mut self,
         token: AccountId,
-        liquidity: Balance,
-        amount_token_min: Balance,
+        liquidity: u128,
+        amount_token_min: u128,
         amount_native_min: Balance,
         to: AccountId,
         deadline: u64,
-    ) -> Result<(Balance, Balance), RouterError>;
+    ) -> Result<(u128, Balance), RouterError>;
 
     /// Exchanges tokens along `path` tokens.
     /// Starts with `amount_in` and pair under `(path[0], path[1])` address.
@@ -130,11 +130,11 @@ pub trait Router {
     #[ink(message, payable)]
     fn swap_exact_native_for_tokens(
         &mut self,
-        amount_out_min: Balance,
+        amount_out_min: u128,
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Exchanges tokens along `path` token pairs
     /// so that at the end caller receives `amount_out`
@@ -146,11 +146,11 @@ pub trait Router {
     fn swap_tokens_for_exact_native(
         &mut self,
         amount_out: Balance,
-        amount_in_max: Balance,
+        amount_in_max: u128,
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Exchanges exact amount of token,
     /// along the `path` token pairs, and expects
@@ -161,12 +161,12 @@ pub trait Router {
     #[ink(message)]
     fn swap_exact_tokens_for_native(
         &mut self,
-        amount_in: Balance,
+        amount_in: u128,
         amount_out_min: Balance,
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Exchanges tokens along `path` token pairs
     /// so that at the end caller receives `amount_out`
@@ -177,11 +177,11 @@ pub trait Router {
     #[ink(message, payable)]
     fn swap_native_for_exact_tokens(
         &mut self,
-        amount_out: Balance,
+        amount_out: u128,
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Returns amount of `B` tokens that have to be supplied
     /// , with the `amount_a` amount of tokens `A, to maintain
