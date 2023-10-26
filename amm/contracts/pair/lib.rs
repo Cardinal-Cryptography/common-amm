@@ -1,30 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-mod data;
-
 #[ink::contract]
 pub mod pair {
-    use crate::data::Data;
-    use amm::{
-        ensure,
-        helpers::{
-            helper::update_cumulative,
-            transfer_helper::{
-                balance_of,
-                safe_transfer,
-            },
+    use amm_helpers::{
+        constants::{
             MINIMUM_LIQUIDITY,
             ZERO_ADDRESS,
         },
-        traits::{
-            factory::Factory,
-            pair::{
-                Pair,
-                PairError,
-            },
-        },
-    };
-    use amm_helpers::{
+        ensure,
         math::casted_mul,
         types::WrappedU256,
     };
@@ -39,7 +22,16 @@ pub mod pair {
         PSP22Event,
         PSP22,
     };
-    use sp_arithmetic::traits::IntegerSquareRoot;
+    use sp_arithmetic::{
+        traits::IntegerSquareRoot,
+        FixedPointNumber,
+        FixedU128,
+    };
+    use traits::{
+        Factory,
+        Pair,
+        PairError,
+    };
 
     #[ink(event)]
     pub struct Mint {
@@ -95,11 +87,41 @@ pub mod pair {
         amount: Balance,
     }
 
+    #[ink::storage_item]
+    #[derive(Debug)]
+    pub struct PairData {
+        pub factory: AccountId,
+        pub token_0: AccountId,
+        pub token_1: AccountId,
+        pub reserve_0: Balance,
+        pub reserve_1: Balance,
+        pub block_timestamp_last: Timestamp,
+        pub price_0_cumulative_last: WrappedU256,
+        pub price_1_cumulative_last: WrappedU256,
+        pub k_last: WrappedU256,
+    }
+
+    impl Default for PairData {
+        fn default() -> Self {
+            Self {
+                factory: ZERO_ADDRESS.into(),
+                token_0: ZERO_ADDRESS.into(),
+                token_1: ZERO_ADDRESS.into(),
+                reserve_0: 0,
+                reserve_1: 0,
+                block_timestamp_last: 0,
+                price_0_cumulative_last: Default::default(),
+                price_1_cumulative_last: Default::default(),
+                k_last: Default::default(),
+            }
+        }
+    }
+
     #[ink(storage)]
     #[derive(Default)]
     pub struct PairContract {
         psp22: PSP22Data,
-        pair: Data,
+        pair: PairData,
     }
 
     impl PairContract {
@@ -113,9 +135,31 @@ pub mod pair {
             instance
         }
 
+        #[inline]
+        fn token_0(&self) -> contract_ref!(PSP22) {
+            self.pair.token_0.into()
+        }
+
+        #[inline]
+        fn token_1(&self) -> contract_ref!(PSP22) {
+            self.pair.token_1.into()
+        }
+
+        #[inline]
+        fn factory(&self) -> contract_ref!(Factory) {
+            self.pair.factory.into()
+        }
+
+        #[inline]
+        fn token_balances(&self, who: AccountId) -> (Balance, Balance) {
+            (
+                self.token_0().balance_of(who),
+                self.token_1().balance_of(who),
+            )
+        }
+
         fn mint_fee(&mut self, reserve_0: Balance, reserve_1: Balance) -> Result<bool, PairError> {
-            let factory_ref: contract_ref!(Factory) = self.pair.factory.into();
-            let fee_to = factory_ref.fee_to();
+            let fee_to = self.factory().fee_to();
             let fee_on = fee_to != ZERO_ADDRESS.into();
             let k_last: U256 = self.pair.k_last.into();
             if fee_on {
@@ -234,8 +278,7 @@ pub mod pair {
         fn mint(&mut self, to: AccountId) -> Result<Balance, PairError> {
             let reserves = self.get_reserves();
             let contract = self.env().account_id();
-            let balance_0 = balance_of(self.pair.token_0, contract);
-            let balance_1 = balance_of(self.pair.token_1, contract);
+            let (balance_0, balance_1) = self.token_balances(contract);
             let amount_0_transferred = balance_0
                 .checked_sub(reserves.0)
                 .ok_or(PairError::SubUnderFlow1)?;
@@ -299,10 +342,7 @@ pub mod pair {
         fn burn(&mut self, to: AccountId) -> Result<(Balance, Balance), PairError> {
             let reserves = self.get_reserves();
             let contract = self.env().account_id();
-            let token_0 = self.pair.token_0;
-            let token_1 = self.pair.token_1;
-            let balance_0_before = balance_of(token_0, contract);
-            let balance_1_before = balance_of(token_1, contract);
+            let (balance_0_before, balance_1_before) = self.token_balances(contract);
             let liquidity = self.balance_of(contract);
 
             let fee_on = self.mint_fee(reserves.0, reserves.1)?;
@@ -326,11 +366,10 @@ pub mod pair {
             let events = self.psp22.burn(contract, liquidity)?;
             self.emit_events(events);
 
-            safe_transfer(token_0, to, amount_0)?;
-            safe_transfer(token_1, to, amount_1)?;
+            self.token_0().transfer(to, amount_0, Vec::new())?;
+            self.token_1().transfer(to, amount_1, Vec::new())?;
 
-            let balance_0_after = balance_of(token_0, contract);
-            let balance_1_after = balance_of(token_1, contract);
+            let (balance_0_after, balance_1_after) = self.token_balances(contract);
 
             self.update(balance_0_after, balance_1_after, reserves.0, reserves.1)?;
 
@@ -370,14 +409,13 @@ pub mod pair {
 
             ensure!(to != token_0 && to != token_1, PairError::InvalidTo);
             if amount_0_out > 0 {
-                safe_transfer(token_0, to, amount_0_out)?;
+                self.token_0().transfer(to, amount_0_out, Vec::new())?;
             }
             if amount_1_out > 0 {
-                safe_transfer(token_1, to, amount_1_out)?;
+                self.token_1().transfer(to, amount_1_out, Vec::new())?;
             }
             let contract = self.env().account_id();
-            let balance_0 = balance_of(token_0, contract);
-            let balance_1 = balance_of(token_1, contract);
+            let (balance_0, balance_1) = self.token_balances(contract);
 
             let amount_0_in = if balance_0
                 > reserves
@@ -457,24 +495,17 @@ pub mod pair {
             let contract = self.env().account_id();
             let reserve_0 = self.pair.reserve_0;
             let reserve_1 = self.pair.reserve_1;
-            let token_0 = self.pair.token_0;
-            let token_1 = self.pair.token_1;
-            let balance_0 = balance_of(token_0, contract);
-            let balance_1 = balance_of(token_1, contract);
-            safe_transfer(
-                token_0,
-                to,
+            let (balance_0, balance_1) = self.token_balances(contract);
+            let (amount_0, amount_1) = (
                 balance_0
                     .checked_sub(reserve_0)
                     .ok_or(PairError::SubUnderFlow12)?,
-            )?;
-            safe_transfer(
-                token_1,
-                to,
                 balance_1
                     .checked_sub(reserve_1)
                     .ok_or(PairError::SubUnderFlow13)?,
-            )?;
+            );
+            self.token_0().transfer(to, amount_0, Vec::new())?;
+            self.token_1().transfer(to, amount_1, Vec::new())?;
             Ok(())
         }
 
@@ -483,10 +514,7 @@ pub mod pair {
             let contract = self.env().account_id();
             let reserve_0 = self.pair.reserve_0;
             let reserve_1 = self.pair.reserve_1;
-            let token_0 = self.pair.token_0;
-            let token_1 = self.pair.token_1;
-            let balance_0 = balance_of(token_0, contract);
-            let balance_1 = balance_of(token_1, contract);
+            let (balance_0, balance_1) = self.token_balances(contract);
             self.update(balance_0, balance_1, reserve_0, reserve_1)
         }
 
@@ -582,6 +610,33 @@ pub mod pair {
             self.emit_events(events);
             Ok(())
         }
+    }
+
+    #[inline]
+    pub fn update_cumulative(
+        price_0_cumulative_last: WrappedU256,
+        price_1_cumulative_last: WrappedU256,
+        time_elapsed: U256,
+        reserve_0: Balance,
+        reserve_1: Balance,
+    ) -> (WrappedU256, WrappedU256) {
+        let price_cumulative_last_0: WrappedU256 = U256::from(
+            FixedU128::checked_from_rational(reserve_1, reserve_0)
+                .unwrap_or_default()
+                .into_inner(),
+        )
+        .saturating_mul(time_elapsed)
+        .saturating_add(price_0_cumulative_last.into())
+        .into();
+        let price_cumulative_last_1: WrappedU256 = U256::from(
+            FixedU128::checked_from_rational(reserve_0, reserve_1)
+                .unwrap_or_default()
+                .into_inner(),
+        )
+        .saturating_mul(time_elapsed)
+        .saturating_add(price_1_cumulative_last.into())
+        .into();
+        (price_cumulative_last_0, price_cumulative_last_1)
     }
 
     #[cfg(test)]

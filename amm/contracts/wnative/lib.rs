@@ -2,7 +2,6 @@
 
 #[ink::contract]
 pub mod wnative {
-    use amm::traits::wnative::Wnative;
     use ink::prelude::{
         string::String,
         vec::Vec,
@@ -14,6 +13,25 @@ pub mod wnative {
         PSP22Metadata,
         PSP22,
     };
+    use traits::Wnative;
+
+    #[ink(event)]
+    pub struct Approval {
+        #[ink(topic)]
+        owner: AccountId,
+        #[ink(topic)]
+        spender: AccountId,
+        amount: u128,
+    }
+
+    #[ink(event)]
+    pub struct Transfer {
+        #[ink(topic)]
+        from: Option<AccountId>,
+        #[ink(topic)]
+        to: Option<AccountId>,
+        value: u128,
+    }
 
     #[ink(storage)]
     #[derive(Default)]
@@ -94,24 +112,6 @@ pub mod wnative {
         fn token_decimals(&self) -> u8 {
             12
         }
-    }
-
-    #[ink(event)]
-    pub struct Approval {
-        #[ink(topic)]
-        owner: AccountId,
-        #[ink(topic)]
-        spender: AccountId,
-        amount: u128,
-    }
-
-    #[ink(event)]
-    pub struct Transfer {
-        #[ink(topic)]
-        from: Option<AccountId>,
-        #[ink(topic)]
-        to: Option<AccountId>,
-        value: u128,
     }
 
     impl PSP22 for WnativeContract {

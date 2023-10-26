@@ -12,20 +12,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amm"
-version = "0.2.0"
-dependencies = [
- "amm-helpers",
- "ink",
- "ink_metadata",
- "parity-scale-codec",
- "primitive-types",
- "psp22",
- "scale-info",
- "sp-arithmetic",
-]
-
-[[package]]
 name = "amm-helpers"
 version = "0.2.0"
 dependencies = [
@@ -265,11 +251,12 @@ dependencies = [
 name = "factory_contract"
 version = "0.1.0"
 dependencies = [
- "amm",
+ "amm-helpers",
  "ink",
  "pair_contract",
  "parity-scale-codec",
  "scale-info",
+ "traits",
 ]
 
 [[package]]
@@ -681,7 +668,6 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 name = "pair_contract"
 version = "0.1.0"
 dependencies = [
- "amm",
  "amm-helpers",
  "ink",
  "parity-scale-codec",
@@ -689,6 +675,7 @@ dependencies = [
  "psp22",
  "scale-info",
  "sp-arithmetic",
+ "traits",
 ]
 
 [[package]]
@@ -862,11 +849,13 @@ checksum = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
 name = "router_contract"
 version = "0.1.0"
 dependencies = [
- "amm",
+ "amm-helpers",
  "ink",
  "parity-scale-codec",
  "primitive-types",
+ "psp22",
  "scale-info",
+ "traits",
 ]
 
 [[package]]
@@ -1165,6 +1154,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "traits"
+version = "0.2.0"
+dependencies = [
+ "amm-helpers",
+ "ink",
+ "ink_metadata",
+ "parity-scale-codec",
+ "primitive-types",
+ "psp22",
+ "scale-info",
+ "sp-arithmetic",
+]
+
+[[package]]
 name = "typenum"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1316,11 +1319,11 @@ dependencies = [
 name = "wnative_contract"
 version = "0.1.0"
 dependencies = [
- "amm",
  "ink",
  "parity-scale-codec",
  "psp22",
  "scale-info",
+ "traits",
 ]
 
 [[package]]

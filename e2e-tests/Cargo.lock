@@ -69,20 +69,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amm"
-version = "0.2.0"
-dependencies = [
- "amm-helpers",
- "ink",
- "ink_metadata",
- "parity-scale-codec",
- "primitive-types",
- "psp22",
- "scale-info",
- "sp-arithmetic 18.0.0",
-]
-
-[[package]]
 name = "amm-helpers"
 version = "0.2.0"
 dependencies = [
@@ -625,7 +611,7 @@ name = "e2e-tests"
 version = "0.1.0"
 dependencies = [
  "aleph_client",
- "amm",
+ "amm-helpers",
  "anyhow",
  "assert2",
  "async-trait",
@@ -635,6 +621,7 @@ dependencies = [
  "parity-scale-codec",
  "rand 0.8.5",
  "tokio",
+ "traits",
 ]
 
 [[package]]
@@ -3493,6 +3480,20 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
+]
+
+[[package]]
+name = "traits"
+version = "0.2.0"
+dependencies = [
+ "amm-helpers",
+ "ink",
+ "ink_metadata",
+ "parity-scale-codec",
+ "primitive-types",
+ "psp22",
+ "scale-info",
+ "sp-arithmetic 18.0.0",
 ]
 
 [[package]]

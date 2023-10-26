@@ -1,13 +1,7 @@
 use crate::{
-    helpers::{
-        helper::HelperError,
-        transfer_helper::TransferHelperError,
-    },
-    traits::{
-        factory::FactoryError,
-        pair::PairError,
-    },
     Balance,
+    FactoryError,
+    PairError,
 };
 use ink::{
     prelude::vec::Vec,
@@ -245,22 +239,22 @@ pub enum RouterError {
     PSP22Error(PSP22Error),
     FactoryError(FactoryError),
     PairError(PairError),
-    HelperError(HelperError),
-    TransferHelperError(TransferHelperError),
     LangError(LangError),
     TransferError,
     PairNotFound,
     InsufficientAmount,
-    InsufficientAAmount,
     InsufficientOutputAmount,
-    ExcessiveInputAmount,
+    InsufficientAAmount,
     InsufficientBAmount,
     InsufficientLiquidity,
+    ExcessiveInputAmount,
     ZeroAddress,
     IdenticalAddresses,
     Expired,
     SubUnderFlow,
+    AddOverFlow,
     MulOverFlow,
+    CastOverFlow,
     DivByZero,
     TransferFailed,
     InvalidPath,
@@ -278,11 +272,4 @@ macro_rules! impl_froms {
     };
 }
 
-impl_froms!(
-    PSP22Error,
-    FactoryError,
-    PairError,
-    HelperError,
-    TransferHelperError,
-    LangError
-);
+impl_froms!(PSP22Error, FactoryError, PairError, LangError);
