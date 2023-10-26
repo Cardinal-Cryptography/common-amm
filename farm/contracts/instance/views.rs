@@ -9,7 +9,7 @@ use ink::{
     primitives::AccountId,
 };
 
-use crate::farm::RewardTokenInfo;
+use crate::reward_token::RewardTokenInfo;
 use scale::{
     Decode,
     Encode,
