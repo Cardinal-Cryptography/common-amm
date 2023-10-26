@@ -38,6 +38,73 @@ pub mod factory {
         fee_to_setter: AccountId,
     }
 
+    impl FactoryContract {
+        #[ink(constructor)]
+        pub fn new(fee_to_setter: AccountId, pair_code_hash: Hash) -> Self {
+            let mut instance = Self {
+                get_pair: Default::default(),
+                all_pairs: Default::default(),
+                all_pairs_length: 0,
+                pair_contract_code_hash: Default::default(),
+                fee_to: ZERO_ADDRESS.into(),
+                fee_to_setter: ZERO_ADDRESS.into(),
+            };
+            instance.pair_contract_code_hash = pair_code_hash;
+            instance.fee_to_setter = fee_to_setter;
+            instance
+        }
+
+        fn _instantiate_pair(
+            &mut self,
+            salt_bytes: &[u8],
+            token_0: AccountId,
+            token_1: AccountId,
+        ) -> Result<AccountId, FactoryError> {
+            let pair_hash = self.pair_contract_code_hash;
+            let pair = match PairContractRef::new(token_0, token_1)
+                .endowment(0)
+                .code_hash(pair_hash)
+                .salt_bytes(&salt_bytes[..4])
+                .try_instantiate()
+            {
+                Ok(Ok(res)) => Ok(res),
+                _ => Err(FactoryError::PairInstantiationFailed),
+            }?;
+            Ok(pair.to_account_id())
+        }
+
+        fn _emit_create_pair_event(
+            &self,
+            token_0: AccountId,
+            token_1: AccountId,
+            pair: AccountId,
+            pair_len: u64,
+        ) {
+            EmitEvent::<FactoryContract>::emit_event(
+                self.env(),
+                PairCreated {
+                    token_0,
+                    token_1,
+                    pair,
+                    pair_len,
+                },
+            )
+        }
+
+        fn _add_new_pair(&mut self, pair: AccountId) {
+            let pair_len = self.all_pairs_length;
+            self.all_pairs.insert(pair_len, &pair);
+            self.all_pairs_length += 1;
+        }
+
+        fn _only_fee_setter(&self) -> Result<(), FactoryError> {
+            if self.env().caller() != self.fee_to_setter {
+                return Err(FactoryError::CallerIsNotFeeSetter)
+            }
+            Ok(())
+        }
+    }
+
     impl Factory for FactoryContract {
         #[ink(message)]
         fn all_pairs(&self, pid: u64) -> Option<AccountId> {
@@ -119,73 +186,6 @@ pub mod factory {
         #[ink(message)]
         fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId> {
             self.get_pair.get((token_a, token_b))
-        }
-    }
-
-    impl FactoryContract {
-        #[ink(constructor)]
-        pub fn new(fee_to_setter: AccountId, pair_code_hash: Hash) -> Self {
-            let mut instance = Self {
-                get_pair: Default::default(),
-                all_pairs: Default::default(),
-                all_pairs_length: 0,
-                pair_contract_code_hash: Default::default(),
-                fee_to: ZERO_ADDRESS.into(),
-                fee_to_setter: ZERO_ADDRESS.into(),
-            };
-            instance.pair_contract_code_hash = pair_code_hash;
-            instance.fee_to_setter = fee_to_setter;
-            instance
-        }
-
-        fn _instantiate_pair(
-            &mut self,
-            salt_bytes: &[u8],
-            token_0: AccountId,
-            token_1: AccountId,
-        ) -> Result<AccountId, FactoryError> {
-            let pair_hash = self.pair_contract_code_hash;
-            let pair = match PairContractRef::new(token_0, token_1)
-                .endowment(0)
-                .code_hash(pair_hash)
-                .salt_bytes(&salt_bytes[..4])
-                .try_instantiate()
-            {
-                Ok(Ok(res)) => Ok(res),
-                _ => Err(FactoryError::PairInstantiationFailed),
-            }?;
-            Ok(pair.to_account_id())
-        }
-
-        fn _emit_create_pair_event(
-            &self,
-            token_0: AccountId,
-            token_1: AccountId,
-            pair: AccountId,
-            pair_len: u64,
-        ) {
-            EmitEvent::<FactoryContract>::emit_event(
-                self.env(),
-                PairCreated {
-                    token_0,
-                    token_1,
-                    pair,
-                    pair_len,
-                },
-            )
-        }
-
-        fn _add_new_pair(&mut self, pair: AccountId) {
-            let pair_len = self.all_pairs_length;
-            self.all_pairs.insert(pair_len, &pair);
-            self.all_pairs_length += 1;
-        }
-
-        fn _only_fee_setter(&self) -> Result<(), FactoryError> {
-            if self.env().caller() != self.fee_to_setter {
-                return Err(FactoryError::CallerIsNotFeeSetter)
-            }
-            Ok(())
         }
     }
 
