@@ -222,7 +222,7 @@ pub mod router {
 
         /// Checks if the current block timestamp is not after the deadline.
         #[inline]
-        fn check_timestamp(&self, deadline: Timestamp) -> Result<(), RouterError> {
+        fn check_timestamp(&self, deadline: u64) -> Result<(), RouterError> {
             ensure!(
                 deadline >= self.env().block_timestamp(),
                 RouterError::Expired

@@ -5,9 +5,7 @@ mod pair;
 mod router;
 mod wnative;
 
-pub use ink::env::DefaultEnvironment as Env;
-pub type Balance = <Env as ink::env::Environment>::Balance;
-pub type Timestamp = <Env as ink::env::Environment>::Timestamp;
+pub type Balance = <ink::env::DefaultEnvironment as ink::env::Environment>::Balance;
 
 pub use factory::{
     Factory,

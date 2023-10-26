@@ -1,4 +1,3 @@
-use crate::Timestamp;
 use amm_helpers::types::WrappedU256;
 use ink::{
     primitives::AccountId,
@@ -8,12 +7,12 @@ use psp22::PSP22Error;
 
 #[ink::trait_definition]
 pub trait Pair {
-    /// Returns amounts of tokens this pair holds at `Timestamp`.
+    /// Returns amounts of tokens this pair holds and a timestamp.
     ///
     /// NOTE: This does not include the tokens that were transferred to the contract
     /// as part of the _current_ transaction.
     #[ink(message)]
-    fn get_reserves(&self) -> (u128, u128, Timestamp);
+    fn get_reserves(&self) -> (u128, u128, u64);
 
     /// Returns cumulative prive of the first token.
     ///

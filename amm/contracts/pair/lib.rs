@@ -95,7 +95,7 @@ pub mod pair {
         pub token_1: AccountId,
         pub reserve_0: u128,
         pub reserve_1: u128,
-        pub block_timestamp_last: Timestamp,
+        pub block_timestamp_last: u64,
         pub price_0_cumulative_last: WrappedU256,
         pub price_1_cumulative_last: WrappedU256,
         pub k_last: WrappedU256,
@@ -257,7 +257,7 @@ pub mod pair {
 
     impl Pair for PairContract {
         #[ink(message)]
-        fn get_reserves(&self) -> (u128, u128, Timestamp) {
+        fn get_reserves(&self) -> (u128, u128, u64) {
             (
                 self.pair.reserve_0,
                 self.pair.reserve_1,
