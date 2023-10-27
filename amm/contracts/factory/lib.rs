@@ -127,7 +127,7 @@ pub mod factory {
             token_a: AccountId,
             token_b: AccountId,
         ) -> Result<AccountId, DexError> {
-            ensure!(token_a != token_b, DexError::IdenticalAddresses); // XXXX
+            ensure!(token_a != token_b, DexError::IdenticalAddresses(1));
             let token_pair = if token_a < token_b {
                 (token_a, token_b)
             } else {
