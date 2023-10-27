@@ -9,7 +9,7 @@ pub enum DexError {
 
     CallerIsNotFeeSetter,
     CrossContractCallFailed(u8),
-    Expired,
+    Expired(u8),
     IdenticalAddresses(u8),
     InvalidPath(u8),
     InvalidTo,

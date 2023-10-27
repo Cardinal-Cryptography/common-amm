@@ -204,13 +204,6 @@ pub mod router {
 
             Ok(amounts)
         }
-
-        /// Checks if the current block timestamp is not after the deadline.
-        #[inline]
-        fn check_timestamp(&self, deadline: u64) -> Result<(), DexError> {
-            ensure!(deadline >= self.env().block_timestamp(), DexError::Expired);
-            Ok(())
-        }
     }
 
     impl Router for RouterContract {
@@ -236,7 +229,10 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, u128, u128), DexError> {
-            self.check_timestamp(deadline)?;
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                DexError::Expired(1)
+            );
             ensure!(token_a != token_b, DexError::IdenticalAddresses(4));
             let (amount_a, amount_b) = self.calculate_liquidity(
                 token_a,
@@ -269,7 +265,10 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, Balance, u128), DexError> {
-            self.check_timestamp(deadline)?;
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                DexError::Expired(2)
+            );
             let wnative = self.wnative;
             let received_value = self.env().transferred_value();
 
@@ -312,7 +311,10 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, u128), DexError> {
-            self.check_timestamp(deadline)?;
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                DexError::Expired(3)
+            );
             ensure!(token_a != token_b, DexError::IdenticalAddresses(5));
             let pair_contract = self.get_pair(token_a, token_b)?;
 
@@ -351,7 +353,10 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, Balance), DexError> {
-            self.check_timestamp(deadline)?;
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                DexError::Expired(4)
+            );
             let wnative = self.wnative;
             let (amount_token, amount_native) = self.remove_liquidity(
                 token,
@@ -379,7 +384,10 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, DexError> {
-            self.check_timestamp(deadline)?;
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                DexError::Expired(5)
+            );
             let amounts = self.calculate_amounts_out(amount_in, &path)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
@@ -404,7 +412,10 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, DexError> {
-            self.check_timestamp(deadline)?;
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                DexError::Expired(6)
+            );
             let amounts = self.calculate_amounts_in(amount_out, &path)?;
             ensure!(
                 amounts[0] <= amount_in_max,
@@ -428,7 +439,10 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, DexError> {
-            self.check_timestamp(deadline)?;
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                DexError::Expired(7)
+            );
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
             ensure!(path[0] == wnative, DexError::InvalidPath(3));
@@ -452,7 +466,10 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, DexError> {
-            self.check_timestamp(deadline)?;
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                DexError::Expired(8)
+            );
             let wnative = self.wnative;
             ensure!(path[path.len() - 1] == wnative, DexError::InvalidPath(4));
             let amounts = self.calculate_amounts_in(amount_out, &path)?;
@@ -484,7 +501,10 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, DexError> {
-            self.check_timestamp(deadline)?;
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                DexError::Expired(9)
+            );
             ensure!(
                 path[path.len() - 1] == self.wnative,
                 DexError::InvalidPath(5)
@@ -517,7 +537,10 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, DexError> {
-            self.check_timestamp(deadline)?;
+            ensure!(
+                deadline >= self.env().block_timestamp(),
+                DexError::Expired(10)
+            );
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
             ensure!(path[0] == wnative, DexError::InvalidPath(6));
