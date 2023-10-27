@@ -296,14 +296,14 @@ pub mod router {
                 amount_token_desired,
                 received_value,
                 amount_token_min,
-                amount_native_min.into(),
+                amount_native_min,
             )?;
 
             let pair_contract = self.get_pair(token, wnative)?;
 
             let caller = self.env().caller();
             psp22_transfer_from(token, caller, pair_contract, amount_a)?;
-            self.wrap(amount_native.into())?;
+            self.wrap(amount_native)?;
             psp22_transfer(wnative, pair_contract, amount_native)?;
 
             let mut pair: contract_ref!(Pair) = pair_contract.into();
@@ -315,7 +315,7 @@ pub mod router {
                     .map_err(|_| RouterError::TransferError)?;
             }
 
-            Ok((amount_a, amount_native.into(), liquidity))
+            Ok((amount_a, amount_native, liquidity))
         }
 
         #[ink(message)]
@@ -385,7 +385,7 @@ pub mod router {
                 wnative,
                 liquidity,
                 amount_token_min,
-                amount_native_min.into(),
+                amount_native_min,
                 self.env().account_id(),
                 deadline,
             )?;
@@ -394,7 +394,7 @@ pub mod router {
             self.env()
                 .transfer(to, amount_native)
                 .map_err(|_| RouterError::TransferError)?;
-            Ok((amount_token, amount_native.into()))
+            Ok((amount_token, amount_native))
         }
 
         #[ink(message)]
@@ -482,7 +482,7 @@ pub mod router {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
-            let amounts = self.calculate_amounts_in(amount_out.into(), &path)?;
+            let amounts = self.calculate_amounts_in(amount_out, &path)?;
             ensure!(
                 amounts[0] <= amount_in_max,
                 RouterError::ExcessiveInputAmount
@@ -497,7 +497,7 @@ pub mod router {
             let native_out = amounts[amounts.len() - 1];
             self.wnative_ref().withdraw(native_out)?;
             self.env()
-                .transfer(to, native_out.into())
+                .transfer(to, native_out)
                 .map_err(|_| RouterError::TransferError)?;
             Ok(amounts)
         }
@@ -519,7 +519,7 @@ pub mod router {
             let amounts = self.calculate_amounts_out(amount_in, &path)?;
             let native_out = amounts[amounts.len() - 1];
             ensure!(
-                native_out >= amount_out_min.into(),
+                native_out >= amount_out_min,
                 RouterError::InsufficientOutputAmount
             );
             psp22_transfer_from(
@@ -531,7 +531,7 @@ pub mod router {
             self.swap(&amounts, &path, self.env().account_id())?;
             self.wnative_ref().withdraw(native_out)?;
             self.env()
-                .transfer(to, native_out.into())
+                .transfer(to, native_out)
                 .map_err(|_| RouterError::TransferError)?;
             Ok(amounts)
         }
@@ -555,7 +555,7 @@ pub mod router {
                 RouterError::ExcessiveInputAmount
             );
             self.wrap(native_in)?;
-            psp22_transfer(wnative, self.get_pair(path[0], path[1])?, native_in.into())?;
+            psp22_transfer(wnative, self.get_pair(path[0], path[1])?, native_in)?;
             self.swap(&amounts, &path, to)?;
             if received_native > native_in {
                 self.env()
