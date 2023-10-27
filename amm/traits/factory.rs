@@ -59,7 +59,6 @@ pub trait Factory {
 pub enum FactoryError {
     PairError(PairError),
     CallerIsNotFeeSetter,
-    ZeroAddress,
     IdenticalAddresses,
     PairExists,
     PairInstantiationFailed,

@@ -181,7 +181,7 @@ pub mod pair {
                                     .checked_sub(root_k_last)
                                     .ok_or(PairError::SubUnderFlow14)?,
                             )
-                            .ok_or(PairError::MulOverFlow13)?;
+                            .ok_or(PairError::MulOverFlow12)?;
                         let denominator = root_k
                             .checked_mul(5)
                             .ok_or(PairError::MulOverFlow13)?
@@ -473,7 +473,7 @@ pub mod pair {
                 casted_mul(balance_0_adjusted, balance_1_adjusted)
                     >= casted_mul(reserves.0, reserves.1)
                         .checked_mul(1000u128.pow(2).into())
-                        .ok_or(PairError::MulOverFlow14)?,
+                        .ok_or(PairError::MulOverFlow4)?,
                 PairError::K
             );
 

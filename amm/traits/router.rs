@@ -243,7 +243,6 @@ pub enum RouterError {
     InsufficientBAmount,
     InsufficientLiquidity,
     ExcessiveInputAmount,
-    ZeroAddress,
     IdenticalAddresses,
     Expired,
     SubUnderFlow,
@@ -251,7 +250,6 @@ pub enum RouterError {
     MulOverFlow,
     CastOverFlow,
     DivByZero,
-    TransferFailed,
     InvalidPath,
 }
 
