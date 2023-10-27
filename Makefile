@@ -76,7 +76,7 @@ CONTRACT_DATA = ./target/ink
 wrap-all: ## Generates code for contract interaction.
 	@for c in $(notdir $(shell find $(CONTRACT_DATA) -mindepth 1 -maxdepth 1 -type d)); do \
 		echo "Wrapping $$c" ; \
-	 	ink-wrapper -m ./target/ink/$$c/$$c.json --wasm-path ../../target/ink/$$c/$$c.wasm \
+	 	ink-wrapper -m ./target/ink/$$c/$$c.json --wasm-path ../../../target/ink/$$c/$$c.wasm \
 	 		| rustfmt --edition 2021 > ./amm/e2e-tests/src/$$c.rs ; \
 	done
 
