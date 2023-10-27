@@ -20,10 +20,10 @@ pub mod router {
         PSP22,
     };
     use traits::{
+        DexError,
         Factory,
         Pair,
         Router,
-        RouterError,
         Wnative,
     };
 
@@ -52,14 +52,10 @@ pub mod router {
         /// Returns address of a `Pair` contract instance (if exists) for
         /// `(token_a, token_b)` pair registered in `factory` Factory instance.
         #[inline]
-        fn get_pair(
-            &self,
-            token_a: AccountId,
-            token_b: AccountId,
-        ) -> Result<AccountId, RouterError> {
+        fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Result<AccountId, DexError> {
             self.factory_ref()
                 .get_pair(token_a, token_b)
-                .ok_or(RouterError::PairNotFound)
+                .ok_or(DexError::PairNotFound)
         }
 
         #[inline]
@@ -67,8 +63,8 @@ pub mod router {
             &self,
             token_a: AccountId,
             token_b: AccountId,
-        ) -> Result<(u128, u128), RouterError> {
-            ensure!(token_a != token_b, RouterError::IdenticalAddresses);
+        ) -> Result<(u128, u128), DexError> {
+            ensure!(token_a != token_b, DexError::IdenticalAddresses); // XXXX
             let pair: contract_ref!(Pair) = self.get_pair(token_a, token_b)?.into();
             let (reserve_0, reserve_1, _) = pair.get_reserves();
             if token_a < token_b {
@@ -79,7 +75,7 @@ pub mod router {
         }
 
         #[inline]
-        fn wrap(&self, value: Balance) -> Result<(), RouterError> {
+        fn wrap(&self, value: Balance) -> Result<(), DexError> {
             match self
                 .wnative_ref()
                 .call_mut()
@@ -88,7 +84,7 @@ pub mod router {
                 .try_invoke()
             {
                 Ok(res) => Ok(res??),
-                Err(_) => Err(RouterError::TransferError),
+                Err(_) => Err(DexError::CrossContractCallFailed),
             }
         }
 
@@ -100,7 +96,7 @@ pub mod router {
             amount_b_desired: u128,
             amount_a_min: u128,
             amount_b_min: u128,
-        ) -> Result<(u128, u128), RouterError> {
+        ) -> Result<(u128, u128), DexError> {
             if self.get_pair(token_a, token_b).is_err() {
                 self.factory_ref().create_pair(token_a, token_b)?;
             };
@@ -115,7 +111,7 @@ pub mod router {
             if amount_b_optimal <= amount_b_desired {
                 ensure!(
                     amount_b_optimal >= amount_b_min,
-                    RouterError::InsufficientBAmount
+                    DexError::InsufficientBAmount
                 );
                 Ok((amount_a_desired, amount_b_optimal))
             } else {
@@ -123,7 +119,7 @@ pub mod router {
                 // amount_a_optimal <= amount_a_desired holds as amount_b_optimal > amount_b_desired
                 ensure!(
                     amount_a_optimal >= amount_a_min,
-                    RouterError::InsufficientAAmount
+                    DexError::InsufficientAAmount
                 );
                 Ok((amount_a_optimal, amount_b_desired))
             }
@@ -134,10 +130,10 @@ pub mod router {
             amounts: &[u128],
             path: &Vec<AccountId>,
             _to: AccountId,
-        ) -> Result<(), RouterError> {
+        ) -> Result<(), DexError> {
             for i in 0..path.len() - 1 {
                 let (input, output) = (path[i], path[i + 1]);
-                ensure!(input != output, RouterError::IdenticalAddresses);
+                ensure!(input != output, DexError::IdenticalAddresses); // XXXX
                 let amount_out = amounts[i + 1];
                 let (amount_0_out, amount_1_out) = if input < output {
                     (0, amount_out)
@@ -159,19 +155,8 @@ pub mod router {
                     .call_flags(CallFlags::default().set_allow_reentry(true))
                     .try_invoke()
                 {
-                    // TODO simplify
-                    Ok(res) => {
-                        match res {
-                            Ok(v) => {
-                                match v {
-                                    Ok(v) => Ok(v),
-                                    Err(err) => Err(RouterError::PairError(err)),
-                                }
-                            }
-                            Err(err) => Err(RouterError::LangError(err)),
-                        }
-                    }
-                    Err(_) => Err(RouterError::TransferError),
+                    Ok(res) => res?,
+                    Err(_) => Err(DexError::CrossContractCallFailed),
                 }?;
             }
             Ok(())
@@ -184,8 +169,8 @@ pub mod router {
             &self,
             amount_out: u128,
             path: &Vec<AccountId>,
-        ) -> Result<Vec<u128>, RouterError> {
-            ensure!(path.len() >= 2, RouterError::InvalidPath);
+        ) -> Result<Vec<u128>, DexError> {
+            ensure!(path.len() >= 2, DexError::InvalidPath);
 
             let mut amounts = vec![0; path.len()];
             amounts[path.len() - 1] = amount_out;
@@ -207,8 +192,8 @@ pub mod router {
             &self,
             amount_in: u128,
             path: &Vec<AccountId>,
-        ) -> Result<Vec<u128>, RouterError> {
-            ensure!(path.len() >= 2, RouterError::InvalidPath);
+        ) -> Result<Vec<u128>, DexError> {
+            ensure!(path.len() >= 2, DexError::InvalidPath);
 
             let mut amounts = Vec::with_capacity(path.len());
             amounts.push(amount_in);
@@ -222,11 +207,8 @@ pub mod router {
 
         /// Checks if the current block timestamp is not after the deadline.
         #[inline]
-        fn check_timestamp(&self, deadline: u64) -> Result<(), RouterError> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterError::Expired
-            );
+        fn check_timestamp(&self, deadline: u64) -> Result<(), DexError> {
+            ensure!(deadline >= self.env().block_timestamp(), DexError::Expired);
             Ok(())
         }
     }
@@ -253,7 +235,7 @@ pub mod router {
             amount_b_min: u128,
             to: AccountId,
             deadline: u64,
-        ) -> Result<(u128, u128, u128), RouterError> {
+        ) -> Result<(u128, u128, u128), DexError> {
             self.check_timestamp(deadline)?;
             let (amount_a, amount_b) = self.calculate_liquidity(
                 token_a,
@@ -285,7 +267,7 @@ pub mod router {
             amount_native_min: Balance,
             to: AccountId,
             deadline: u64,
-        ) -> Result<(u128, Balance, u128), RouterError> {
+        ) -> Result<(u128, Balance, u128), DexError> {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             let received_value = self.env().transferred_value();
@@ -312,7 +294,7 @@ pub mod router {
             if received_value > amount_native {
                 self.env()
                     .transfer(caller, received_value - amount_native)
-                    .map_err(|_| RouterError::TransferError)?;
+                    .map_err(|_| DexError::TransferError)?;
             }
 
             Ok((amount_a, amount_native, liquidity))
@@ -328,9 +310,9 @@ pub mod router {
             amount_b_min: u128,
             to: AccountId,
             deadline: u64,
-        ) -> Result<(u128, u128), RouterError> {
+        ) -> Result<(u128, u128), DexError> {
             self.check_timestamp(deadline)?;
-            ensure!(token_a != token_b, RouterError::IdenticalAddresses);
+            ensure!(token_a != token_b, DexError::IdenticalAddresses); // XXXX
             let pair_contract = self.get_pair(token_a, token_b)?;
 
             psp22_transfer_from(pair_contract, self.env().caller(), pair_contract, liquidity)?;
@@ -343,18 +325,8 @@ pub mod router {
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .try_invoke()
             {
-                Ok(res) => {
-                    match res {
-                        Ok(v) => {
-                            match v {
-                                Ok(tuple) => Ok(tuple),
-                                Err(err) => Err(RouterError::PairError(err)),
-                            }
-                        }
-                        Err(_) => Err(RouterError::TransferError),
-                    }
-                }
-                Err(_) => Err(RouterError::TransferError),
+                Ok(res) => res?,
+                Err(_) => Err(DexError::CrossContractCallFailed),
             }?;
             let (amount_a, amount_b) = if token_a < token_b {
                 (amount_0, amount_1)
@@ -362,8 +334,8 @@ pub mod router {
                 (amount_1, amount_0)
             };
 
-            ensure!(amount_a >= amount_a_min, RouterError::InsufficientAAmount);
-            ensure!(amount_b >= amount_b_min, RouterError::InsufficientBAmount);
+            ensure!(amount_a >= amount_a_min, DexError::InsufficientAAmount);
+            ensure!(amount_b >= amount_b_min, DexError::InsufficientBAmount);
 
             Ok((amount_a, amount_b))
         }
@@ -377,7 +349,7 @@ pub mod router {
             amount_native_min: Balance,
             to: AccountId,
             deadline: u64,
-        ) -> Result<(u128, Balance), RouterError> {
+        ) -> Result<(u128, Balance), DexError> {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             let (amount_token, amount_native) = self.remove_liquidity(
@@ -393,7 +365,7 @@ pub mod router {
             self.wnative_ref().withdraw(amount_native)?;
             self.env()
                 .transfer(to, amount_native)
-                .map_err(|_| RouterError::TransferError)?;
+                .map_err(|_| DexError::TransferError)?;
             Ok((amount_token, amount_native))
         }
 
@@ -405,12 +377,12 @@ pub mod router {
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<u128>, RouterError> {
+        ) -> Result<Vec<u128>, DexError> {
             self.check_timestamp(deadline)?;
             let amounts = self.calculate_amounts_out(amount_in, &path)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
-                RouterError::InsufficientOutputAmount
+                DexError::InsufficientOutputAmount
             );
             psp22_transfer_from(
                 path[0],
@@ -430,13 +402,10 @@ pub mod router {
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<u128>, RouterError> {
+        ) -> Result<Vec<u128>, DexError> {
             self.check_timestamp(deadline)?;
             let amounts = self.calculate_amounts_in(amount_out, &path)?;
-            ensure!(
-                amounts[0] <= amount_in_max,
-                RouterError::ExcessiveInputAmount
-            );
+            ensure!(amounts[0] <= amount_in_max, DexError::ExcessiveInputAmount);
             psp22_transfer_from(
                 path[0],
                 self.env().caller(),
@@ -454,15 +423,15 @@ pub mod router {
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<u128>, RouterError> {
+        ) -> Result<Vec<u128>, DexError> {
             self.check_timestamp(deadline)?;
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
-            ensure!(path[0] == wnative, RouterError::InvalidPath);
+            ensure!(path[0] == wnative, DexError::InvalidPath);
             let amounts = self.calculate_amounts_out(received_value, &path)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
-                RouterError::InsufficientOutputAmount
+                DexError::InsufficientOutputAmount
             );
             self.wrap(received_value)?;
             psp22_transfer(wnative, self.get_pair(path[0], path[1])?, amounts[0])?;
@@ -478,15 +447,12 @@ pub mod router {
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<u128>, RouterError> {
+        ) -> Result<Vec<u128>, DexError> {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
-            ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
+            ensure!(path[path.len() - 1] == wnative, DexError::InvalidPath);
             let amounts = self.calculate_amounts_in(amount_out, &path)?;
-            ensure!(
-                amounts[0] <= amount_in_max,
-                RouterError::ExcessiveInputAmount
-            );
+            ensure!(amounts[0] <= amount_in_max, DexError::ExcessiveInputAmount);
             psp22_transfer_from(
                 path[0],
                 self.env().caller(),
@@ -498,7 +464,7 @@ pub mod router {
             self.wnative_ref().withdraw(native_out)?;
             self.env()
                 .transfer(to, native_out)
-                .map_err(|_| RouterError::TransferError)?;
+                .map_err(|_| DexError::TransferError)?;
             Ok(amounts)
         }
 
@@ -510,17 +476,14 @@ pub mod router {
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<u128>, RouterError> {
+        ) -> Result<Vec<u128>, DexError> {
             self.check_timestamp(deadline)?;
-            ensure!(
-                path[path.len() - 1] == self.wnative,
-                RouterError::InvalidPath
-            );
+            ensure!(path[path.len() - 1] == self.wnative, DexError::InvalidPath);
             let amounts = self.calculate_amounts_out(amount_in, &path)?;
             let native_out = amounts[amounts.len() - 1];
             ensure!(
                 native_out >= amount_out_min,
-                RouterError::InsufficientOutputAmount
+                DexError::InsufficientOutputAmount
             );
             psp22_transfer_from(
                 path[0],
@@ -532,7 +495,7 @@ pub mod router {
             self.wnative_ref().withdraw(native_out)?;
             self.env()
                 .transfer(to, native_out)
-                .map_err(|_| RouterError::TransferError)?;
+                .map_err(|_| DexError::TransferError)?;
             Ok(amounts)
         }
 
@@ -543,24 +506,21 @@ pub mod router {
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<u128>, RouterError> {
+        ) -> Result<Vec<u128>, DexError> {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
-            ensure!(path[0] == wnative, RouterError::InvalidPath);
+            ensure!(path[0] == wnative, DexError::InvalidPath);
             let amounts = self.calculate_amounts_in(amount_out, &path)?;
             let native_in: Balance = amounts[0];
-            ensure!(
-                native_in <= received_native,
-                RouterError::ExcessiveInputAmount
-            );
+            ensure!(native_in <= received_native, DexError::ExcessiveInputAmount);
             self.wrap(native_in)?;
             psp22_transfer(wnative, self.get_pair(path[0], path[1])?, native_in)?;
             self.swap(&amounts, &path, to)?;
             if received_native > native_in {
                 self.env()
                     .transfer(self.env().caller(), received_native - native_in)
-                    .map_err(|_| RouterError::TransferError)?;
+                    .map_err(|_| DexError::TransferError)?;
             }
             Ok(amounts)
         }
@@ -574,18 +534,18 @@ pub mod router {
             amount_a: u128,
             reserve_a: u128,
             reserve_b: u128,
-        ) -> Result<u128, RouterError> {
-            ensure!(amount_a > 0, RouterError::InsufficientAmount);
+        ) -> Result<u128, DexError> {
+            ensure!(amount_a > 0, DexError::InsufficientAmount);
             ensure!(
                 reserve_a > 0 && reserve_b > 0,
-                RouterError::InsufficientLiquidity
+                DexError::InsufficientLiquidity
             );
 
             let amount_b: u128 = casted_mul(amount_a, reserve_b)
                 .checked_div(reserve_a.into())
-                .ok_or(RouterError::DivByZero)?
+                .ok_or(DexError::DivByZero(20))?
                 .try_into()
-                .map_err(|_| RouterError::CastOverFlow)?;
+                .map_err(|_| DexError::CastOverflow(20))?;
 
             Ok(amount_b)
         }
@@ -599,11 +559,11 @@ pub mod router {
             amount_in: u128,
             reserve_a: u128,
             reserve_b: u128,
-        ) -> Result<u128, RouterError> {
-            ensure!(amount_in > 0, RouterError::InsufficientAmount);
+        ) -> Result<u128, DexError> {
+            ensure!(amount_in > 0, DexError::InsufficientAmount);
             ensure!(
                 reserve_a > 0 && reserve_b > 0,
-                RouterError::InsufficientLiquidity
+                DexError::InsufficientLiquidity
             );
 
             // Adjusts for fees paid in the `token_in`.
@@ -611,17 +571,17 @@ pub mod router {
 
             let numerator = amount_in_with_fee
                 .checked_mul(reserve_b.into())
-                .ok_or(RouterError::MulOverFlow)?;
+                .ok_or(DexError::MulOverflow(20))?;
 
             let denominator = casted_mul(reserve_a, 1000)
                 .checked_add(amount_in_with_fee)
-                .ok_or(RouterError::AddOverFlow)?;
+                .ok_or(DexError::AddOverflow(21))?;
 
             let amount_out: u128 = numerator
                 .checked_div(denominator)
-                .ok_or(RouterError::DivByZero)?
+                .ok_or(DexError::DivByZero(21))?
                 .try_into()
-                .map_err(|_| RouterError::CastOverFlow)?;
+                .map_err(|_| DexError::CastOverflow(21))?;
 
             Ok(amount_out)
         }
@@ -635,31 +595,31 @@ pub mod router {
             amount_out: u128,
             reserve_a: u128,
             reserve_b: u128,
-        ) -> Result<u128, RouterError> {
-            ensure!(amount_out > 0, RouterError::InsufficientAmount);
+        ) -> Result<u128, DexError> {
+            ensure!(amount_out > 0, DexError::InsufficientAmount);
             ensure!(
                 reserve_a > 0 && reserve_b > 0,
-                RouterError::InsufficientLiquidity
+                DexError::InsufficientLiquidity
             );
 
             let numerator = casted_mul(reserve_a, amount_out)
                 .checked_mul(1000.into())
-                .ok_or(RouterError::MulOverFlow)?;
+                .ok_or(DexError::MulOverflow(21))?;
 
             let denominator = casted_mul(
                 reserve_b
                     .checked_sub(amount_out)
-                    .ok_or(RouterError::SubUnderFlow)?,
+                    .ok_or(DexError::SubUnderflow(20))?,
                 997,
             );
 
             let amount_in: u128 = numerator
                 .checked_div(denominator)
-                .ok_or(RouterError::DivByZero)?
+                .ok_or(DexError::DivByZero(22))?
                 .checked_add(1.into())
-                .ok_or(RouterError::AddOverFlow)?
+                .ok_or(DexError::AddOverflow(20))?
                 .try_into()
-                .map_err(|_| RouterError::CastOverFlow)?;
+                .map_err(|_| DexError::CastOverflow(22))?;
 
             Ok(amount_in)
         }
@@ -669,7 +629,7 @@ pub mod router {
             &self,
             amount_in: u128,
             path: Vec<AccountId>,
-        ) -> Result<Vec<u128>, RouterError> {
+        ) -> Result<Vec<u128>, DexError> {
             self.calculate_amounts_out(amount_in, &path)
         }
 
@@ -678,7 +638,7 @@ pub mod router {
             &self,
             amount_out: u128,
             path: Vec<AccountId>,
-        ) -> Result<Vec<u128>, RouterError> {
+        ) -> Result<Vec<u128>, DexError> {
             self.calculate_amounts_in(amount_out, &path)
         }
     }

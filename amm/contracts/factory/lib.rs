@@ -14,8 +14,8 @@ pub mod factory {
     };
     use pair_contract::pair::PairContractRef;
     use traits::{
+        DexError,
         Factory,
-        FactoryError,
     };
 
     #[ink(event)]
@@ -59,7 +59,7 @@ pub mod factory {
             salt_bytes: &[u8],
             token_0: AccountId,
             token_1: AccountId,
-        ) -> Result<AccountId, FactoryError> {
+        ) -> Result<AccountId, DexError> {
             let pair_hash = self.pair_contract_code_hash;
             let pair = match PairContractRef::new(token_0, token_1)
                 .endowment(0)
@@ -68,7 +68,7 @@ pub mod factory {
                 .try_instantiate()
             {
                 Ok(Ok(res)) => Ok(res),
-                _ => Err(FactoryError::PairInstantiationFailed),
+                _ => Err(DexError::PairInstantiationFailed),
             }?;
             Ok(pair.to_account_id())
         }
@@ -97,9 +97,9 @@ pub mod factory {
             self.all_pairs_length += 1;
         }
 
-        fn _only_fee_setter(&self) -> Result<(), FactoryError> {
+        fn _only_fee_setter(&self) -> Result<(), DexError> {
             if self.env().caller() != self.fee_to_setter {
-                return Err(FactoryError::CallerIsNotFeeSetter)
+                return Err(DexError::CallerIsNotFeeSetter)
             }
             Ok(())
         }
@@ -126,8 +126,8 @@ pub mod factory {
             &mut self,
             token_a: AccountId,
             token_b: AccountId,
-        ) -> Result<AccountId, FactoryError> {
-            ensure!(token_a != token_b, FactoryError::IdenticalAddresses);
+        ) -> Result<AccountId, DexError> {
+            ensure!(token_a != token_b, DexError::IdenticalAddresses); // XXXX
             let token_pair = if token_a < token_b {
                 (token_a, token_b)
             } else {
@@ -135,7 +135,7 @@ pub mod factory {
             };
             ensure!(
                 self.get_pair.get(token_pair).is_none(),
-                FactoryError::PairExists
+                DexError::PairExists
             );
 
             let salt = self.env().hash_encoded::<Blake2x256, _>(&token_pair);
@@ -160,14 +160,14 @@ pub mod factory {
         }
 
         #[ink(message)]
-        fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), FactoryError> {
+        fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), DexError> {
             self._only_fee_setter()?;
             self.fee_to = fee_to;
             Ok(())
         }
 
         #[ink(message)]
-        fn set_fee_to_setter(&mut self, fee_to_setter: AccountId) -> Result<(), FactoryError> {
+        fn set_fee_to_setter(&mut self, fee_to_setter: AccountId) -> Result<(), DexError> {
             self._only_fee_setter()?;
             self.fee_to_setter = fee_to_setter;
             Ok(())
