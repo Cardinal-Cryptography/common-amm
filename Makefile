@@ -77,12 +77,12 @@ wrap-all: ## Generates code for contract interaction.
 	@for c in $(notdir $(shell find $(CONTRACT_DATA) -mindepth 1 -maxdepth 1 -type d)); do \
 		echo "Wrapping $$c" ; \
 	 	ink-wrapper -m ./target/ink/$$c/$$c.json --wasm-path ../../target/ink/$$c/$$c.wasm \
-	 		| rustfmt --edition 2021 > ./e2e-tests/src/$$c.rs ; \
+	 		| rustfmt --edition 2021 > ./amm/e2e-tests/src/$$c.rs ; \
 	done
 
 .PHONY: e2e-tests
 e2e-tests: ## Runs all the e2e tests in sequence.
-	@cd e2e-tests && cargo test -- --test-threads 1 && cd ..
+	@cd amm/e2e-tests && cargo test -- --test-threads 1 && cd ..
 
 .PHONY: build-and-wrap-all
 build-and-wrap-all: build-all wrap-all ## Builds all contracts and generates code for contract interaction.
