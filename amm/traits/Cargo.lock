@@ -23,20 +23,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amm_traits"
-version = "0.2.0"
-dependencies = [
- "amm-helpers",
- "ink",
- "ink_metadata",
- "parity-scale-codec",
- "primitive-types",
- "psp22",
- "scale-info",
- "sp-arithmetic",
-]
-
-[[package]]
 name = "array-init"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1086,6 +1072,20 @@ dependencies = [
  "indexmap",
  "toml_datetime",
  "winnow",
+]
+
+[[package]]
+name = "traits"
+version = "0.2.0"
+dependencies = [
+ "amm-helpers",
+ "ink",
+ "ink_metadata",
+ "parity-scale-codec",
+ "primitive-types",
+ "psp22",
+ "scale-info",
+ "sp-arithmetic",
 ]
 
 [[package]]

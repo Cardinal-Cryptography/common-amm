@@ -67,7 +67,7 @@ pub mod router {
             &self,
             token_a: AccountId,
             token_b: AccountId,
-        ) -> Result<(Balance, Balance), RouterError> {
+        ) -> Result<(u128, u128), RouterError> {
             ensure!(token_a != token_b, RouterError::IdenticalAddresses);
             let pair: contract_ref!(Pair) = self.get_pair(token_a, token_b)?.into();
             let (reserve_0, reserve_1, _) = pair.get_reserves();
@@ -96,11 +96,11 @@ pub mod router {
             &self,
             token_a: AccountId,
             token_b: AccountId,
-            amount_a_desired: Balance,
-            amount_b_desired: Balance,
-            amount_a_min: Balance,
-            amount_b_min: Balance,
-        ) -> Result<(Balance, Balance), RouterError> {
+            amount_a_desired: u128,
+            amount_b_desired: u128,
+            amount_a_min: u128,
+            amount_b_min: u128,
+        ) -> Result<(u128, u128), RouterError> {
             if self.get_pair(token_a, token_b).is_err() {
                 self.factory_ref().create_pair(token_a, token_b)?;
             };
@@ -131,7 +131,7 @@ pub mod router {
 
         fn swap(
             &self,
-            amounts: &[Balance],
+            amounts: &[u128],
             path: &Vec<AccountId>,
             _to: AccountId,
         ) -> Result<(), RouterError> {
@@ -182,9 +182,9 @@ pub mod router {
         /// tokens at the end of the swaps.
         fn calculate_amounts_in(
             &self,
-            amount_out: Balance,
+            amount_out: u128,
             path: &Vec<AccountId>,
-        ) -> Result<Vec<Balance>, RouterError> {
+        ) -> Result<Vec<u128>, RouterError> {
             ensure!(path.len() >= 2, RouterError::InvalidPath);
 
             let mut amounts = vec![0; path.len()];
@@ -205,9 +205,9 @@ pub mod router {
         /// Returns list of swap outcomes along the path.
         fn calculate_amounts_out(
             &self,
-            amount_in: Balance,
+            amount_in: u128,
             path: &Vec<AccountId>,
-        ) -> Result<Vec<Balance>, RouterError> {
+        ) -> Result<Vec<u128>, RouterError> {
             ensure!(path.len() >= 2, RouterError::InvalidPath);
 
             let mut amounts = Vec::with_capacity(path.len());
@@ -222,7 +222,7 @@ pub mod router {
 
         /// Checks if the current block timestamp is not after the deadline.
         #[inline]
-        fn check_timestamp(&self, deadline: Timestamp) -> Result<(), RouterError> {
+        fn check_timestamp(&self, deadline: u64) -> Result<(), RouterError> {
             ensure!(
                 deadline >= self.env().block_timestamp(),
                 RouterError::Expired
@@ -247,13 +247,13 @@ pub mod router {
             &mut self,
             token_a: AccountId,
             token_b: AccountId,
-            amount_a_desired: Balance,
-            amount_b_desired: Balance,
-            amount_a_min: Balance,
-            amount_b_min: Balance,
+            amount_a_desired: u128,
+            amount_b_desired: u128,
+            amount_a_min: u128,
+            amount_b_min: u128,
             to: AccountId,
             deadline: u64,
-        ) -> Result<(Balance, Balance, Balance), RouterError> {
+        ) -> Result<(u128, u128, u128), RouterError> {
             self.check_timestamp(deadline)?;
             let (amount_a, amount_b) = self.calculate_liquidity(
                 token_a,
@@ -280,12 +280,12 @@ pub mod router {
         fn add_liquidity_native(
             &mut self,
             token: AccountId,
-            amount_token_desired: Balance,
-            amount_token_min: Balance,
+            amount_token_desired: u128,
+            amount_token_min: u128,
             amount_native_min: Balance,
             to: AccountId,
             deadline: u64,
-        ) -> Result<(Balance, Balance, Balance), RouterError> {
+        ) -> Result<(u128, Balance, u128), RouterError> {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             let received_value = self.env().transferred_value();
@@ -323,12 +323,12 @@ pub mod router {
             &mut self,
             token_a: AccountId,
             token_b: AccountId,
-            liquidity: Balance,
-            amount_a_min: Balance,
-            amount_b_min: Balance,
+            liquidity: u128,
+            amount_a_min: u128,
+            amount_b_min: u128,
             to: AccountId,
             deadline: u64,
-        ) -> Result<(Balance, Balance), RouterError> {
+        ) -> Result<(u128, u128), RouterError> {
             self.check_timestamp(deadline)?;
             ensure!(token_a != token_b, RouterError::IdenticalAddresses);
             let pair_contract = self.get_pair(token_a, token_b)?;
@@ -372,12 +372,12 @@ pub mod router {
         fn remove_liquidity_native(
             &mut self,
             token: AccountId,
-            liquidity: Balance,
-            amount_token_min: Balance,
+            liquidity: u128,
+            amount_token_min: u128,
             amount_native_min: Balance,
             to: AccountId,
             deadline: u64,
-        ) -> Result<(Balance, Balance), RouterError> {
+        ) -> Result<(u128, Balance), RouterError> {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             let (amount_token, amount_native) = self.remove_liquidity(
@@ -400,12 +400,12 @@ pub mod router {
         #[ink(message)]
         fn swap_exact_tokens_for_tokens(
             &mut self,
-            amount_in: Balance,
-            amount_out_min: Balance,
+            amount_in: u128,
+            amount_out_min: u128,
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<Balance>, RouterError> {
+        ) -> Result<Vec<u128>, RouterError> {
             self.check_timestamp(deadline)?;
             let amounts = self.calculate_amounts_out(amount_in, &path)?;
             ensure!(
@@ -425,12 +425,12 @@ pub mod router {
         #[ink(message)]
         fn swap_tokens_for_exact_tokens(
             &mut self,
-            amount_out: Balance,
-            amount_in_max: Balance,
+            amount_out: u128,
+            amount_in_max: u128,
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<Balance>, RouterError> {
+        ) -> Result<Vec<u128>, RouterError> {
             self.check_timestamp(deadline)?;
             let amounts = self.calculate_amounts_in(amount_out, &path)?;
             ensure!(
@@ -450,11 +450,11 @@ pub mod router {
         #[ink(message)]
         fn swap_exact_native_for_tokens(
             &mut self,
-            amount_out_min: Balance,
+            amount_out_min: u128,
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<Balance>, RouterError> {
+        ) -> Result<Vec<u128>, RouterError> {
             self.check_timestamp(deadline)?;
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
@@ -474,11 +474,11 @@ pub mod router {
         fn swap_tokens_for_exact_native(
             &mut self,
             amount_out: Balance,
-            amount_in_max: Balance,
+            amount_in_max: u128,
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<Balance>, RouterError> {
+        ) -> Result<Vec<u128>, RouterError> {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
@@ -505,15 +505,17 @@ pub mod router {
         #[ink(message)]
         fn swap_exact_tokens_for_native(
             &mut self,
-            amount_in: Balance,
+            amount_in: u128,
             amount_out_min: Balance,
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<Balance>, RouterError> {
+        ) -> Result<Vec<u128>, RouterError> {
             self.check_timestamp(deadline)?;
-            let wnative = self.wnative;
-            ensure!(path[path.len() - 1] == wnative, RouterError::InvalidPath);
+            ensure!(
+                path[path.len() - 1] == self.wnative,
+                RouterError::InvalidPath
+            );
             let amounts = self.calculate_amounts_out(amount_in, &path)?;
             let native_out = amounts[amounts.len() - 1];
             ensure!(
@@ -537,17 +539,17 @@ pub mod router {
         #[ink(message)]
         fn swap_native_for_exact_tokens(
             &mut self,
-            amount_out: Balance,
+            amount_out: u128,
             path: Vec<AccountId>,
             to: AccountId,
             deadline: u64,
-        ) -> Result<Vec<Balance>, RouterError> {
+        ) -> Result<Vec<u128>, RouterError> {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
             ensure!(path[0] == wnative, RouterError::InvalidPath);
             let amounts = self.calculate_amounts_in(amount_out, &path)?;
-            let native_in = amounts[0];
+            let native_in: Balance = amounts[0];
             ensure!(
                 native_in <= received_native,
                 RouterError::ExcessiveInputAmount
@@ -569,17 +571,17 @@ pub mod router {
         #[ink(message)]
         fn quote(
             &self,
-            amount_a: Balance,
-            reserve_a: Balance,
-            reserve_b: Balance,
-        ) -> Result<Balance, RouterError> {
+            amount_a: u128,
+            reserve_a: u128,
+            reserve_b: u128,
+        ) -> Result<u128, RouterError> {
             ensure!(amount_a > 0, RouterError::InsufficientAmount);
             ensure!(
                 reserve_a > 0 && reserve_b > 0,
                 RouterError::InsufficientLiquidity
             );
 
-            let amount_b: Balance = casted_mul(amount_a, reserve_b)
+            let amount_b: u128 = casted_mul(amount_a, reserve_b)
                 .checked_div(reserve_a.into())
                 .ok_or(RouterError::DivByZero)?
                 .try_into()
@@ -594,10 +596,10 @@ pub mod router {
         #[ink(message)]
         fn get_amount_out(
             &self,
-            amount_in: Balance,
-            reserve_a: Balance,
-            reserve_b: Balance,
-        ) -> Result<Balance, RouterError> {
+            amount_in: u128,
+            reserve_a: u128,
+            reserve_b: u128,
+        ) -> Result<u128, RouterError> {
             ensure!(amount_in > 0, RouterError::InsufficientAmount);
             ensure!(
                 reserve_a > 0 && reserve_b > 0,
@@ -615,7 +617,7 @@ pub mod router {
                 .checked_add(amount_in_with_fee)
                 .ok_or(RouterError::AddOverFlow)?;
 
-            let amount_out: Balance = numerator
+            let amount_out: u128 = numerator
                 .checked_div(denominator)
                 .ok_or(RouterError::DivByZero)?
                 .try_into()
@@ -630,10 +632,10 @@ pub mod router {
         #[ink(message)]
         fn get_amount_in(
             &self,
-            amount_out: Balance,
-            reserve_a: Balance,
-            reserve_b: Balance,
-        ) -> Result<Balance, RouterError> {
+            amount_out: u128,
+            reserve_a: u128,
+            reserve_b: u128,
+        ) -> Result<u128, RouterError> {
             ensure!(amount_out > 0, RouterError::InsufficientAmount);
             ensure!(
                 reserve_a > 0 && reserve_b > 0,
@@ -651,7 +653,7 @@ pub mod router {
                 997,
             );
 
-            let amount_in: Balance = numerator
+            let amount_in: u128 = numerator
                 .checked_div(denominator)
                 .ok_or(RouterError::DivByZero)?
                 .checked_add(1.into())
@@ -665,24 +667,24 @@ pub mod router {
         #[ink(message)]
         fn get_amounts_out(
             &self,
-            amount_in: Balance,
+            amount_in: u128,
             path: Vec<AccountId>,
-        ) -> Result<Vec<Balance>, RouterError> {
+        ) -> Result<Vec<u128>, RouterError> {
             self.calculate_amounts_out(amount_in, &path)
         }
 
         #[ink(message)]
         fn get_amounts_in(
             &self,
-            amount_out: Balance,
+            amount_out: u128,
             path: Vec<AccountId>,
-        ) -> Result<Vec<Balance>, RouterError> {
+        ) -> Result<Vec<u128>, RouterError> {
             self.calculate_amounts_in(amount_out, &path)
         }
     }
 
     #[inline]
-    fn psp22_transfer(token: AccountId, to: AccountId, value: Balance) -> Result<(), PSP22Error> {
+    fn psp22_transfer(token: AccountId, to: AccountId, value: u128) -> Result<(), PSP22Error> {
         let mut token: contract_ref!(PSP22) = token.into();
         token.transfer(to, value, Vec::new())
     }
@@ -692,7 +694,7 @@ pub mod router {
         token: AccountId,
         from: AccountId,
         to: AccountId,
-        value: Balance,
+        value: u128,
     ) -> Result<(), PSP22Error> {
         let mut token: contract_ref!(PSP22) = token.into();
         token.transfer_from(from, to, value, Vec::new())

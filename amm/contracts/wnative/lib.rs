@@ -86,7 +86,7 @@ pub mod wnative {
         }
 
         #[ink(message)]
-        fn withdraw(&mut self, value: Balance) -> Result<(), PSP22Error> {
+        fn withdraw(&mut self, value: u128) -> Result<(), PSP22Error> {
             let caller = self.env().caller();
             let events = self.data.burn(caller, value)?;
             self.env()
