@@ -1,14 +1,11 @@
 use crate::{
     Balance,
-    FactoryError,
-    PairError,
+    DexError,
 };
 use ink::{
     prelude::vec::Vec,
     primitives::AccountId,
-    LangError,
 };
-use psp22::PSP22Error;
 
 #[ink::trait_definition]
 pub trait Router {
@@ -37,7 +34,7 @@ pub trait Router {
         amount_b_min: u128,
         to: AccountId,
         deadline: u64,
-    ) -> Result<(u128, u128, u128), RouterError>;
+    ) -> Result<(u128, u128, u128), DexError>;
 
     /// Removes `liquidity` amount of tokens from `(token_a, token_b)`
     /// pair and transfers tokens `to` account.
@@ -55,7 +52,7 @@ pub trait Router {
         amount_b_min: u128,
         to: AccountId,
         deadline: u64,
-    ) -> Result<(u128, u128), RouterError>;
+    ) -> Result<(u128, u128), DexError>;
 
     /// Adds liquidity to `(token, native token)` pair.
     ///
@@ -72,7 +69,7 @@ pub trait Router {
         amount_native_min: Balance,
         to: AccountId,
         deadline: u64,
-    ) -> Result<(u128, Balance, u128), RouterError>;
+    ) -> Result<(u128, Balance, u128), DexError>;
 
     /// Removes `liquidity` amount of tokens from `(token, wrapped_native)`
     /// pair and transfers tokens `to` account.
@@ -89,7 +86,7 @@ pub trait Router {
         amount_native_min: Balance,
         to: AccountId,
         deadline: u64,
-    ) -> Result<(u128, Balance), RouterError>;
+    ) -> Result<(u128, Balance), DexError>;
 
     /// Exchanges tokens along `path` tokens.
     /// Starts with `amount_in` and pair under `(path[0], path[1])` address.
@@ -103,7 +100,7 @@ pub trait Router {
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<u128>, RouterError>;
+    ) -> Result<Vec<u128>, DexError>;
 
     /// Exchanges tokens along `path` token pairs
     /// so that at the end caller receives `amount_out`
@@ -119,7 +116,7 @@ pub trait Router {
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<u128>, RouterError>;
+    ) -> Result<Vec<u128>, DexError>;
 
     /// Exchanges exact amount of native token,
     /// along the `path` token pairs, and expects
@@ -134,7 +131,7 @@ pub trait Router {
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<u128>, RouterError>;
+    ) -> Result<Vec<u128>, DexError>;
 
     /// Exchanges tokens along `path` token pairs
     /// so that at the end caller receives `amount_out`
@@ -150,7 +147,7 @@ pub trait Router {
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<u128>, RouterError>;
+    ) -> Result<Vec<u128>, DexError>;
 
     /// Exchanges exact amount of token,
     /// along the `path` token pairs, and expects
@@ -166,7 +163,7 @@ pub trait Router {
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<u128>, RouterError>;
+    ) -> Result<Vec<u128>, DexError>;
 
     /// Exchanges tokens along `path` token pairs
     /// so that at the end caller receives `amount_out`
@@ -181,13 +178,13 @@ pub trait Router {
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<u128>, RouterError>;
+    ) -> Result<Vec<u128>, DexError>;
 
     /// Returns amount of `B` tokens that have to be supplied
     /// , with the `amount_a` amount of tokens `A, to maintain
     /// constant `k` product of `(A, B)` token pair.
     #[ink(message)]
-    fn quote(&self, amount_a: u128, reserve_a: u128, reserve_b: u128) -> Result<u128, RouterError>;
+    fn quote(&self, amount_a: u128, reserve_a: u128, reserve_b: u128) -> Result<u128, DexError>;
 
     /// Returns amount of `B` tokens received
     /// for `amount_in` of `A` tokens that maintains
@@ -198,7 +195,7 @@ pub trait Router {
         amount_in: u128,
         reserve_a: u128,
         reserve_b: u128,
-    ) -> Result<u128, RouterError>;
+    ) -> Result<u128, DexError>;
 
     /// Returns amount of `A` tokens user has to supply
     /// to get exactly `amount_out` of `B` token while maintaining
@@ -209,60 +206,15 @@ pub trait Router {
         amount_out: u128,
         reserve_a: u128,
         reserve_b: u128,
-    ) -> Result<u128, RouterError>;
+    ) -> Result<u128, DexError>;
 
     /// Returns amounts of tokens received for `amount_in`.
     #[ink(message)]
-    fn get_amounts_out(
-        &self,
-        amount_in: u128,
-        path: Vec<AccountId>,
-    ) -> Result<Vec<u128>, RouterError>;
+    fn get_amounts_out(&self, amount_in: u128, path: Vec<AccountId>)
+        -> Result<Vec<u128>, DexError>;
 
     /// Returns amounts of tokens user has to supply.
     #[ink(message)]
-    fn get_amounts_in(
-        &self,
-        amount_out: u128,
-        path: Vec<AccountId>,
-    ) -> Result<Vec<u128>, RouterError>;
+    fn get_amounts_in(&self, amount_out: u128, path: Vec<AccountId>)
+        -> Result<Vec<u128>, DexError>;
 }
-
-#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum RouterError {
-    PSP22Error(PSP22Error),
-    FactoryError(FactoryError),
-    PairError(PairError),
-    LangError(LangError),
-    TransferError,
-    PairNotFound,
-    InsufficientAmount,
-    InsufficientOutputAmount,
-    InsufficientAAmount,
-    InsufficientBAmount,
-    InsufficientLiquidity,
-    ExcessiveInputAmount,
-    IdenticalAddresses,
-    Expired,
-    SubUnderFlow,
-    AddOverFlow,
-    MulOverFlow,
-    CastOverFlow,
-    DivByZero,
-    InvalidPath,
-}
-
-macro_rules! impl_froms {
-    ( $( $error:ident ),* ) => {
-        $(
-            impl From<$error> for RouterError {
-                fn from(error: $error) -> Self {
-                    RouterError::$error(error)
-                }
-            }
-        )*
-    };
-}
-
-impl_froms!(PSP22Error, FactoryError, PairError, LangError);

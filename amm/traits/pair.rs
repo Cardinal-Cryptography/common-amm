@@ -1,9 +1,6 @@
+use crate::DexError;
 use amm_helpers::types::WrappedU256;
-use ink::{
-    primitives::AccountId,
-    LangError,
-};
-use psp22::PSP22Error;
+use ink::primitives::AccountId;
 
 #[ink::trait_definition]
 pub trait Pair {
@@ -33,13 +30,13 @@ pub trait Pair {
     /// Mints liquidity tokens `to` account.
     /// The amount minted is equivalent to the excess of contract's balance and reserves.
     #[ink(message)]
-    fn mint(&mut self, to: AccountId) -> Result<u128, PairError>;
+    fn mint(&mut self, to: AccountId) -> Result<u128, DexError>;
 
     /// Burns liquidity transferred to the contract prior to calling this method.
     /// Tokens resulting from the burning of this liquidity tokens are transferred to
     /// an address controlled by `to` account.
     #[ink(message)]
-    fn burn(&mut self, to: AccountId) -> Result<(u128, u128), PairError>;
+    fn burn(&mut self, to: AccountId) -> Result<(u128, u128), DexError>;
 
     /// Requests a swap on the token pair, with the outcome amounts equal to
     /// `amount_0_out` and `amount_1_out`. Assumes enough tokens have been transferred
@@ -51,7 +48,7 @@ pub trait Pair {
         amount_0_out: u128,
         amount_1_out: u128,
         to: AccountId,
-    ) -> Result<(), PairError>;
+    ) -> Result<(), DexError>;
 
     /// Skims the excess of tokens (difference between balance and reserves) and
     /// sends them to an address controlled by `to` account.
@@ -59,13 +56,13 @@ pub trait Pair {
     /// (by mistake). If enough tokens were sent to the contract to trigger overflows,
     /// the `swap` methods could start to fail.
     #[ink(message)]
-    fn skim(&mut self, to: AccountId) -> Result<(), PairError>;
+    fn skim(&mut self, to: AccountId) -> Result<(), DexError>;
 
     /// Sets the reserves of the contract to its balances providing a graceful recover
     /// in the case that a token asynchronously deflates the balance of a pair.
     // In this case, trades will receive sub-optimal rates.
     #[ink(message)]
-    fn sync(&mut self) -> Result<(), PairError>;
+    fn sync(&mut self) -> Result<(), DexError>;
 
     /// Returns address of the first token.
     #[ink(message)]
@@ -74,65 +71,4 @@ pub trait Pair {
     /// Returns address of the second token.
     #[ink(message)]
     fn get_token_1(&self) -> AccountId;
-}
-
-#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum PairError {
-    PSP22Error(PSP22Error),
-    LangError(LangError),
-    K,
-    InsufficientLiquidityMinted,
-    InsufficientLiquidityBurned,
-    InsufficientOutputAmount,
-    InsufficientLiquidity,
-    InsufficientInputAmount,
-    InvalidTo,
-    SubUnderFlow1,
-    SubUnderFlow2,
-    SubUnderFlow3,
-    SubUnderFlow4,
-    SubUnderFlow5,
-    SubUnderFlow6,
-    SubUnderFlow7,
-    SubUnderFlow8,
-    SubUnderFlow9,
-    SubUnderFlow10,
-    SubUnderFlow11,
-    SubUnderFlow12,
-    SubUnderFlow13,
-    SubUnderFlow14,
-    MulOverFlow1,
-    MulOverFlow2,
-    MulOverFlow3,
-    MulOverFlow4,
-    MulOverFlow5,
-    MulOverFlow6,
-    MulOverFlow7,
-    MulOverFlow8,
-    MulOverFlow9,
-    MulOverFlow10,
-    MulOverFlow11,
-    MulOverFlow12,
-    MulOverFlow13,
-    DivByZero1,
-    DivByZero2,
-    DivByZero3,
-    DivByZero4,
-    DivByZero5,
-    AddOverflow1,
-    CastOverflow1,
-    CastOverflow2,
-}
-
-impl From<PSP22Error> for PairError {
-    fn from(error: PSP22Error) -> Self {
-        PairError::PSP22Error(error)
-    }
-}
-
-impl From<LangError> for PairError {
-    fn from(error: LangError) -> Self {
-        PairError::LangError(error)
-    }
 }

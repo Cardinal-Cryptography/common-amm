@@ -1,4 +1,4 @@
-use crate::PairError;
+use crate::DexError;
 use ink::primitives::{
     AccountId,
     Hash,
@@ -30,15 +30,15 @@ pub trait Factory {
         &mut self,
         token_a: AccountId,
         token_b: AccountId,
-    ) -> Result<AccountId, FactoryError>;
+    ) -> Result<AccountId, DexError>;
 
     /// Sets the address for receiving protocol's share of trading fees.
     #[ink(message)]
-    fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), FactoryError>;
+    fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), DexError>;
 
     /// Sets the address eligible for calling `set_foo_to` method.
     #[ink(message)]
-    fn set_fee_to_setter(&mut self, fee_to_setter: AccountId) -> Result<(), FactoryError>;
+    fn set_fee_to_setter(&mut self, fee_to_setter: AccountId) -> Result<(), DexError>;
 
     /// Returns recipient address of the trading fees.
     #[ink(message)]
@@ -51,21 +51,4 @@ pub trait Factory {
     /// Returns address of `Pair` contract instance (if any) for `(token_a, token_b)` pair.
     #[ink(message)]
     fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId>;
-}
-
-/// Errors that can be returned from calling `Factory`'s methods.
-#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum FactoryError {
-    PairError(PairError),
-    CallerIsNotFeeSetter,
-    IdenticalAddresses,
-    PairExists,
-    PairInstantiationFailed,
-}
-
-impl From<PairError> for FactoryError {
-    fn from(error: PairError) -> Self {
-        FactoryError::PairError(error)
-    }
 }
