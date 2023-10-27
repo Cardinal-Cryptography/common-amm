@@ -111,7 +111,7 @@ pub mod router {
             if amount_b_optimal <= amount_b_desired {
                 ensure!(
                     amount_b_optimal >= amount_b_min,
-                    DexError::InsufficientBAmount
+                    DexError::InsufficientAmount(3)
                 );
                 Ok((amount_a_desired, amount_b_optimal))
             } else {
@@ -119,7 +119,7 @@ pub mod router {
                 // amount_a_optimal <= amount_a_desired holds as amount_b_optimal > amount_b_desired
                 ensure!(
                     amount_a_optimal >= amount_a_min,
-                    DexError::InsufficientAAmount
+                    DexError::InsufficientAmount(4)
                 );
                 Ok((amount_a_optimal, amount_b_desired))
             }
@@ -335,8 +335,8 @@ pub mod router {
                 (amount_1, amount_0)
             };
 
-            ensure!(amount_a >= amount_a_min, DexError::InsufficientAAmount);
-            ensure!(amount_b >= amount_b_min, DexError::InsufficientBAmount);
+            ensure!(amount_a >= amount_a_min, DexError::InsufficientAmount(5));
+            ensure!(amount_b >= amount_b_min, DexError::InsufficientAmount(6));
 
             Ok((amount_a, amount_b))
         }
@@ -383,7 +383,7 @@ pub mod router {
             let amounts = self.calculate_amounts_out(amount_in, &path)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
-                DexError::InsufficientOutputAmount
+                DexError::InsufficientAmount(7)
             );
             psp22_transfer_from(
                 path[0],
@@ -406,7 +406,10 @@ pub mod router {
         ) -> Result<Vec<u128>, DexError> {
             self.check_timestamp(deadline)?;
             let amounts = self.calculate_amounts_in(amount_out, &path)?;
-            ensure!(amounts[0] <= amount_in_max, DexError::ExcessiveInputAmount);
+            ensure!(
+                amounts[0] <= amount_in_max,
+                DexError::ExcessiveInputAmount(1)
+            );
             psp22_transfer_from(
                 path[0],
                 self.env().caller(),
@@ -432,7 +435,7 @@ pub mod router {
             let amounts = self.calculate_amounts_out(received_value, &path)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
-                DexError::InsufficientOutputAmount
+                DexError::InsufficientAmount(8)
             );
             self.wrap(received_value)?;
             psp22_transfer(wnative, self.get_pair(path[0], path[1])?, amounts[0])?;
@@ -453,7 +456,10 @@ pub mod router {
             let wnative = self.wnative;
             ensure!(path[path.len() - 1] == wnative, DexError::InvalidPath(4));
             let amounts = self.calculate_amounts_in(amount_out, &path)?;
-            ensure!(amounts[0] <= amount_in_max, DexError::ExcessiveInputAmount);
+            ensure!(
+                amounts[0] <= amount_in_max,
+                DexError::ExcessiveInputAmount(2)
+            );
             psp22_transfer_from(
                 path[0],
                 self.env().caller(),
@@ -487,7 +493,7 @@ pub mod router {
             let native_out = amounts[amounts.len() - 1];
             ensure!(
                 native_out >= amount_out_min,
-                DexError::InsufficientOutputAmount
+                DexError::InsufficientAmount(9)
             );
             psp22_transfer_from(
                 path[0],
@@ -517,7 +523,10 @@ pub mod router {
             ensure!(path[0] == wnative, DexError::InvalidPath(6));
             let amounts = self.calculate_amounts_in(amount_out, &path)?;
             let native_in: Balance = amounts[0];
-            ensure!(native_in <= received_native, DexError::ExcessiveInputAmount);
+            ensure!(
+                native_in <= received_native,
+                DexError::ExcessiveInputAmount(3)
+            );
             self.wrap(native_in)?;
             psp22_transfer(wnative, self.get_pair(path[0], path[1])?, native_in)?;
             self.swap(&amounts, &path, to)?;
@@ -539,10 +548,10 @@ pub mod router {
             reserve_a: u128,
             reserve_b: u128,
         ) -> Result<u128, DexError> {
-            ensure!(amount_a > 0, DexError::InsufficientAmount);
+            ensure!(amount_a > 0, DexError::InsufficientAmount(10));
             ensure!(
                 reserve_a > 0 && reserve_b > 0,
-                DexError::InsufficientLiquidity
+                DexError::InsufficientLiquidity(4)
             );
 
             let amount_b: u128 = casted_mul(amount_a, reserve_b)
@@ -564,10 +573,10 @@ pub mod router {
             reserve_a: u128,
             reserve_b: u128,
         ) -> Result<u128, DexError> {
-            ensure!(amount_in > 0, DexError::InsufficientAmount);
+            ensure!(amount_in > 0, DexError::InsufficientAmount(11));
             ensure!(
                 reserve_a > 0 && reserve_b > 0,
-                DexError::InsufficientLiquidity
+                DexError::InsufficientLiquidity(5)
             );
 
             // Adjusts for fees paid in the `token_in`.
@@ -600,10 +609,10 @@ pub mod router {
             reserve_a: u128,
             reserve_b: u128,
         ) -> Result<u128, DexError> {
-            ensure!(amount_out > 0, DexError::InsufficientAmount);
+            ensure!(amount_out > 0, DexError::InsufficientAmount(12));
             ensure!(
                 reserve_a > 0 && reserve_b > 0,
-                DexError::InsufficientLiquidity
+                DexError::InsufficientLiquidity(6)
             );
 
             let numerator = casted_mul(reserve_a, amount_out)

@@ -18,15 +18,9 @@ pub enum DexError {
     PairNotFound,
     TransferError(u8),
 
-    ExcessiveInputAmount,
-    InsufficientAAmount,
-    InsufficientAmount,
-    InsufficientBAmount,
-    InsufficientInputAmount,
-    InsufficientOutputAmount,
-    InsufficientLiquidity,
-    InsufficientLiquidityBurned,
-    InsufficientLiquidityMinted,
+    ExcessiveInputAmount(u8),
+    InsufficientAmount(u8),
+    InsufficientLiquidity(u8),
     KInvariantChanged,
 
     AddOverflow(u8),

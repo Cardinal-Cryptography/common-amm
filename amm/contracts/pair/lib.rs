@@ -318,7 +318,7 @@ pub mod pair {
                 };
             }
 
-            ensure!(liquidity > 0, DexError::InsufficientLiquidityMinted);
+            ensure!(liquidity > 0, DexError::InsufficientLiquidity(1));
 
             let events = self.psp22.mint(to, liquidity)?;
             self.emit_events(events);
@@ -360,7 +360,7 @@ pub mod pair {
 
             ensure!(
                 amount_0 > 0 && amount_1 > 0,
-                DexError::InsufficientLiquidityBurned
+                DexError::InsufficientLiquidity(2)
             );
 
             let events = self.psp22.burn(contract, liquidity)?;
@@ -396,12 +396,12 @@ pub mod pair {
         ) -> Result<(), DexError> {
             ensure!(
                 amount_0_out > 0 || amount_1_out > 0,
-                DexError::InsufficientOutputAmount
+                DexError::InsufficientAmount(1)
             );
             let reserves = self.get_reserves();
             ensure!(
                 amount_0_out < reserves.0 && amount_1_out < reserves.1,
-                DexError::InsufficientLiquidity
+                DexError::InsufficientLiquidity(3)
             );
 
             let token_0 = self.pair.token_0;
@@ -454,7 +454,7 @@ pub mod pair {
 
             ensure!(
                 amount_0_in > 0 || amount_1_in > 0,
-                DexError::InsufficientInputAmount
+                DexError::InsufficientAmount(2)
             );
 
             let balance_0_adjusted = balance_0
