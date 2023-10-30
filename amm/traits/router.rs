@@ -1,10 +1,14 @@
 use crate::{
     Balance,
     FactoryError,
+    MathError,
     PairError,
 };
 use ink::{
-    prelude::vec::Vec,
+    prelude::{
+        string::String,
+        vec::Vec,
+    },
     primitives::AccountId,
     LangError,
 };
@@ -235,24 +239,21 @@ pub enum RouterError {
     FactoryError(FactoryError),
     PairError(PairError),
     LangError(LangError),
-    TransferError,
+    MathError(MathError),
+
+    CrossContractCallFailed(String),
+    Expired,
+    IdenticalAddresses,
+    InvalidPath,
     PairNotFound,
+    TransferError,
+
+    ExcessiveInputAmount,
     InsufficientAmount,
     InsufficientOutputAmount,
-    InsufficientAAmount,
-    InsufficientBAmount,
+    InsufficientAmountA,
+    InsufficientAmountB,
     InsufficientLiquidity,
-    ExcessiveInputAmount,
-    ZeroAddress,
-    IdenticalAddresses,
-    Expired,
-    SubUnderFlow,
-    AddOverFlow,
-    MulOverFlow,
-    CastOverFlow,
-    DivByZero,
-    TransferFailed,
-    InvalidPath,
 }
 
 macro_rules! impl_froms {
@@ -267,4 +268,4 @@ macro_rules! impl_froms {
     };
 }
 
-impl_froms!(PSP22Error, FactoryError, PairError, LangError);
+impl_froms!(PSP22Error, FactoryError, PairError, LangError, MathError);

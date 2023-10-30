@@ -29,6 +29,7 @@ pub mod pair {
     };
     use traits::{
         Factory,
+        MathError,
         Pair,
         PairError,
     };
@@ -168,28 +169,28 @@ pub mod pair {
                     let root_k: u128 = casted_mul(reserve_0, reserve_1)
                         .integer_sqrt()
                         .try_into()
-                        .map_err(|_| PairError::CastOverflow1)?;
+                        .map_err(|_| MathError::CastOverflow(1))?;
                     let root_k_last = k_last
                         .integer_sqrt()
                         .try_into()
-                        .map_err(|_| PairError::CastOverflow2)?;
+                        .map_err(|_| MathError::CastOverflow(2))?;
                     if root_k > root_k_last {
                         let total_supply = self.psp22.total_supply();
                         let numerator = total_supply
                             .checked_mul(
                                 root_k
                                     .checked_sub(root_k_last)
-                                    .ok_or(PairError::SubUnderFlow14)?,
+                                    .ok_or(MathError::SubUnderflow(1))?,
                             )
-                            .ok_or(PairError::MulOverFlow13)?;
+                            .ok_or(MathError::MulOverflow(1))?;
                         let denominator = root_k
                             .checked_mul(5)
-                            .ok_or(PairError::MulOverFlow13)?
+                            .ok_or(MathError::MulOverflow(2))?
                             .checked_add(root_k_last)
-                            .ok_or(PairError::AddOverflow1)?;
+                            .ok_or(MathError::AddOverflow(1))?;
                         let liquidity = numerator
                             .checked_div(denominator)
-                            .ok_or(PairError::DivByZero5)?;
+                            .ok_or(MathError::DivByZero(1))?;
                         if liquidity > 0 {
                             let events = self.psp22.mint(fee_to, liquidity)?;
                             self.emit_events(events)
@@ -281,10 +282,10 @@ pub mod pair {
             let (balance_0, balance_1) = self.token_balances(contract);
             let amount_0_transferred = balance_0
                 .checked_sub(reserves.0)
-                .ok_or(PairError::SubUnderFlow1)?;
+                .ok_or(MathError::SubUnderflow(2))?;
             let amount_1_transferred = balance_1
                 .checked_sub(reserves.1)
-                .ok_or(PairError::SubUnderFlow2)?;
+                .ok_or(MathError::SubUnderflow(3))?;
 
             let fee_on = self.mint_fee(reserves.0, reserves.1)?;
             let total_supply = self.psp22.total_supply();
@@ -293,24 +294,24 @@ pub mod pair {
             if total_supply == 0 {
                 let liq = amount_0_transferred
                     .checked_mul(amount_1_transferred)
-                    .ok_or(PairError::MulOverFlow1)?;
+                    .ok_or(MathError::MulOverflow(3))?;
                 liquidity = liq
                     .integer_sqrt()
                     .checked_sub(MINIMUM_LIQUIDITY)
-                    .ok_or(PairError::SubUnderFlow3)?;
+                    .ok_or(MathError::SubUnderflow(4))?;
                 let events = self.psp22.mint(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
                 self.emit_events(events)
             } else {
                 let liquidity_1 = amount_0_transferred
                     .checked_mul(total_supply)
-                    .ok_or(PairError::MulOverFlow2)?
+                    .ok_or(MathError::MulOverflow(4))?
                     .checked_div(reserves.0)
-                    .ok_or(PairError::DivByZero1)?;
+                    .ok_or(MathError::DivByZero(2))?;
                 let liquidity_2 = amount_1_transferred
                     .checked_mul(total_supply)
-                    .ok_or(PairError::MulOverFlow3)?
+                    .ok_or(MathError::MulOverflow(5))?
                     .checked_div(reserves.1)
-                    .ok_or(PairError::DivByZero2)?;
+                    .ok_or(MathError::DivByZero(3))?;
                 liquidity = if liquidity_1 < liquidity_2 {
                     liquidity_1
                 } else {
@@ -349,14 +350,14 @@ pub mod pair {
             let total_supply = self.psp22.total_supply();
             let amount_0 = liquidity
                 .checked_mul(balance_0_before)
-                .ok_or(PairError::MulOverFlow5)?
+                .ok_or(MathError::MulOverflow(6))?
                 .checked_div(total_supply)
-                .ok_or(PairError::DivByZero3)?;
+                .ok_or(MathError::DivByZero(4))?;
             let amount_1 = liquidity
                 .checked_mul(balance_1_before)
-                .ok_or(PairError::MulOverFlow6)?
+                .ok_or(MathError::MulOverflow(7))?
                 .checked_div(total_supply)
-                .ok_or(PairError::DivByZero4)?;
+                .ok_or(MathError::DivByZero(5))?;
 
             ensure!(
                 amount_0 > 0 && amount_1 > 0,
@@ -421,16 +422,16 @@ pub mod pair {
                 > reserves
                     .0
                     .checked_sub(amount_0_out)
-                    .ok_or(PairError::SubUnderFlow4)?
+                    .ok_or(MathError::SubUnderflow(5))?
             {
                 balance_0
                     .checked_sub(
                         reserves
                             .0
                             .checked_sub(amount_0_out)
-                            .ok_or(PairError::SubUnderFlow5)?,
+                            .ok_or(MathError::SubUnderflow(6))?,
                     )
-                    .ok_or(PairError::SubUnderFlow6)?
+                    .ok_or(MathError::SubUnderflow(7))?
             } else {
                 0
             };
@@ -438,16 +439,16 @@ pub mod pair {
                 > reserves
                     .1
                     .checked_sub(amount_1_out)
-                    .ok_or(PairError::SubUnderFlow7)?
+                    .ok_or(MathError::SubUnderflow(8))?
             {
                 balance_1
                     .checked_sub(
                         reserves
                             .1
                             .checked_sub(amount_1_out)
-                            .ok_or(PairError::SubUnderFlow8)?,
+                            .ok_or(MathError::SubUnderflow(9))?,
                     )
-                    .ok_or(PairError::SubUnderFlow9)?
+                    .ok_or(MathError::SubUnderflow(10))?
             } else {
                 0
             };
@@ -459,22 +460,30 @@ pub mod pair {
 
             let balance_0_adjusted = balance_0
                 .checked_mul(1000)
-                .ok_or(PairError::MulOverFlow7)?
-                .checked_sub(amount_0_in.checked_mul(3).ok_or(PairError::MulOverFlow8)?)
-                .ok_or(PairError::SubUnderFlow10)?;
+                .ok_or(MathError::MulOverflow(8))?
+                .checked_sub(
+                    amount_0_in
+                        .checked_mul(3)
+                        .ok_or(MathError::MulOverflow(9))?,
+                )
+                .ok_or(MathError::SubUnderflow(11))?;
             let balance_1_adjusted = balance_1
                 .checked_mul(1000)
-                .ok_or(PairError::MulOverFlow9)?
-                .checked_sub(amount_1_in.checked_mul(3).ok_or(PairError::MulOverFlow10)?)
-                .ok_or(PairError::SubUnderFlow11)?;
+                .ok_or(MathError::MulOverflow(10))?
+                .checked_sub(
+                    amount_1_in
+                        .checked_mul(3)
+                        .ok_or(MathError::MulOverflow(11))?,
+                )
+                .ok_or(MathError::SubUnderflow(12))?;
 
             // Cast to U256 to prevent Overflow
             ensure!(
                 casted_mul(balance_0_adjusted, balance_1_adjusted)
                     >= casted_mul(reserves.0, reserves.1)
                         .checked_mul(1000u128.pow(2).into())
-                        .ok_or(PairError::MulOverFlow14)?,
-                PairError::K
+                        .ok_or(MathError::MulOverflow(12))?,
+                PairError::KInvariantChanged
             );
 
             self.update(balance_0, balance_1, reserves.0, reserves.1)?;
@@ -499,10 +508,10 @@ pub mod pair {
             let (amount_0, amount_1) = (
                 balance_0
                     .checked_sub(reserve_0)
-                    .ok_or(PairError::SubUnderFlow12)?,
+                    .ok_or(MathError::SubUnderflow(13))?,
                 balance_1
                     .checked_sub(reserve_1)
-                    .ok_or(PairError::SubUnderFlow13)?,
+                    .ok_or(MathError::SubUnderflow(14))?,
             );
             self.token_0().transfer(to, amount_0, Vec::new())?;
             self.token_1().transfer(to, amount_1, Vec::new())?;

@@ -1,3 +1,4 @@
+use crate::MathError;
 use amm_helpers::types::WrappedU256;
 use ink::{
     primitives::AccountId,
@@ -81,53 +82,14 @@ pub trait Pair {
 pub enum PairError {
     PSP22Error(PSP22Error),
     LangError(LangError),
-    TransferError,
-    K,
+    MathError(MathError),
+    KInvariantChanged,
     InsufficientLiquidityMinted,
     InsufficientLiquidityBurned,
     InsufficientOutputAmount,
     InsufficientLiquidity,
     InsufficientInputAmount,
-    SafeTransferFailed,
     InvalidTo,
-    Overflow,
-    Locked,
-    SubUnderFlow1,
-    SubUnderFlow2,
-    SubUnderFlow3,
-    SubUnderFlow4,
-    SubUnderFlow5,
-    SubUnderFlow6,
-    SubUnderFlow7,
-    SubUnderFlow8,
-    SubUnderFlow9,
-    SubUnderFlow10,
-    SubUnderFlow11,
-    SubUnderFlow12,
-    SubUnderFlow13,
-    SubUnderFlow14,
-    MulOverFlow1,
-    MulOverFlow2,
-    MulOverFlow3,
-    MulOverFlow4,
-    MulOverFlow5,
-    MulOverFlow6,
-    MulOverFlow7,
-    MulOverFlow8,
-    MulOverFlow9,
-    MulOverFlow10,
-    MulOverFlow11,
-    MulOverFlow12,
-    MulOverFlow13,
-    MulOverFlow14,
-    DivByZero1,
-    DivByZero2,
-    DivByZero3,
-    DivByZero4,
-    DivByZero5,
-    AddOverflow1,
-    CastOverflow1,
-    CastOverflow2,
 }
 
 impl From<PSP22Error> for PairError {
@@ -139,5 +101,11 @@ impl From<PSP22Error> for PairError {
 impl From<LangError> for PairError {
     fn from(error: LangError) -> Self {
         PairError::LangError(error)
+    }
+}
+
+impl From<MathError> for PairError {
+    fn from(error: MathError) -> Self {
+        PairError::MathError(error)
     }
 }

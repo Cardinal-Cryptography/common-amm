@@ -11,6 +11,7 @@ pub mod router {
         contract_ref,
         env::CallFlags,
         prelude::{
+            string::String,
             vec,
             vec::Vec,
         },
@@ -21,6 +22,7 @@ pub mod router {
     };
     use traits::{
         Factory,
+        MathError,
         Pair,
         Router,
         RouterError,
@@ -80,16 +82,15 @@ pub mod router {
 
         #[inline]
         fn wrap(&self, value: Balance) -> Result<(), RouterError> {
-            match self
-                .wnative_ref()
+            self.wnative_ref()
                 .call_mut()
                 .deposit()
                 .transferred_value(value)
                 .try_invoke()
-            {
-                Ok(res) => Ok(res??),
-                Err(_) => Err(RouterError::TransferError),
-            }
+                .map_err(|_| {
+                    RouterError::CrossContractCallFailed(String::from("Wnative:deposit"))
+                })???;
+            Ok(())
         }
 
         fn calculate_liquidity(
@@ -115,7 +116,7 @@ pub mod router {
             if amount_b_optimal <= amount_b_desired {
                 ensure!(
                     amount_b_optimal >= amount_b_min,
-                    RouterError::InsufficientBAmount
+                    RouterError::InsufficientAmountB
                 );
                 Ok((amount_a_desired, amount_b_optimal))
             } else {
@@ -123,7 +124,7 @@ pub mod router {
                 // amount_a_optimal <= amount_a_desired holds as amount_b_optimal > amount_b_desired
                 ensure!(
                     amount_a_optimal >= amount_a_min,
-                    RouterError::InsufficientAAmount
+                    RouterError::InsufficientAmountA
                 );
                 Ok((amount_a_optimal, amount_b_desired))
             }
@@ -153,26 +154,13 @@ pub mod router {
                 };
 
                 let mut pair: contract_ref!(Pair) = self.get_pair(input, output)?.into();
-                match pair
-                    .call_mut()
+                pair.call_mut()
                     .swap(amount_0_out, amount_1_out, to)
                     .call_flags(CallFlags::default().set_allow_reentry(true))
                     .try_invoke()
-                {
-                    // TODO simplify
-                    Ok(res) => {
-                        match res {
-                            Ok(v) => {
-                                match v {
-                                    Ok(v) => Ok(v),
-                                    Err(err) => Err(RouterError::PairError(err)),
-                                }
-                            }
-                            Err(err) => Err(RouterError::LangError(err)),
-                        }
-                    }
-                    Err(_) => Err(RouterError::TransferError),
-                }?;
+                    .map_err(|_| {
+                        RouterError::CrossContractCallFailed(String::from("Pair:swap"))
+                    })???;
             }
             Ok(())
         }
@@ -337,33 +325,20 @@ pub mod router {
 
             let mut pair: contract_ref!(Pair) = pair_contract.into();
 
-            let (amount_0, amount_1) = match pair
+            let (amount_0, amount_1) = pair
                 .call_mut()
                 .burn(to)
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .try_invoke()
-            {
-                Ok(res) => {
-                    match res {
-                        Ok(v) => {
-                            match v {
-                                Ok(tuple) => Ok(tuple),
-                                Err(err) => Err(RouterError::PairError(err)),
-                            }
-                        }
-                        Err(_) => Err(RouterError::TransferError),
-                    }
-                }
-                Err(_) => Err(RouterError::TransferError),
-            }?;
+                .map_err(|_| RouterError::CrossContractCallFailed(String::from("Pair:burn")))???;
             let (amount_a, amount_b) = if token_a < token_b {
                 (amount_0, amount_1)
             } else {
                 (amount_1, amount_0)
             };
 
-            ensure!(amount_a >= amount_a_min, RouterError::InsufficientAAmount);
-            ensure!(amount_b >= amount_b_min, RouterError::InsufficientBAmount);
+            ensure!(amount_a >= amount_a_min, RouterError::InsufficientAmountA);
+            ensure!(amount_b >= amount_b_min, RouterError::InsufficientAmountB);
 
             Ok((amount_a, amount_b))
         }
@@ -583,9 +558,9 @@ pub mod router {
 
             let amount_b: u128 = casted_mul(amount_a, reserve_b)
                 .checked_div(reserve_a.into())
-                .ok_or(RouterError::DivByZero)?
+                .ok_or(MathError::DivByZero(6))?
                 .try_into()
-                .map_err(|_| RouterError::CastOverFlow)?;
+                .map_err(|_| MathError::CastOverflow(3))?;
 
             Ok(amount_b)
         }
@@ -611,17 +586,17 @@ pub mod router {
 
             let numerator = amount_in_with_fee
                 .checked_mul(reserve_b.into())
-                .ok_or(RouterError::MulOverFlow)?;
+                .ok_or(MathError::MulOverflow(13))?;
 
             let denominator = casted_mul(reserve_a, 1000)
                 .checked_add(amount_in_with_fee)
-                .ok_or(RouterError::AddOverFlow)?;
+                .ok_or(MathError::AddOverflow(2))?;
 
             let amount_out: u128 = numerator
                 .checked_div(denominator)
-                .ok_or(RouterError::DivByZero)?
+                .ok_or(MathError::DivByZero(7))?
                 .try_into()
-                .map_err(|_| RouterError::CastOverFlow)?;
+                .map_err(|_| MathError::CastOverflow(4))?;
 
             Ok(amount_out)
         }
@@ -644,22 +619,22 @@ pub mod router {
 
             let numerator = casted_mul(reserve_a, amount_out)
                 .checked_mul(1000.into())
-                .ok_or(RouterError::MulOverFlow)?;
+                .ok_or(MathError::MulOverflow(14))?;
 
             let denominator = casted_mul(
                 reserve_b
                     .checked_sub(amount_out)
-                    .ok_or(RouterError::SubUnderFlow)?,
+                    .ok_or(MathError::SubUnderflow(15))?,
                 997,
             );
 
             let amount_in: u128 = numerator
                 .checked_div(denominator)
-                .ok_or(RouterError::DivByZero)?
+                .ok_or(MathError::DivByZero(8))?
                 .checked_add(1.into())
-                .ok_or(RouterError::AddOverFlow)?
+                .ok_or(MathError::AddOverflow(3))?
                 .try_into()
-                .map_err(|_| RouterError::CastOverFlow)?;
+                .map_err(|_| MathError::CastOverflow(5))?;
 
             Ok(amount_in)
         }
