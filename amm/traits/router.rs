@@ -1,6 +1,7 @@
 use crate::{
     Balance,
     FactoryError,
+    MathError,
     PairError,
 };
 use ink::{
@@ -235,22 +236,21 @@ pub enum RouterError {
     FactoryError(FactoryError),
     PairError(PairError),
     LangError(LangError),
-    TransferError,
+    MathError(MathError),
+
+    CrossContractCallFailed,
+    Expired,
+    IdenticalAddresses,
+    InvalidPath,
     PairNotFound,
+    TransferError,
+
+    ExcessiveInputAmount,
     InsufficientAmount,
     InsufficientOutputAmount,
-    InsufficientAAmount,
-    InsufficientBAmount,
+    InsufficientAmountA,
+    InsufficientAmountB,
     InsufficientLiquidity,
-    ExcessiveInputAmount,
-    IdenticalAddresses,
-    Expired,
-    SubUnderFlow,
-    AddOverFlow,
-    MulOverFlow,
-    CastOverFlow,
-    DivByZero,
-    InvalidPath,
 }
 
 macro_rules! impl_froms {
@@ -265,4 +265,4 @@ macro_rules! impl_froms {
     };
 }
 
-impl_froms!(PSP22Error, FactoryError, PairError, LangError);
+impl_froms!(PSP22Error, FactoryError, PairError, LangError, MathError);

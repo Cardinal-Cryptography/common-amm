@@ -12,6 +12,7 @@ pub use factory::{
     FactoryError,
 };
 pub use pair::{
+    MathError,
     Pair,
     PairError,
 };
