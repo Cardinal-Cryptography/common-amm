@@ -1,3 +1,4 @@
+use crate::MathError;
 use amm_helpers::types::WrappedU256;
 use ink::{
     primitives::AccountId,
@@ -74,16 +75,6 @@ pub trait Pair {
     /// Returns address of the second token.
     #[ink(message)]
     fn get_token_1(&self) -> AccountId;
-}
-
-#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum MathError {
-    AddOverflow(u8),
-    CastOverflow(u8),
-    DivByZero(u8),
-    MulOverflow(u8),
-    SubUnderflow(u8),
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]

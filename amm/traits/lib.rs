@@ -12,7 +12,6 @@ pub use factory::{
     FactoryError,
 };
 pub use pair::{
-    MathError,
     Pair,
     PairError,
 };
@@ -21,3 +20,13 @@ pub use router::{
     RouterError,
 };
 pub use wnative::Wnative;
+
+#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub enum MathError {
+    AddOverflow(u8),
+    CastOverflow(u8),
+    DivByZero(u8),
+    MulOverflow(u8),
+    SubUnderflow(u8),
+}
