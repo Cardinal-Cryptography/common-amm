@@ -11,6 +11,7 @@ pub mod router {
         contract_ref,
         env::CallFlags,
         prelude::{
+            string::String,
             vec,
             vec::Vec,
         },
@@ -81,16 +82,15 @@ pub mod router {
 
         #[inline]
         fn wrap(&self, value: Balance) -> Result<(), RouterError> {
-            match self
-                .wnative_ref()
+            self.wnative_ref()
                 .call_mut()
                 .deposit()
                 .transferred_value(value)
                 .try_invoke()
-            {
-                Ok(res) => Ok(res??),
-                Err(_) => Err(RouterError::TransferError),
-            }
+                .map_err(|_| {
+                    RouterError::CrossContractCallFailed(String::from("Wnative:deposit"))
+                })???;
+            Ok(())
         }
 
         fn calculate_liquidity(
@@ -154,26 +154,13 @@ pub mod router {
                 };
 
                 let mut pair: contract_ref!(Pair) = self.get_pair(input, output)?.into();
-                match pair
-                    .call_mut()
+                pair.call_mut()
                     .swap(amount_0_out, amount_1_out, to)
                     .call_flags(CallFlags::default().set_allow_reentry(true))
                     .try_invoke()
-                {
-                    // TODO simplify
-                    Ok(res) => {
-                        match res {
-                            Ok(v) => {
-                                match v {
-                                    Ok(v) => Ok(v),
-                                    Err(err) => Err(RouterError::PairError(err)),
-                                }
-                            }
-                            Err(err) => Err(RouterError::LangError(err)),
-                        }
-                    }
-                    Err(_) => Err(RouterError::TransferError),
-                }?;
+                    .map_err(|_| {
+                        RouterError::CrossContractCallFailed(String::from("Pair:swap"))
+                    })???;
             }
             Ok(())
         }
@@ -338,25 +325,12 @@ pub mod router {
 
             let mut pair: contract_ref!(Pair) = pair_contract.into();
 
-            let (amount_0, amount_1) = match pair
+            let (amount_0, amount_1) = pair
                 .call_mut()
                 .burn(to)
                 .call_flags(CallFlags::default().set_allow_reentry(true))
                 .try_invoke()
-            {
-                Ok(res) => {
-                    match res {
-                        Ok(v) => {
-                            match v {
-                                Ok(tuple) => Ok(tuple),
-                                Err(err) => Err(RouterError::PairError(err)),
-                            }
-                        }
-                        Err(_) => Err(RouterError::TransferError),
-                    }
-                }
-                Err(_) => Err(RouterError::TransferError),
-            }?;
+                .map_err(|_| RouterError::CrossContractCallFailed(String::from("Pair:burn")))???;
             let (amount_a, amount_b) = if token_a < token_b {
                 (amount_0, amount_1)
             } else {

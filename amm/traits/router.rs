@@ -5,7 +5,10 @@ use crate::{
     PairError,
 };
 use ink::{
-    prelude::vec::Vec,
+    prelude::{
+        string::String,
+        vec::Vec,
+    },
     primitives::AccountId,
     LangError,
 };
@@ -238,7 +241,7 @@ pub enum RouterError {
     LangError(LangError),
     MathError(MathError),
 
-    CrossContractCallFailed,
+    CrossContractCallFailed(String),
     Expired,
     IdenticalAddresses,
     InvalidPath,
