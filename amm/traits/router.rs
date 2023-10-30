@@ -236,10 +236,10 @@ pub trait Router {
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum RouterError {
     PSP22Error(PSP22Error),
-    FactoryError(FactoryError),
-    PairError(PairError),
     LangError(LangError),
     MathError(MathError),
+    PairError(PairError),
+    FactoryError(FactoryError),
 
     CrossContractCallFailed(String),
     Expired,
@@ -256,16 +256,40 @@ pub enum RouterError {
     InsufficientLiquidity,
 }
 
-macro_rules! impl_froms {
-    ( $( $error:ident ),* ) => {
-        $(
-            impl From<$error> for RouterError {
-                fn from(error: $error) -> Self {
-                    RouterError::$error(error)
-                }
-            }
-        )*
-    };
+impl From<PSP22Error> for RouterError {
+    fn from(error: PSP22Error) -> Self {
+        RouterError::PSP22Error(error)
+    }
 }
 
-impl_froms!(PSP22Error, FactoryError, PairError, LangError, MathError);
+impl From<LangError> for RouterError {
+    fn from(error: LangError) -> Self {
+        RouterError::LangError(error)
+    }
+}
+
+impl From<MathError> for RouterError {
+    fn from(error: MathError) -> Self {
+        RouterError::MathError(error)
+    }
+}
+
+impl From<PairError> for RouterError {
+    fn from(error: PairError) -> Self {
+        match error {
+            PairError::PSP22Error(err) => RouterError::PSP22Error(err),
+            PairError::LangError(err) => RouterError::LangError(err),
+            PairError::MathError(err) => RouterError::MathError(err),
+            err => RouterError::PairError(err),
+        }
+    }
+}
+
+impl From<FactoryError> for RouterError {
+    fn from(error: FactoryError) -> Self {
+        match error {
+            FactoryError::PairError(err) => err.into(),
+            err => RouterError::FactoryError(err),
+        }
+    }
+}
