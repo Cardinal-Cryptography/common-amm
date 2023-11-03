@@ -5,7 +5,6 @@ mod manager {
 
     type TokenId = AccountId;
     type UserId = AccountId;
-    type FarmId = u32;
     use farm_manager_trait::{Farm, FarmError};
     use amm_helpers::types::WrappedU256;
     use ink::{
@@ -14,13 +13,11 @@ mod manager {
             TraitCallBuilder,
         },
         contract_ref,
-        env::hash::Blake2x256,
         reflect::ContractEventBase,
         storage::Mapping,
-        ToAccountId,
     };
 
-    use ink::prelude::vec::*;
+    use ink::prelude::{vec::Vec, vec};
     use primitive_types::U256;
 
     use psp22_traits::{
@@ -108,7 +105,7 @@ mod manager {
             self.timestamp_at_last_update < self.end
         }
 
-        // The invariant here is that after calling update() it holds that self.timestamp_at_last_update = self.env().block_timestamp()
+        // Guarantee: after calling update() it holds that self.timestamp_at_last_update = self.env().block_timestamp()
         fn update(&mut self) -> Result<(), FarmError> {
             let current_timestamp = self.env().block_timestamp();
             if self.timestamp_at_last_update >= current_timestamp {
@@ -118,13 +115,14 @@ mod manager {
             let prev = core::cmp::max(self.timestamp_at_last_update, self.start);
             let now = core::cmp::min(current_timestamp, self.end);
             if prev >= now || self.timestamp_at_last_update == current_timestamp {
+                self.timestamp_at_last_update = current_timestamp;
                 return Ok(())
             }
 
-            // At this point we know [past, now] is the intersection of [self.start, self.end] and [self.timestamp_at_last_update, current_timestamp]
-            // In particular self.start <= now <= self.end
+            // At this point we know [prev, now] is the intersection of [self.start, self.end] and [self.timestamp_at_last_update, current_timestamp]
+            // It is non-empty because of the checks above and self.start <= now <= self.end
 
-            for (idx, reward_token) in self.reward_tokens.iter().enumerate() {
+            for (idx, _) in self.reward_tokens.iter().enumerate() {
                 let reward_till_end = self.farm_rewards_to_distribute[idx];
                 let delta_reward_per_share = rewards_per_share_to_distribute(
                     self.total_shares,
@@ -149,7 +147,7 @@ mod manager {
             Ok(())
         }
 
-        // The invariant here is that after calling update_account(acc) it holds that
+        // Guarantee: after calling update_account(acc) it holds that
         // 1) both self.user_cumulative_last_update[acc] and self.user_claimable_rewards[acc] exist
         // 2) self.user_cumulative_last_update[acc][i] = self.farm_cumulative[i] for all i
         fn update_account(&mut self, account: AccountId) {
@@ -263,6 +261,7 @@ mod manager {
             Ok(())
         }
 
+        // To learn how much rewards the user has, it's best to dry-run claim_rewards
         #[ink(message)]
         fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmError> {
             self.update()?;
@@ -286,10 +285,7 @@ mod manager {
                 }
             }
 
-            // self.env().emit_event(RewardsClaimed {
-            //     account,
-            //     amounts: user_rewards,
-            // });
+            FarmContract::emit_event(self.env(), Event::RewardsClaimed(RewardsClaimed { account, amounts: user_rewards.clone() }));
             Ok(user_rewards)
         }
 
@@ -306,6 +302,7 @@ mod manager {
             let shares = self.shares.get(account).unwrap_or(0);
             self.shares.insert(account, &(shares + amount));
             self.total_shares += amount;
+
             FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
             Ok(())
         }
@@ -328,10 +325,7 @@ mod manager {
             let mut pool: contract_ref!(PSP22) = self.pool_id.into();
             pool.transfer(account, amount, vec![])?;
 
-            // self.env().emit_event(Withdrawn {
-            //     account: caller,
-            //     amount,
-            // });
+            FarmContract::emit_event(self.env(), Event::Withdrawn(Withdrawn { account, amount }));
             Ok(())
         }
     }
@@ -386,7 +380,7 @@ mod manager {
         end: Timestamp,
     ) -> Result<U256, MathError> {
         // The formula is:
-        // SCALING_FACTOR* (reward_till_end * ((current - prev)/(end - prev)) / total_shares
+        // SCALING_FACTOR * (reward_till_end * ((current - prev)/(end - prev)) / total_shares
         let total_time = end.checked_sub(prev).ok_or(MathError::Underflow)?;
         let time_used = current.checked_sub(prev).ok_or(MathError::Underflow)?;
         if total_time == 0 || total_shares == 0 {
