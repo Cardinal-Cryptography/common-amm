@@ -15,6 +15,8 @@ scale-info = { version = "2.5", default-features = false, features = [
 ], optional = true }
 psp22-traits = { path = "../psp22", default-features = false }
 farm-instance-trait = { path = "../instance", default-features = false }
+amm-helpers = { path = "../../../helpers", default-features = false }
+
 
 [lib]
 path = "lib.rs"
@@ -27,5 +29,6 @@ std = [
     "scale-info/std",
     "farm-instance-trait/std",
     "psp22-traits/std",
+    "amm-helpers/std",
 ]
 ink-as-dependency = []

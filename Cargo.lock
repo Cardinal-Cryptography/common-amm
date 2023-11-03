@@ -386,6 +386,7 @@ dependencies = [
 name = "farm-manager-trait"
 version = "0.1.0"
 dependencies = [
+ "amm-helpers",
  "farm-instance-trait",
  "ink",
  "parity-scale-codec",

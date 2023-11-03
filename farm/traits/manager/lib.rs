@@ -5,9 +5,10 @@ use ink::{
     primitives::AccountId,
 };
 
+
 use farm_instance_trait::FarmStartError;
 use psp22_traits::PSP22Error;
-
+use amm_helpers::math::MathError;
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum FarmManagerError {
@@ -20,7 +21,23 @@ pub enum FarmManagerError {
     FarmNotFound(u32),
     /// Address not registered as a farm.
     FarmUnknown(AccountId),
+    ArithmeticError(MathError),
+    CallerNotFarmer,
 }
+
+
+impl From<PSP22Error> for FarmManagerError {
+    fn from(e: PSP22Error) -> Self {
+        FarmManagerError::PSP22Error(e)
+    }
+}
+
+impl From<MathError> for FarmManagerError {
+    fn from(e: MathError) -> Self {
+        FarmManagerError::ArithmeticError(e)
+    }
+}
+
 
 impl From<FarmStartError> for FarmManagerError {
     fn from(error: FarmStartError) -> Self {
@@ -28,11 +45,6 @@ impl From<FarmStartError> for FarmManagerError {
     }
 }
 
-impl From<PSP22Error> for FarmManagerError {
-    fn from(error: PSP22Error) -> Self {
-        FarmManagerError::PSP22Error(error)
-    }
-}
 
 #[ink::trait_definition]
 pub trait FarmManager {
@@ -48,42 +60,34 @@ pub trait FarmManager {
     #[ink(message)]
     fn balance_of(&self, account: AccountId) -> u128;
 
-    /// Returns the address of the latest farm instance.
-    #[ink(message)]
-    fn latest_farm_id(&self) -> Option<AccountId>;
 
-    /// Returns the address of the farm registered under `farm_id`.
+    /// Withdraws `amount` of shares from caller.
     #[ink(message)]
-    fn get_farm_address(&self, farm_id: u32) -> Option<AccountId>;
-
-    /// Withdraws `amount` of shares from `account`.
-    ///
-    /// NOTE: Should be called only by farm instances, never directly,
-    /// at correct moments. Otherwise LP providers will miss some of the rewards.
-    /// Implementation should return error if `caller != known farm instance`.
-    #[ink(message)]
-    fn withdraw_shares(&mut self, account: AccountId, amount: u128)
+    fn withdraw_shares(&mut self, amount: u128)
         -> Result<(), FarmManagerError>;
 
-    /// Deposits `amount` of shares under `account`.
-    ///
-    /// NOTE: Should be called only by farm instances, never directly,
-    /// at correct moments. Otherwise LP providers will miss some of the rewards.
-    /// Implementation should return error if `caller != known farm instance`.
+    /// Deposits `amount` of shares under caller's account.
     #[ink(message)]
-    fn deposit_shares(&mut self, account: AccountId, amount: u128) -> Result<(), FarmManagerError>;
+    fn deposit_shares(&mut self,  amount: u128) -> Result<(), FarmManagerError>;
 
     /// Returns a vector of token addresses which are rewarded for participating in this farm.
     #[ink(message)]
     fn reward_tokens(&self) -> Vec<AccountId>;
 
-    /// Creates an instance of the farm that ends at `end` with `rewards` for participating.
-    /// Returns address of the created farm instance.
-    /// Should return error if caller is not the owner of the manager contract.
+    // TODO: u64 -> Timestamp (need suitable import)
     #[ink(message)]
-    fn instantiate_farm(
-        &mut self,
-        end: u64,
-        rewards: Vec<u128>,
-    ) -> Result<AccountId, FarmManagerError>;
+    fn owner_start_new_farm(&mut self, start: u64, end: u64, rewards: Vec<u128>) -> Result<(), FarmManagerError>; 
+
+    #[ink(message)]
+    fn owner_stop_farm(&mut self) -> Result<(), FarmManagerError>;
+
+    // TODO: AccountId -> TokenId (need suitable import)
+    #[ink(message)]
+    fn owner_withdraw_token(&mut self, token: AccountId) -> Result<(), FarmManagerError>;
+
+
+    #[ink(message)]
+    fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmManagerError>; 
+
+
 }
