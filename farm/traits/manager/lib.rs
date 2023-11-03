@@ -6,13 +6,11 @@ use ink::{
 };
 
 
-use farm_instance_trait::FarmStartError;
 use psp22_traits::PSP22Error;
 use amm_helpers::math::MathError;
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum FarmManagerError {
-    FarmStartError(FarmStartError),
+pub enum FarmError {
     PSP22Error(PSP22Error),
     FarmAlreadyRunning(AccountId),
     FarmInstantiationFailed,
@@ -26,28 +24,21 @@ pub enum FarmManagerError {
 }
 
 
-impl From<PSP22Error> for FarmManagerError {
+impl From<PSP22Error> for FarmError {
     fn from(e: PSP22Error) -> Self {
-        FarmManagerError::PSP22Error(e)
+        FarmError::PSP22Error(e)
     }
 }
 
-impl From<MathError> for FarmManagerError {
+impl From<MathError> for FarmError {
     fn from(e: MathError) -> Self {
-        FarmManagerError::ArithmeticError(e)
-    }
-}
-
-
-impl From<FarmStartError> for FarmManagerError {
-    fn from(error: FarmStartError) -> Self {
-        FarmManagerError::FarmStartError(error)
+        FarmError::ArithmeticError(e)
     }
 }
 
 
 #[ink::trait_definition]
-pub trait FarmManager {
+pub trait Farm {
     /// Returns address of the token pool for which this farm is created.
     #[ink(message)]
     fn pool_id(&self) -> AccountId;
@@ -64,11 +55,11 @@ pub trait FarmManager {
     /// Withdraws `amount` of shares from caller.
     #[ink(message)]
     fn withdraw_shares(&mut self, amount: u128)
-        -> Result<(), FarmManagerError>;
+        -> Result<(), FarmError>;
 
     /// Deposits `amount` of shares under caller's account.
     #[ink(message)]
-    fn deposit_shares(&mut self,  amount: u128) -> Result<(), FarmManagerError>;
+    fn deposit_shares(&mut self,  amount: u128) -> Result<(), FarmError>;
 
     /// Returns a vector of token addresses which are rewarded for participating in this farm.
     #[ink(message)]
@@ -76,18 +67,18 @@ pub trait FarmManager {
 
     // TODO: u64 -> Timestamp (need suitable import)
     #[ink(message)]
-    fn owner_start_new_farm(&mut self, start: u64, end: u64, rewards: Vec<u128>) -> Result<(), FarmManagerError>; 
+    fn owner_start_new_farm(&mut self, start: u64, end: u64, rewards: Vec<u128>) -> Result<(), FarmError>; 
 
     #[ink(message)]
-    fn owner_stop_farm(&mut self) -> Result<(), FarmManagerError>;
+    fn owner_stop_farm(&mut self) -> Result<(), FarmError>;
 
     // TODO: AccountId -> TokenId (need suitable import)
     #[ink(message)]
-    fn owner_withdraw_token(&mut self, token: AccountId) -> Result<(), FarmManagerError>;
+    fn owner_withdraw_token(&mut self, token: AccountId) -> Result<(), FarmError>;
 
 
     #[ink(message)]
-    fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmManagerError>; 
+    fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmError>; 
 
 
 }

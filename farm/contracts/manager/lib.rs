@@ -6,8 +6,7 @@ mod manager {
     type TokenId = AccountId;
     type UserId = AccountId;
     type FarmId = u32;
-
-    use amm_farm::FarmRef;
+    use farm_manager_trait::{Farm, FarmError};
     use amm_helpers::types::WrappedU256;
     use ink::{
         codegen::{
@@ -21,7 +20,7 @@ mod manager {
         ToAccountId,
     };
 
-    use ink::prelude::vec::Vec;
+    use ink::prelude::vec::*;
     use primitive_types::U256;
 
     use psp22_traits::{
@@ -52,10 +51,10 @@ mod manager {
 
     use amm_helpers::math::MathError;
 
-    pub type Event = <FarmManager as ContractEventBase>::Type;
+    pub type Event = <FarmContract as ContractEventBase>::Type;
 
     #[ink(storage)]
-    pub struct FarmManager {
+    pub struct FarmContract {
         /// Address of the token pool for which this farm is created.
         pool_id: AccountId,
         /// Address of the farm creator.
@@ -83,12 +82,12 @@ mod manager {
         pub user_claimable_rewards: Mapping<UserId, Vec<u128>>,
     }
 
-    impl FarmManager {
+    impl FarmContract {
         #[ink(constructor)]
         pub fn new(pool_id: AccountId, reward_tokens: Vec<TokenId>) -> Self {
             let n_reward_tokens = reward_tokens.len();
             assert!(!reward_tokens.contains(&pool_id));
-            FarmManager {
+            FarmContract {
                 pool_id,
                 owner: Self::env().caller(),
                 shares: Mapping::default(),
@@ -110,7 +109,7 @@ mod manager {
         }
 
         // The invariant here is that after calling update() it holds that self.timestamp_at_last_update = self.env().block_timestamp()
-        fn update(&mut self) -> Result<(), FarmManagerError> {
+        fn update(&mut self) -> Result<(), FarmError> {
             let current_timestamp = self.env().block_timestamp();
             if self.timestamp_at_last_update >= current_timestamp {
                 return Ok(())
@@ -135,14 +134,14 @@ mod manager {
                     self.end,
                 )?;
                 let delta_reward_distributed =
-                    amount_per_share_to_amount(self.total_shares, delta_reward_per_share)?;
+                    per_share_to_amount(self.total_shares, delta_reward_per_share)?;
                 self.farm_cumulative[idx] =
-                    self.farm_cumulative[idx].saturated_add(delta_reward_per_share);
+                    self.farm_cumulative[idx].0.saturating_add(delta_reward_per_share).into();
                 self.farm_distributed_unclaimed_rewards[idx] = self
                     .farm_distributed_unclaimed_rewards[idx]
-                    .saturated_add(delta_reward_distributed);
+                    .saturating_add(delta_reward_distributed);
                 self.farm_rewards_to_distribute[idx] =
-                    self.farm_rewards_to_distribute[idx].saturated_sub(delta_reward_distributed);
+                    self.farm_rewards_to_distribute[idx].saturating_sub(delta_reward_distributed);
             }
 
             self.timestamp_at_last_update = current_timestamp;
@@ -163,13 +162,13 @@ mod manager {
                     for (idx, user_cumulative) in
                         user_cumulative_last_update.into_iter().enumerate()
                     {
-                        let user_reward = amount_per_share_to_amount(
+                        let user_reward = per_share_to_amount(
                             self.total_shares,
-                            self.farm_cumulative[idx].saturated_sub(user_cumulative),
+                            self.farm_cumulative[idx].0.saturating_sub(user_cumulative.0).into(),
                         )
                         .unwrap_or(0);
                         user_claimable_rewards[idx] =
-                            user_claimable_rewards[idx].saturated_add(user_reward);
+                            user_claimable_rewards[idx].saturating_add(user_reward);
                     }
                     user_claimable_rewards
                 }
@@ -178,9 +177,9 @@ mod manager {
                 }
             };
             self.user_claimable_rewards
-                .insert(account, new_reward_vector);
+                .insert(account, &new_reward_vector);
             self.user_cumulative_last_update
-                .insert(account, self.farm_cumulative.clone());
+                .insert(account, &self.farm_cumulative);
         }
 
         fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
@@ -188,7 +187,7 @@ mod manager {
         }
     }
 
-    impl FarmManagerTrait for FarmManager {
+    impl Farm for FarmContract {
         #[ink(message)]
         fn pool_id(&self) -> AccountId {
             self.pool_id
@@ -215,9 +214,9 @@ mod manager {
             start: Timestamp,
             end: Timestamp,
             rewards: Vec<u128>,
-        ) -> Result<(), FarmManagerError> {
+        ) -> Result<(), FarmError> {
             if self.env().caller() != self.owner {
-                return Err(FarmManagerError::CallerNotOwner)
+                return Err(FarmError::CallerNotOwner)
             }
             self.update()?;
             assert!(!self.is_active());
@@ -230,9 +229,9 @@ mod manager {
         }
 
         #[ink(message)]
-        fn owner_stop_farm(&mut self) -> Result<(), FarmManagerError> {
+        fn owner_stop_farm(&mut self) -> Result<(), FarmError> {
             if self.env().caller() != self.owner {
-                return Err(FarmManagerError::CallerNotOwner)
+                return Err(FarmError::CallerNotOwner)
             }
             self.update()?;
 
@@ -242,9 +241,9 @@ mod manager {
         }
 
         #[ink(message)]
-        fn owner_withdraw_token(&mut self, token: TokenId) -> Result<(), FarmManagerError> {
+        fn owner_withdraw_token(&mut self, token: TokenId) -> Result<(), FarmError> {
             if self.env().caller() != self.owner {
-                return Err(FarmManagerError::CallerNotOwner)
+                return Err(FarmError::CallerNotOwner)
             }
             self.update()?;
             assert!(!self.is_active());
@@ -265,15 +264,15 @@ mod manager {
         }
 
         #[ink(message)]
-        fn claim_rewards(&mut self) -> Result<(), FarmManagerError> {
-            self.update();
+        fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmError> {
+            self.update()?;
             let account = self.env().caller();
             self.update_account(account);
 
             let user_rewards = self
                 .user_claimable_rewards
                 .take(account)
-                .ok_or(FarmManagerError::CallerNotFarmer)?;
+                .ok_or(FarmError::CallerNotFarmer)?;
 
             for (idx, user_reward) in user_rewards.clone().into_iter().enumerate() {
                 if user_reward > 0 {
@@ -291,12 +290,12 @@ mod manager {
             //     account,
             //     amounts: user_rewards,
             // });
-            Ok(())
+            Ok(user_rewards)
         }
 
         #[ink(message)]
-        fn deposit_shares(&mut self, amount: u128) -> Result<(), FarmManagerError> {
-            self.update();
+        fn deposit_shares(&mut self, amount: u128) -> Result<(), FarmError> {
+            self.update()?;
             let account = self.env().caller();
             self.update_account(account);
 
@@ -307,13 +306,13 @@ mod manager {
             let shares = self.shares.get(account).unwrap_or(0);
             self.shares.insert(account, &(shares + amount));
             self.total_shares += amount;
-            FarmManager::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
+            FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
             Ok(())
         }
 
         #[ink(message)]
-        fn withdraw_shares(&mut self, amount: u128) -> Result<(), FarmManagerError> {
-            self.update();
+        fn withdraw_shares(&mut self, amount: u128) -> Result<(), FarmError> {
+            self.update()?;
             let account = self.env().caller();
             self.update_account(account);
 

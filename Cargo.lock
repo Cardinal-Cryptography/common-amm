@@ -26,21 +26,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amm-farm"
-version = "0.1.0"
-dependencies = [
- "amm-helpers",
- "farm-instance-trait",
- "farm-manager-trait",
- "ink",
- "parity-scale-codec",
- "primitive-types",
- "psp22-traits",
- "scale-info",
- "sp-arithmetic",
-]
-
-[[package]]
 name = "amm-helpers"
 version = "0.2.0"
 dependencies = [
@@ -55,9 +40,7 @@ dependencies = [
 name = "amm_farm_manager"
 version = "0.1.0"
 dependencies = [
- "amm-farm",
  "amm-helpers",
- "farm-instance-trait",
  "farm-manager-trait",
  "ink",
  "openbrush",
@@ -374,20 +357,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "farm-instance-trait"
-version = "0.1.0"
-dependencies = [
- "ink",
- "parity-scale-codec",
- "scale-info",
-]
-
-[[package]]
 name = "farm-manager-trait"
 version = "0.1.0"
 dependencies = [
  "amm-helpers",
- "farm-instance-trait",
  "ink",
  "parity-scale-codec",
  "psp22-traits",
