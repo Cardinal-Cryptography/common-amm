@@ -2,17 +2,8 @@
 
 #[ink::contract]
 pub mod token {
-    use ink::prelude::{
-        string::String,
-        vec::Vec,
-    };
-    use psp22::{
-        PSP22Data,
-        PSP22Error,
-        PSP22Event,
-        PSP22Metadata,
-        PSP22,
-    };
+    use ink::prelude::{string::String, vec::Vec};
+    use psp22::{PSP22Data, PSP22Error, PSP22Event, PSP22Metadata, PSP22};
 
     #[ink(event)]
     pub struct Approval {
@@ -66,13 +57,11 @@ pub mod token {
                         owner,
                         spender,
                         amount,
-                    } => {
-                        self.env().emit_event(Approval {
-                            owner,
-                            spender,
-                            amount,
-                        })
-                    }
+                    } => self.env().emit_event(Approval {
+                        owner,
+                        spender,
+                        amount,
+                    }),
                 }
             }
         }

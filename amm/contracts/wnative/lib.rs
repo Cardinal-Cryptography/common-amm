@@ -2,17 +2,8 @@
 
 #[ink::contract]
 pub mod wnative {
-    use ink::prelude::{
-        string::String,
-        vec::Vec,
-    };
-    use psp22::{
-        PSP22Data,
-        PSP22Error,
-        PSP22Event,
-        PSP22Metadata,
-        PSP22,
-    };
+    use ink::prelude::{string::String, vec::Vec};
+    use psp22::{PSP22Data, PSP22Error, PSP22Event, PSP22Metadata, PSP22};
     use traits::Wnative;
 
     #[ink(event)]
@@ -55,13 +46,11 @@ pub mod wnative {
                         owner,
                         spender,
                         amount,
-                    } => {
-                        self.env().emit_event(Approval {
-                            owner,
-                            spender,
-                            amount,
-                        })
-                    }
+                    } => self.env().emit_event(Approval {
+                        owner,
+                        spender,
+                        amount,
+                    }),
                 }
             }
         }

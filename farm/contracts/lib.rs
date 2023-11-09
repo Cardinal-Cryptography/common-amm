@@ -13,37 +13,21 @@ mod tests;
 
 #[ink::contract]
 mod farm {
-    use crate::error::{
-        FarmError,
-        FarmStartError,
-    };
+    use crate::error::{FarmError, FarmStartError};
 
-    use crate::views::{
-        FarmDetailsView,
-        UserPositionView,
-    };
+    use crate::views::{FarmDetailsView, UserPositionView};
 
-    use crate::{
-        reward_per_token,
-        rewards_earned,
-    };
+    use crate::{reward_per_token, rewards_earned};
 
     use primitive_types::U256;
     use psp22_traits::PSP22;
 
     use ink::{
         contract_ref,
-        storage::{
-            traits::ManualKey,
-            Lazy,
-            Mapping,
-        },
+        storage::{traits::ManualKey, Lazy, Mapping},
     };
 
-    use ink::prelude::{
-        vec,
-        vec::Vec,
-    };
+    use ink::prelude::{vec, vec::Vec};
 
     use amm_helpers::types::WrappedU256;
 
@@ -113,32 +97,32 @@ mod farm {
             reward_tokens: Vec<AccountId>,
         ) -> Result<(), FarmStartError> {
             if self.is_running {
-                return Err(FarmStartError::StillRunning)
+                return Err(FarmStartError::StillRunning);
             }
             // (For now) we don't allow for "restarting" the farm.
             if self.state.get().is_some() {
-                return Err(FarmStartError::FarmAlreadyFinished)
+                return Err(FarmStartError::FarmAlreadyFinished);
             }
 
             if reward_tokens.len() > MAX_REWARD_TOKENS as usize {
-                return Err(FarmStartError::TooManyRewardTokens)
+                return Err(FarmStartError::TooManyRewardTokens);
             }
 
             let farm_owner = self.owner;
             if Self::env().caller() != farm_owner {
-                return Err(FarmStartError::CallerNotOwner)
+                return Err(FarmStartError::CallerNotOwner);
             }
 
             let now = Self::env().block_timestamp();
 
             if now >= end {
-                return Err(FarmStartError::FarmEndBeforeStart)
+                return Err(FarmStartError::FarmEndBeforeStart);
             }
 
             let duration = end as u128 - now as u128;
 
             if reward_amounts.len() != reward_tokens.len() {
-                return Err(FarmStartError::RewardAmountsAndTokenLengthDiffer)
+                return Err(FarmStartError::RewardAmountsAndTokenLengthDiffer);
             }
 
             let tokens_len = reward_tokens.len();
@@ -149,19 +133,19 @@ mod farm {
                 let reward_amount = reward_amounts[i];
 
                 if reward_amount == 0 {
-                    return Err(FarmStartError::ZeroRewardAmount)
+                    return Err(FarmStartError::ZeroRewardAmount);
                 }
                 let rate = reward_amount
                     .checked_div(duration)
                     .ok_or(FarmStartError::ArithmeticError)?;
 
                 if rate == 0 {
-                    return Err(FarmStartError::ZeroRewardRate)
+                    return Err(FarmStartError::ZeroRewardRate);
                 }
 
                 // Double-check we have enough to cover the whole farm.
                 if duration * rate < reward_amount {
-                    return Err(FarmStartError::InsufficientRewardAmount)
+                    return Err(FarmStartError::InsufficientRewardAmount);
                 }
 
                 let mut psp22_ref: ink::contract_ref!(PSP22) = reward_tokens[i].into();
@@ -227,7 +211,7 @@ mod farm {
             if self.env().caller() == self.owner {
                 running.end = self.env().block_timestamp();
             } else if self.env().block_timestamp() < running.end {
-                return Err(FarmError::StillRunning)
+                return Err(FarmError::StillRunning);
             }
 
             self.is_running = false;
@@ -449,14 +433,14 @@ mod farm {
 
         fn ensure_running(&self) -> Result<(), FarmError> {
             if !self.is_running {
-                return Err(FarmError::NotRunning)
+                return Err(FarmError::NotRunning);
             }
             Ok(())
         }
 
         fn assert_non_zero_amount(amount: u128) -> Result<(), FarmError> {
             if amount == 0 {
-                return Err(FarmError::InvalidAmountArgument)
+                return Err(FarmError::InvalidAmountArgument);
             }
             Ok(())
         }
@@ -465,10 +449,7 @@ mod farm {
     type TokenId = AccountId;
     type UserId = AccountId;
 
-    use scale::{
-        Decode,
-        Encode,
-    };
+    use scale::{Decode, Encode};
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -629,10 +610,7 @@ mod farm {
     }
 }
 
-use amm_helpers::math::{
-    casted_mul,
-    MathError,
-};
+use amm_helpers::math::{casted_mul, MathError};
 use farm::SCALING_FACTOR;
 use primitive_types::U256;
 
@@ -657,7 +635,7 @@ pub fn reward_per_token(
     last_time_reward_applicable: u128,
 ) -> Result<U256, MathError> {
     if total_supply == 0 {
-        return Ok(reward_per_token_stored)
+        return Ok(reward_per_token_stored);
     }
 
     casted_mul(reward_rate, last_time_reward_applicable - last_update_time)

@@ -1,14 +1,6 @@
-use crate::{
-    Balance,
-    FactoryError,
-    MathError,
-    PairError,
-};
+use crate::{Balance, FactoryError, MathError, PairError};
 use ink::{
-    prelude::{
-        string::String,
-        vec::Vec,
-    },
+    prelude::{string::String, vec::Vec},
     primitives::AccountId,
     LangError,
 };

@@ -4,16 +4,10 @@
 //! Note that the usage of these can be expensive for the node, so they should be used sparingly.
 //! Instead, use the indexer (if one exists).
 
-use ink::{
-    prelude::vec::Vec,
-    primitives::AccountId,
-};
+use ink::{prelude::vec::Vec, primitives::AccountId};
 
 use crate::farm::RewardTokenInfo;
-use scale::{
-    Decode,
-    Encode,
-};
+use scale::{Decode, Encode};
 
 /// View of the farm.
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
