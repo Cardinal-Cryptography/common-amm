@@ -5,8 +5,11 @@ mod manager {
 
     type TokenId = AccountId;
     type UserId = AccountId;
-    use farm_manager_trait::{Farm, FarmError};
     use amm_helpers::types::WrappedU256;
+    use farm_manager_trait::{
+        Farm,
+        FarmError,
+    };
     use ink::{
         codegen::{
             EmitEvent,
@@ -17,7 +20,10 @@ mod manager {
         storage::Mapping,
     };
 
-    use ink::prelude::{vec::Vec, vec};
+    use ink::prelude::{
+        vec,
+        vec::Vec,
+    };
     use primitive_types::U256;
 
     use psp22_traits::{
@@ -133,8 +139,10 @@ mod manager {
                 )?;
                 let delta_reward_distributed =
                     per_share_to_amount(self.total_shares, delta_reward_per_share)?;
-                self.farm_cumulative[idx] =
-                    self.farm_cumulative[idx].0.saturating_add(delta_reward_per_share).into();
+                self.farm_cumulative[idx] = self.farm_cumulative[idx]
+                    .0
+                    .saturating_add(delta_reward_per_share)
+                    .into();
                 self.farm_distributed_unclaimed_rewards[idx] = self
                     .farm_distributed_unclaimed_rewards[idx]
                     .saturating_add(delta_reward_distributed);
@@ -289,7 +297,13 @@ mod manager {
                 }
             }
 
-            FarmContract::emit_event(self.env(), Event::RewardsClaimed(RewardsClaimed { account, amounts: user_rewards.clone() }));
+            FarmContract::emit_event(
+                self.env(),
+                Event::RewardsClaimed(RewardsClaimed {
+                    account,
+                    amounts: user_rewards.clone(),
+                }),
+            );
             Ok(user_rewards)
         }
 
