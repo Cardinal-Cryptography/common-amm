@@ -151,6 +151,7 @@ mod manager {
         // 1) both self.user_cumulative_last_update[acc] and self.user_claimable_rewards[acc] exist
         // 2) self.user_cumulative_last_update[acc][i] = self.farm_cumulative[i] for all i
         fn update_account(&mut self, account: AccountId) {
+            let user_shares = self.shares.get(account).unwrap_or(0);
             let new_reward_vector = match self.user_cumulative_last_update.take(account) {
                 Some(user_cumulative_last_update) => {
                     let mut user_claimable_rewards = self
@@ -161,8 +162,11 @@ mod manager {
                         user_cumulative_last_update.into_iter().enumerate()
                     {
                         let user_reward = per_share_to_amount(
-                            self.total_shares,
-                            self.farm_cumulative[idx].0.saturating_sub(user_cumulative.0).into(),
+                            user_shares,
+                            self.farm_cumulative[idx]
+                                .0
+                                .saturating_sub(user_cumulative.0)
+                                .into(),
                         )
                         .unwrap_or(0);
                         user_claimable_rewards[idx] =
