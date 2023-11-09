@@ -15,7 +15,7 @@ scale-info = { version = "2.9", default-features = false, features = [
     "derive",
 ], optional = true }
 
-psp22 = { git = "https://github.com/Cardinal-Cryptography/PSP22.git", default-features = false }
+psp22 = { version = "0.2" , default-features = false }
 
 primitive-types = { version = "0.12.1", default-features = false, features = [
     "codec",

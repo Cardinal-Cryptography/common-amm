@@ -29,7 +29,7 @@ mod farm {
     };
 
     use primitive_types::U256;
-    use psp22_traits::PSP22;
+    use psp22::PSP22;
 
     use ink::{
         contract_ref,
@@ -594,7 +594,7 @@ mod farm {
         psp22: &mut contract_ref!(PSP22),
         recipient: AccountId,
         amount: u128,
-    ) -> Result<(), psp22_traits::PSP22Error> {
+    ) -> Result<(), psp22::PSP22Error> {
         match psp22
             .call_mut()
             .transfer(recipient, amount, vec![])
