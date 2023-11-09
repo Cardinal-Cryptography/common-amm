@@ -1,18 +1,11 @@
 #[cfg(feature = "std")]
-use ink::metadata::layout::{
-    Layout,
-    LayoutKey,
-    LeafLayout,
-};
+use ink::metadata::layout::{Layout, LayoutKey, LeafLayout};
 #[cfg(feature = "std")]
 use ink::primitives::Key;
 #[cfg(feature = "std")]
 use ink::storage::traits::StorageLayout;
 use primitive_types::U256;
-use scale::{
-    Decode,
-    Encode,
-};
+use scale::{Decode, Encode};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]

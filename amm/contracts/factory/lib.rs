@@ -2,21 +2,10 @@
 
 #[ink::contract]
 pub mod factory {
-    use amm_helpers::{
-        constants::ZERO_ADDRESS,
-        ensure,
-    };
-    use ink::{
-        codegen::EmitEvent,
-        env::hash::Blake2x256,
-        storage::Mapping,
-        ToAccountId,
-    };
+    use amm_helpers::{constants::ZERO_ADDRESS, ensure};
+    use ink::{codegen::EmitEvent, env::hash::Blake2x256, storage::Mapping, ToAccountId};
     use pair_contract::pair::PairContractRef;
-    use traits::{
-        Factory,
-        FactoryError,
-    };
+    use traits::{Factory, FactoryError};
 
     #[ink(event)]
     pub struct PairCreated {
@@ -99,7 +88,7 @@ pub mod factory {
 
         fn _only_fee_setter(&self) -> Result<(), FactoryError> {
             if self.env().caller() != self.fee_to_setter {
-                return Err(FactoryError::CallerIsNotFeeSetter)
+                return Err(FactoryError::CallerIsNotFeeSetter);
             }
             Ok(())
         }
@@ -191,10 +180,7 @@ pub mod factory {
 
     #[cfg(test)]
     mod tests {
-        use ink::{
-            env::test::default_accounts,
-            primitives::Hash,
-        };
+        use ink::{env::test::default_accounts, primitives::Hash};
 
         use super::*;
 
