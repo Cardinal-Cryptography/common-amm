@@ -37,8 +37,11 @@ build-node-x86_64:
 AMM_CONTRACTS = ./amm/contracts
 AMM_CONTRACTS_PATHS := $(shell find $(AMM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
-FARM_CONTRACTS = ./farm/contracts
-FARM_PATHS := $(shell find ./farm -mindepth 1 -maxdepth 1 -type d)
+FARM_CONTRACTS = ./farm
+FARM_PATHS := $(shell find $(FARM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
+
+TEST_CONTRACTS = ./test-contracts
+TEST_PATHS := $(shell find $(TEST_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
 .PHONY: build-all
 build-all: ## Builds all contracts.
@@ -46,10 +49,19 @@ build-all: ## Builds all contracts.
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
-	@for d in $(FARM_CONTRACTS); do \
+	@for d in $(FARM_PATHS); do \
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
+	@for d in $(TEST_PATHS); do \
+		echo "Building $$d contract" ; \
+		if [[ "$$d" = *psp22 ]]; then \
+			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release --features "contract"; \
+		else \
+			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release; \
+		fi \
+	done
+
 
 .PHONY: check-all
 check-all: ## Runs cargo checks and unit tests on all contracts.

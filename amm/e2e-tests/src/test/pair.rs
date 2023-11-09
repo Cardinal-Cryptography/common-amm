@@ -30,8 +30,8 @@ use crate::{
         Pair,
         PSP22 as PairPSP22,
     },
-    psp22_token,
-    psp22_token::PSP22 as TokenPSP22,
+    psp22 as psp22_token,
+    psp22::PSP22 as TokenPSP22,
     test::setup::{
         get_env,
         random_salt,
