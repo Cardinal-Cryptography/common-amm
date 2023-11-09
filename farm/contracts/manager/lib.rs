@@ -399,8 +399,10 @@ mod manager {
     pub fn per_share_to_amount(total_shares: u128, per_share: U256) -> Result<u128, MathError> {
         // The formula is:
         // per_share * total_shares / SCALING_FACTOR
-        (per_share / U256::from(SCALING_FACTOR))
+        per_share
             .checked_mul(U256::from(total_shares))
+            .ok_or(MathError::Overflow)?
+            .checked_div(U256::from(SCALING_FACTOR))
             .ok_or(MathError::Overflow)?
             .try_into()
             .map_err(|_| MathError::CastOverflow)
