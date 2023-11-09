@@ -108,7 +108,8 @@ mod manager {
         }
 
         fn is_active(&self) -> bool {
-            self.timestamp_at_last_update < self.end
+            let current_timestamp = self.env().block_timestamp();
+            current_timestamp >= self.start && current_timestamp < self.end
         }
 
         // Guarantee: after calling update() it holds that self.timestamp_at_last_update = self.env().block_timestamp()
@@ -245,8 +246,7 @@ mod manager {
             }
             self.update()?;
 
-            self.start = 0;
-            self.end = 0;
+            self.end = self.env().block_timestamp();
             Ok(())
         }
 
