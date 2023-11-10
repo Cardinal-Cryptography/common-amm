@@ -3,14 +3,12 @@
 mod factory;
 mod pair;
 mod router;
-mod wnative;
 
 pub type Balance = <ink::env::DefaultEnvironment as ink::env::Environment>::Balance;
 
 pub use factory::{Factory, FactoryError};
 pub use pair::{Pair, PairError};
 pub use router::{Router, RouterError};
-pub use wnative::Wnative;
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]

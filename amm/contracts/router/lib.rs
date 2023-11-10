@@ -10,7 +10,8 @@ pub mod router {
         prelude::{string::String, vec, vec::Vec},
     };
     use psp22::{PSP22Error, PSP22};
-    use traits::{Factory, MathError, Pair, Router, RouterError, Wnative};
+    use traits::{Factory, MathError, Pair, Router, RouterError};
+    use wrapped_azero::WrappedAZERO;
 
     #[ink(storage)]
     pub struct RouterContract {
@@ -30,7 +31,7 @@ pub mod router {
         }
 
         #[inline]
-        fn wnative_ref(&self) -> contract_ref!(Wnative) {
+        fn wnative_ref(&self) -> contract_ref!(WrappedAZERO) {
             self.wnative.into()
         }
 
@@ -71,7 +72,7 @@ pub mod router {
                 .transferred_value(value)
                 .try_invoke()
                 .map_err(|_| {
-                    RouterError::CrossContractCallFailed(String::from("Wnative:deposit"))
+                    RouterError::CrossContractCallFailed(String::from("Wrapped AZERO: deposit"))
                 })???;
             Ok(())
         }

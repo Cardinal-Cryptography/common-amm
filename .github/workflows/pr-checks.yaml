@@ -13,6 +13,8 @@ jobs:
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
+      with:
+        submodules: true
 
     - name: Cache Crates
       uses: actions/cache@v3

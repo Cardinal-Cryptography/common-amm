@@ -13,23 +13,23 @@ mod tests;
 
 #[ink::contract]
 mod farm {
-    use crate::error::{FarmError, FarmStartError};
+    use crate::{
+        error::{FarmError, FarmStartError},
+        reward_per_token, rewards_earned,
+        views::{FarmDetailsView, UserPositionView},
+    };
 
-    use crate::views::{FarmDetailsView, UserPositionView};
-
-    use crate::{reward_per_token, rewards_earned};
-
-    use primitive_types::U256;
-    use psp22_traits::PSP22;
+    use amm_helpers::types::WrappedU256;
 
     use ink::{
         contract_ref,
+        prelude::{vec, vec::Vec},
         storage::{traits::ManualKey, Lazy, Mapping},
     };
 
-    use ink::prelude::{vec, vec::Vec};
+    use primitive_types::U256;
 
-    use amm_helpers::types::WrappedU256;
+    use psp22::PSP22;
 
     #[ink(event)]
     pub struct Deposited {
@@ -575,7 +575,7 @@ mod farm {
         psp22: &mut contract_ref!(PSP22),
         recipient: AccountId,
         amount: u128,
-    ) -> Result<(), psp22_traits::PSP22Error> {
+    ) -> Result<(), psp22::PSP22Error> {
         match psp22
             .call_mut()
             .transfer(recipient, amount, vec![])
