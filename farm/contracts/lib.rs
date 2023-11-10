@@ -174,8 +174,7 @@ mod manager {
                             user_shares,
                             self.farm_cumulative[idx]
                                 .0
-                                .saturating_sub(user_cumulative.0)
-                                .into(),
+                                .saturating_sub(user_cumulative.0),
                         )
                         .unwrap_or(0);
                         user_claimable_rewards[idx] =
