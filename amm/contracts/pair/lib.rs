@@ -3,36 +3,16 @@
 #[ink::contract]
 pub mod pair {
     use amm_helpers::{
-        constants::{
-            MINIMUM_LIQUIDITY,
-            ZERO_ADDRESS,
-        },
+        constants::{MINIMUM_LIQUIDITY, ZERO_ADDRESS},
         ensure,
         math::casted_mul,
         types::WrappedU256,
     };
-    use ink::{
-        contract_ref,
-        prelude::vec::Vec,
-    };
+    use ink::{contract_ref, prelude::vec::Vec};
     use primitive_types::U256;
-    use psp22::{
-        PSP22Data,
-        PSP22Error,
-        PSP22Event,
-        PSP22,
-    };
-    use sp_arithmetic::{
-        traits::IntegerSquareRoot,
-        FixedPointNumber,
-        FixedU128,
-    };
-    use traits::{
-        Factory,
-        MathError,
-        Pair,
-        PairError,
-    };
+    use psp22::{PSP22Data, PSP22Error, PSP22Event, PSP22};
+    use sp_arithmetic::{traits::IntegerSquareRoot, FixedPointNumber, FixedU128};
+    use traits::{Factory, MathError, Pair, PairError};
 
     #[ink(event)]
     pub struct Mint {
@@ -244,13 +224,11 @@ pub mod pair {
                         owner,
                         spender,
                         amount,
-                    } => {
-                        self.env().emit_event(Approval {
-                            owner,
-                            spender,
-                            amount,
-                        })
-                    }
+                    } => self.env().emit_event(Approval {
+                        owner,
+                        spender,
+                        amount,
+                    }),
                 }
             }
         }

@@ -2,32 +2,15 @@
 
 #[ink::contract]
 pub mod router {
-    use amm_helpers::{
-        ensure,
-        math::casted_mul,
-    };
+    use amm_helpers::{ensure, math::casted_mul};
     use ink::{
         codegen::TraitCallBuilder,
         contract_ref,
         env::CallFlags,
-        prelude::{
-            string::String,
-            vec,
-            vec::Vec,
-        },
+        prelude::{string::String, vec, vec::Vec},
     };
-    use psp22::{
-        PSP22Error,
-        PSP22,
-    };
-    use traits::{
-        Factory,
-        MathError,
-        Pair,
-        Router,
-        RouterError,
-        Wnative,
-    };
+    use psp22::{PSP22Error, PSP22};
+    use traits::{Factory, MathError, Pair, Router, RouterError, Wnative};
 
     #[ink(storage)]
     pub struct RouterContract {
@@ -109,7 +92,7 @@ pub mod router {
             let (reserve_a, reserve_b) = self.get_reserves(token_a, token_b)?;
 
             if reserve_a == 0 && reserve_b == 0 {
-                return Ok((amount_a_desired, amount_b_desired))
+                return Ok((amount_a_desired, amount_b_desired));
             }
 
             let amount_b_optimal = self.quote(amount_a_desired, reserve_a, reserve_b)?;

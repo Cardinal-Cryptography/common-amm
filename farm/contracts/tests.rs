@@ -1,7 +1,4 @@
-use ink::env::{
-    DefaultEnvironment,
-    Environment,
-};
+use ink::env::{DefaultEnvironment, Environment};
 
 type AccountId = <DefaultEnvironment as Environment>::AccountId;
 
@@ -346,10 +343,7 @@ mod farm_start {
     use super::*;
     use crate::{
         error::FarmStartError,
-        farm::{
-            Farm,
-            MAX_REWARD_TOKENS,
-        },
+        farm::{Farm, MAX_REWARD_TOKENS},
     };
 
     use ink::env::test::set_block_timestamp;

@@ -1,9 +1,6 @@
 use crate::MathError;
 use amm_helpers::types::WrappedU256;
-use ink::{
-    primitives::AccountId,
-    LangError,
-};
+use ink::{primitives::AccountId, LangError};
 use psp22::PSP22Error;
 
 #[ink::trait_definition]
