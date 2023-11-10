@@ -58,7 +58,7 @@ build-all: ## Builds all production contracts.
 build-test-contracts: ## Builds contracts used in e2e-tests
 	@for d in $(TEST_PATHS); do \
 		echo "Building $$d contract" ; \
-		if [[ "$$d" = *psp22 ]]; then \
+		if [[ "$$d" = $(TEST_CONTRACTS)/psp22 ]]; then \
 			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release --features "contract"; \
 		else \
 			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release; \
