@@ -13,16 +13,22 @@ mod tests;
 
 #[ink::contract]
 mod farm {
-    use crate::error::{FarmError, FarmStartError};
-    use crate::views::{FarmDetailsView, UserPositionView};
-    use crate::{reward_per_token, rewards_earned};
+    use crate::{
+        error::{FarmError, FarmStartError},
+        reward_per_token, rewards_earned,
+        views::{FarmDetailsView, UserPositionView},
+    };
+
     use amm_helpers::types::WrappedU256;
-    use ink::prelude::{vec, vec::Vec};
+
     use ink::{
         contract_ref,
+        prelude::{vec, vec::Vec},
         storage::{traits::ManualKey, Lazy, Mapping},
     };
+
     use primitive_types::U256;
+
     use psp22::PSP22;
 
     #[ink(event)]
