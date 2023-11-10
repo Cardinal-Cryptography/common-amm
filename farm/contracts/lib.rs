@@ -31,6 +31,8 @@ mod manager {
         PSP22,
     };
     pub const SCALING_FACTOR: u128 = u128::MAX;
+    pub const MAX_REWARD_TOKENS: u32 = 10;
+
     #[ink(event)]
     pub struct Deposited {
         #[ink(topic)]
@@ -76,10 +78,10 @@ mod manager {
         /// The timestamp at the last call to update().
         pub timestamp_at_last_update: Timestamp,
 
-        // TODO: maybe bundle the 3 below into one struct
         pub farm_rewards_to_distribute: Vec<u128>,
         pub farm_distributed_unclaimed_rewards: Vec<u128>,
         pub farm_cumulative: Vec<WrappedU256>,
+        pub farm_reward_rates: Vec<u128>,
 
         pub user_cumulative_last_update: Mapping<UserId, Vec<WrappedU256>>,
         pub user_claimable_rewards: Mapping<UserId, Vec<u128>>,
@@ -87,10 +89,15 @@ mod manager {
 
     impl FarmContract {
         #[ink(constructor)]
-        pub fn new(pool_id: AccountId, reward_tokens: Vec<TokenId>) -> Self {
+        pub fn new(pool_id: AccountId, reward_tokens: Vec<TokenId>) -> Result<Self, FarmError> {
             let n_reward_tokens = reward_tokens.len();
-            assert!(!reward_tokens.contains(&pool_id));
-            FarmContract {
+            if n_reward_tokens > MAX_REWARD_TOKENS as usize {
+                return Err(FarmError::InvalidFarmStartParams)
+            }
+            if reward_tokens.contains(&pool_id) {
+                return Err(FarmError::InvalidFarmStartParams)
+            }
+            Ok(FarmContract {
                 pool_id,
                 owner: Self::env().caller(),
                 shares: Mapping::default(),
@@ -102,9 +109,10 @@ mod manager {
                 farm_rewards_to_distribute: vec![0; n_reward_tokens],
                 farm_distributed_unclaimed_rewards: vec![0; n_reward_tokens],
                 farm_cumulative: vec![WrappedU256::default(); n_reward_tokens],
+                farm_reward_rates: vec![0; n_reward_tokens],
                 user_cumulative_last_update: Mapping::default(),
                 user_claimable_rewards: Mapping::default(),
-            }
+            })
         }
 
         fn is_active(&self) -> bool {
@@ -192,6 +200,88 @@ mod manager {
                 .insert(account, &self.farm_cumulative);
         }
 
+        /// Asserts that the given start, end, and rewards parameters are valid for starting a farm.
+        ///
+        /// # Arguments
+        ///
+        /// * `start` - A `Timestamp` representing the start time of the farm.
+        /// * `end` - A `Timestamp` representing the end time of the farm.
+        /// * `rewards` - A `Vec<u128>` containing the reward amounts for each reward token.
+        ///
+        /// # Errors
+        ///
+        /// Returns a `FarmError` if any of the following conditions are met:
+        ///
+        /// * `start` is less than or equal to the timestamp at the last update.
+        /// * The current block timestamp is greater than or equal to `end`.
+        /// * The length of `rewards` is not equal to the length of `self.reward_tokens`.
+        /// * A reward amount in `rewards` is equal to 0.
+        /// * The calculated reward rate is equal to 0.
+        /// * The product of the duration and reward rate is less than the reward amount.
+        ///
+        /// # Returns
+        ///
+        /// Returns a `Vec<u128>` containing the reward rates for each reward token.
+        fn assert_start_params(
+            &self,
+            start: Timestamp,
+            end: Timestamp,
+            rewards: Vec<u128>,
+        ) -> Result<Vec<u128>, FarmError> {
+            let now = Self::env().block_timestamp();
+
+            if start <= self.timestamp_at_last_update {
+                return Err(FarmError::InvalidFarmStartParams)
+            }
+
+            if start <= self.timestamp_at_last_update {
+                return Err(FarmError::InvalidFarmStartParams)
+            }
+
+            if now >= end {
+                return Err(FarmError::InvalidFarmStartParams)
+            }
+
+            if rewards.len() != self.reward_tokens.len() {
+                return Err(FarmError::InvalidFarmStartParams)
+            }
+
+            let duration = end as u128 - now as u128;
+
+            let tokens_len = self.reward_tokens.len();
+            let mut reward_rates = Vec::with_capacity(tokens_len);
+
+            for (token_id, reward_amount) in self.reward_tokens.iter().zip(rewards.iter()) {
+                if *reward_amount == 0 {
+                    return Err(FarmError::InvalidFarmStartParams)
+                }
+
+                let mut psp22_ref: ink::contract_ref!(PSP22) = (*token_id).into();
+
+                psp22_ref.transfer_from(
+                    self.owner,
+                    self.env().account_id(),
+                    *reward_amount,
+                    vec![],
+                )?;
+
+                let reward_rate = reward_amount
+                    .checked_div(duration)
+                    .ok_or(FarmError::InvalidFarmStartParams)?;
+
+                if reward_rate == 0 {
+                    return Err(FarmError::InvalidFarmStartParams)
+                }
+
+                // Double-check we have enough to cover the whole farm.
+                if duration * reward_rate < *reward_amount {
+                    return Err(FarmError::InvalidFarmStartParams)
+                }
+                reward_rates.push(reward_rate);
+            }
+            Ok(reward_rates)
+        }
+
         fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
             emitter.emit_event(event);
         }
@@ -229,9 +319,11 @@ mod manager {
                 return Err(FarmError::CallerNotOwner)
             }
             self.update()?;
-            assert!(!self.is_active());
+            if self.is_active() {
+                return Err(FarmError::FarmAlreadyRunning)
+            }
             // At this point self.timestamp_at_last_update = self.env().block_timestamp();
-            assert!(start > self.timestamp_at_last_update);
+            self.farm_reward_rates = self.assert_start_params(start, end, rewards.clone())?;
             self.start = start;
             self.end = end;
             self.farm_rewards_to_distribute = rewards;
