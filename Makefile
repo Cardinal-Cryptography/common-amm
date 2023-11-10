@@ -44,7 +44,7 @@ TEST_CONTRACTS = ./test-contracts
 TEST_PATHS := $(shell find $(TEST_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
 .PHONY: build-all
-build-all: ## Builds all contracts.
+build-all: ## Builds all production contracts.
 	@for d in $(AMM_CONTRACTS_PATHS); do \
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
@@ -53,6 +53,9 @@ build-all: ## Builds all contracts.
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
+
+.PHONY: build-test-contracts
+build-test-contracts: ## Builds contracts used in e2e-tests
 	@for d in $(TEST_PATHS); do \
 		echo "Building $$d contract" ; \
 		if [[ "$$d" = *psp22 ]]; then \
@@ -61,7 +64,6 @@ build-all: ## Builds all contracts.
 			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release; \
 		fi \
 	done
-
 
 .PHONY: check-all
 check-all: ## Runs cargo checks and unit tests on all contracts.
@@ -99,7 +101,7 @@ e2e-tests: ## Runs all the e2e tests in sequence.
 	@cd amm/e2e-tests && cargo test -- --test-threads 1 && cd ..
 
 .PHONY: build-and-wrap-all
-build-and-wrap-all: build-all wrap-all ## Builds all contracts and generates code for contract interaction.
+build-and-wrap-all: build-all build-test-contracts wrap-all ## Builds all contracts and generates code for contract interaction.
 
 INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.7.0
 
