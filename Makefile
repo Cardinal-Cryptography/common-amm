@@ -65,6 +65,8 @@ check-all: ## Runs cargo checks and unit tests on all contracts.
 		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
 	done
 	@cargo test --quiet --locked --frozen --workspace
+	@echo "Checking AMM e2e tests"
+	@cd ./amm/e2e-tests && cargo check --quiet
 
 .PHONY: format
 format: ## Formats contract files.
