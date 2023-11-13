@@ -429,6 +429,19 @@ mod manager {
             FarmContract::emit_event(self.env(), Event::Withdrawn(Withdrawn { account, amount }));
             Ok(())
         }
+
+        #[ink(message)]
+        fn claimmable(&self, account: AccountId) -> Vec<(TokenId, u128)> {
+            self.reward_tokens
+                .clone()
+                .into_iter()
+                .zip(self.user_claimable_rewards.get(account).unwrap_or(vec![
+                        0;
+                        self.reward_tokens
+                            .len()
+                    ]))
+                .collect()
+        }
     }
 
     pub fn safe_transfer(psp22: &mut contract_ref!(PSP22), recipient: AccountId, amount: u128) {

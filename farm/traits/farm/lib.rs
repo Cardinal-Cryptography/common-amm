@@ -79,4 +79,7 @@ pub trait Farm {
 
     #[ink(message)]
     fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmError>;
+
+    #[ink(message)]
+    fn claimmable(&self, account: AccountId) -> Vec<(AccountId, u128)>;
 }
