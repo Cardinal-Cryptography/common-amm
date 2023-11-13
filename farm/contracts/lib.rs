@@ -459,7 +459,7 @@ mod manager {
             Ok(Ok(Err(psp22_error))) => {
                 ink::env::debug_println!("psp22 error: {:?}", psp22_error);
             }
-            Ok(Ok(Ok(res))) => {}
+            Ok(Ok(Ok(_))) => {}
         }
     }
 
