@@ -13,12 +13,7 @@ use psp22_traits::PSP22Error;
 pub enum FarmError {
     PSP22Error(PSP22Error),
     FarmAlreadyRunning,
-    FarmInstantiationFailed,
     CallerNotOwner,
-    /// Unknown farm address registered under id.
-    FarmNotFound(u32),
-    /// Address not registered as a farm.
-    FarmUnknown(AccountId),
     ArithmeticError(MathError),
     CallerNotFarmer,
     InvalidFarmStartParams,
