@@ -234,10 +234,6 @@ mod manager {
                 return Err(FarmError::InvalidFarmStartParams)
             }
 
-            if start <= self.timestamp_at_last_update {
-                return Err(FarmError::InvalidFarmStartParams)
-            }
-
             if now >= end {
                 return Err(FarmError::InvalidFarmStartParams)
             }
