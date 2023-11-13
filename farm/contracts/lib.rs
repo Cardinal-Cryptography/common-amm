@@ -335,7 +335,7 @@ mod manager {
                 } else {
                     balance
                 };
-            safe_transfer(&mut token_ref, self.owner, balance)?;
+            safe_transfer(&mut token_ref, self.owner, balance);
             Ok(())
         }
 
@@ -358,8 +358,7 @@ mod manager {
                     let user_claim =
                         core::cmp::min(self.farm_distributed_unclaimed_rewards[idx], user_reward);
                     self.farm_distributed_unclaimed_rewards[idx] -= user_claim;
-                    // TODO: we should not Err here
-                    safe_transfer(&mut psp22_ref, account, user_claim)?;
+                    safe_transfer(&mut psp22_ref, account, user_claim);
                 }
             }
 
@@ -414,11 +413,7 @@ mod manager {
         }
     }
 
-    pub fn safe_transfer(
-        psp22: &mut contract_ref!(PSP22),
-        recipient: AccountId,
-        amount: u128,
-    ) -> Result<(), psp22_traits::PSP22Error> {
+    pub fn safe_transfer(psp22: &mut contract_ref!(PSP22), recipient: AccountId, amount: u128) {
         match psp22
             .call_mut()
             .transfer(recipient, amount, vec![])
@@ -426,17 +421,14 @@ mod manager {
         {
             Err(ink_env_err) => {
                 ink::env::debug_println!("ink env error: {:?}", ink_env_err);
-                Ok(())
             }
             Ok(Err(ink_lang_err)) => {
                 ink::env::debug_println!("ink lang error: {:?}", ink_lang_err);
-                Ok(())
             }
             Ok(Ok(Err(psp22_error))) => {
                 ink::env::debug_println!("psp22 error: {:?}", psp22_error);
-                Ok(())
             }
-            Ok(Ok(Ok(res))) => Ok(res),
+            Ok(Ok(Ok(res))) => {}
         }
     }
 
