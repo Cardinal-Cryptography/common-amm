@@ -5,7 +5,10 @@ mod manager {
 
     type TokenId = AccountId;
     type UserId = AccountId;
-    use amm_helpers::types::WrappedU256;
+    use amm_helpers::{
+        math::casted_mul,
+        types::WrappedU256,
+    };
     use farm_manager_trait::{
         Farm,
         FarmError,
@@ -78,12 +81,18 @@ mod manager {
         /// The timestamp at the last call to update().
         pub timestamp_at_last_update: Timestamp,
 
+        /// Farm rewards that are yet to be distributed.
         pub farm_rewards_to_distribute: Vec<u128>,
+        /// Total rewards that have been distributed but not yet claimed by users.
         pub farm_distributed_unclaimed_rewards: Vec<u128>,
-        pub farm_cumulative: Vec<WrappedU256>,
+        /// Cumulative rewards distributed per share since `start` and until `timestmap_at_last_update`.
+        pub farm_cumulative_reward_per_share: Vec<WrappedU256>,
+        /// Rewards rate - how many rewards per smallest unit of time are distributed.
         pub farm_reward_rates: Vec<u128>,
 
-        pub user_cumulative_last_update: Mapping<UserId, Vec<WrappedU256>>,
+        /// cumulative_per_share at the last update for each user.
+        pub user_cumulative_reward_last_update: Mapping<UserId, Vec<WrappedU256>>,
+
         pub user_claimable_rewards: Mapping<UserId, Vec<u128>>,
     }
 
@@ -108,9 +117,9 @@ mod manager {
                 timestamp_at_last_update: 0,
                 farm_rewards_to_distribute: vec![0; n_reward_tokens],
                 farm_distributed_unclaimed_rewards: vec![0; n_reward_tokens],
-                farm_cumulative: vec![WrappedU256::default(); n_reward_tokens],
+                farm_cumulative_reward_per_share: vec![WrappedU256::default(); n_reward_tokens],
                 farm_reward_rates: vec![0; n_reward_tokens],
-                user_cumulative_last_update: Mapping::default(),
+                user_cumulative_reward_last_update: Mapping::default(),
                 user_claimable_rewards: Mapping::default(),
             })
         }
@@ -138,25 +147,24 @@ mod manager {
             // It is non-empty because of the checks above and self.start <= now <= self.end
 
             for (idx, _) in self.reward_tokens.iter().enumerate() {
-                let reward_till_end = self.farm_rewards_to_distribute[idx];
-                let delta_reward_per_share = rewards_per_share_to_distribute(
+                let delta_reward_per_share = rewards_per_share_in_time_interval(
+                    self.farm_reward_rates[idx],
                     self.total_shares,
-                    reward_till_end,
-                    prev,
-                    now,
-                    self.end,
+                    prev as u128,
+                    now as u128,
                 )?;
                 let delta_reward_distributed =
-                    per_share_to_amount(self.total_shares, delta_reward_per_share)?;
-                self.farm_cumulative[idx] = self.farm_cumulative[idx]
-                    .0
-                    .saturating_add(delta_reward_per_share)
-                    .into();
+                    rewards_earned_by_shares(self.total_shares, delta_reward_per_share)?;
                 self.farm_distributed_unclaimed_rewards[idx] = self
                     .farm_distributed_unclaimed_rewards[idx]
                     .saturating_add(delta_reward_distributed);
                 self.farm_rewards_to_distribute[idx] =
                     self.farm_rewards_to_distribute[idx].saturating_sub(delta_reward_distributed);
+                self.farm_cumulative_reward_per_share[idx] = self.farm_cumulative_reward_per_share
+                    [idx]
+                    .0
+                    .saturating_add(delta_reward_per_share)
+                    .into();
             }
 
             self.timestamp_at_last_update = current_timestamp;
@@ -169,18 +177,18 @@ mod manager {
         // 2) self.user_cumulative_last_update[acc][i] = self.farm_cumulative[i] for all i
         fn update_account(&mut self, account: AccountId) {
             let user_shares = self.shares.get(account).unwrap_or(0);
-            let new_reward_vector = match self.user_cumulative_last_update.take(account) {
-                Some(user_cumulative_last_update) => {
+            let new_reward_vector = match self.user_cumulative_reward_last_update.take(account) {
+                Some(user_cumulative_reward_last_update) => {
                     let mut user_claimable_rewards = self
                         .user_claimable_rewards
                         .take(account)
                         .unwrap_or(vec![0; self.reward_tokens.len()]);
                     for (idx, user_cumulative) in
-                        user_cumulative_last_update.into_iter().enumerate()
+                        user_cumulative_reward_last_update.into_iter().enumerate()
                     {
-                        let user_reward = per_share_to_amount(
+                        let user_reward = rewards_earned_by_shares(
                             user_shares,
-                            self.farm_cumulative[idx]
+                            self.farm_cumulative_reward_per_share[idx]
                                 .0
                                 .saturating_sub(user_cumulative.0),
                         )
@@ -196,32 +204,10 @@ mod manager {
             };
             self.user_claimable_rewards
                 .insert(account, &new_reward_vector);
-            self.user_cumulative_last_update
-                .insert(account, &self.farm_cumulative);
+            self.user_cumulative_reward_last_update
+                .insert(account, &self.farm_cumulative_reward_per_share);
         }
 
-        /// Asserts that the given start, end, and rewards parameters are valid for starting a farm.
-        ///
-        /// # Arguments
-        ///
-        /// * `start` - A `Timestamp` representing the start time of the farm.
-        /// * `end` - A `Timestamp` representing the end time of the farm.
-        /// * `rewards` - A `Vec<u128>` containing the reward amounts for each reward token.
-        ///
-        /// # Errors
-        ///
-        /// Returns a `FarmError` if any of the following conditions are met:
-        ///
-        /// * `start` is less than or equal to the timestamp at the last update.
-        /// * The current block timestamp is greater than or equal to `end`.
-        /// * The length of `rewards` is not equal to the length of `self.reward_tokens`.
-        /// * A reward amount in `rewards` is equal to 0.
-        /// * The calculated reward rate is equal to 0.
-        /// * The product of the duration and reward rate is less than the reward amount.
-        ///
-        /// # Returns
-        ///
-        /// Returns a `Vec<u128>` containing the reward rates for each reward token.
         fn assert_start_params(
             &self,
             start: Timestamp,
@@ -230,15 +216,10 @@ mod manager {
         ) -> Result<Vec<u128>, FarmError> {
             let now = Self::env().block_timestamp();
 
-            if start <= self.timestamp_at_last_update {
-                return Err(FarmError::InvalidFarmStartParams)
-            }
-
-            if now >= end {
-                return Err(FarmError::InvalidFarmStartParams)
-            }
-
-            if rewards.len() != self.reward_tokens.len() {
+            if start <= self.timestamp_at_last_update
+                || now >= end
+                || rewards.len() != self.reward_tokens.len()
+            {
                 return Err(FarmError::InvalidFarmStartParams)
             }
 
@@ -318,7 +299,6 @@ mod manager {
             if self.is_active() {
                 return Err(FarmError::FarmAlreadyRunning)
             }
-            // At this point self.timestamp_at_last_update = self.env().block_timestamp();
             self.farm_reward_rates = self.assert_start_params(start, end, rewards.clone())?;
             self.start = start;
             self.end = end;
@@ -332,7 +312,6 @@ mod manager {
                 return Err(FarmError::CallerNotOwner)
             }
             self.update()?;
-
             self.end = self.env().block_timestamp();
             Ok(())
         }
@@ -477,35 +456,35 @@ mod manager {
         }
     }
 
-    pub fn rewards_per_share_to_distribute(
+    pub fn rewards_per_share_in_time_interval(
+        reward_rate: u128,
         total_shares: u128,
-        reward_till_end: u128,
-        prev: Timestamp,
-        current: Timestamp,
-        end: Timestamp,
+        from_timestamp: u128,
+        to_timestamp: u128,
     ) -> Result<U256, MathError> {
-        // The formula is:
-        // SCALING_FACTOR * (reward_till_end * ((current - prev)/(end - prev)) / total_shares
-        let total_time = end.checked_sub(prev).ok_or(MathError::Underflow)?;
-        let time_used = current.checked_sub(prev).ok_or(MathError::Underflow)?;
-        if total_time == 0 || total_shares == 0 {
-            return Ok(U256::from(0))
+        if total_shares == 0 || from_timestamp > to_timestamp {
+            return Ok(0.into())
         }
-        let fraction =
-            (U256::from(SCALING_FACTOR) * U256::from(time_used)) / (U256::from(total_time));
 
-        fraction
-            .checked_mul(U256::from(reward_till_end))
+        let time_delta = to_timestamp
+            .checked_sub(from_timestamp)
+            .ok_or(MathError::Underflow)?;
+
+        casted_mul(reward_rate, time_delta)
+            .checked_mul(U256::from(SCALING_FACTOR))
             .ok_or(MathError::Overflow)?
             .checked_div(U256::from(total_shares))
             .ok_or(MathError::DivByZero)
     }
 
-    pub fn per_share_to_amount(total_shares: u128, per_share: U256) -> Result<u128, MathError> {
-        // The formula is:
-        // per_share * total_shares / SCALING_FACTOR
-        per_share
-            .checked_mul(U256::from(total_shares))
+    /// The formula is:
+    /// rewards_per_share * shares / SCALING_FACTOR
+    pub fn rewards_earned_by_shares(
+        shares: u128,
+        rewards_per_share: U256,
+    ) -> Result<u128, MathError> {
+        rewards_per_share
+            .checked_mul(U256::from(shares))
             .ok_or(MathError::Overflow)?
             .checked_div(U256::from(SCALING_FACTOR))
             .ok_or(MathError::Overflow)?
