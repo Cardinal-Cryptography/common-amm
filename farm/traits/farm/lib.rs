@@ -53,6 +53,10 @@ pub trait Farm {
     #[ink(message)]
     fn deposit_shares(&mut self, amount: u128) -> Result<(), FarmError>;
 
+    /// Deposits all transferred LP tokens under caller's account.
+    #[ink(message)]
+    fn deposit_all(&mut self) -> Result<(), FarmError>;
+
     /// Returns a vector of token addresses which are rewarded for participating in this farm.
     #[ink(message)]
     fn reward_tokens(&self) -> Vec<AccountId>;
