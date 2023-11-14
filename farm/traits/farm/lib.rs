@@ -19,6 +19,16 @@ pub enum FarmError {
     InvalidFarmStartParams,
 }
 
+#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub struct FarmDetails {
+    pub pool_id: AccountId,
+    pub start: u64,
+    pub end: u64,
+    pub reward_tokens: Vec<AccountId>,
+    pub reward_rates: Vec<u128>,
+}
+
 impl From<PSP22Error> for FarmError {
     fn from(e: PSP22Error) -> Self {
         FarmError::PSP22Error(e)
@@ -81,5 +91,8 @@ pub trait Farm {
     fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmError>;
 
     #[ink(message)]
-    fn claimmable(&self, account: AccountId) -> Vec<(AccountId, u128)>;
+    fn view_claimmable(&self, account: AccountId) -> Vec<(AccountId, u128)>;
+
+    #[ink(message)]
+    fn view_farm_details(&self) -> FarmDetails;
 }

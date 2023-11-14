@@ -11,6 +11,7 @@ mod rename {
     };
     use farm_manager_trait::{
         Farm,
+        FarmDetails,
         FarmError,
     };
     use ink::{
@@ -64,7 +65,7 @@ mod rename {
     #[ink(storage)]
     pub struct FarmContract {
         /// Address of the token pool for which this farm is created.
-        pool_id: AccountId,
+        pub pool_id: AccountId,
         /// Address of the farm creator.
         owner: AccountId,
         /// How many shares each user has in the farm.
@@ -72,12 +73,12 @@ mod rename {
         /// Total shares in the farm after the last action.
         total_shares: u128,
         /// Reward tokens.
-        reward_tokens: Vec<TokenId>,
+        pub reward_tokens: Vec<TokenId>,
 
         /// The timestamp when the farm should start.
-        start: Timestamp,
+        pub start: Timestamp,
         /// The timestamp when the farm will stop.
-        end: Timestamp,
+        pub end: Timestamp,
         /// The timestamp at the last call to update().
         pub timestamp_at_last_update: Timestamp,
 
@@ -433,7 +434,7 @@ mod rename {
         }
 
         #[ink(message)]
-        fn claimmable(&self, account: AccountId) -> Vec<(TokenId, u128)> {
+        fn view_claimmable(&self, account: AccountId) -> Vec<(TokenId, u128)> {
             self.reward_tokens
                 .clone()
                 .into_iter()
@@ -443,6 +444,17 @@ mod rename {
                             .len()
                     ]))
                 .collect()
+        }
+
+        #[ink(message)]
+        fn view_farm_details(&self) -> FarmDetails {
+            FarmDetails {
+                pool_id: self.pool_id,
+                start: self.start,
+                end: self.end,
+                reward_tokens: self.reward_tokens.clone(),
+                reward_rates: self.farm_reward_rates.clone(),
+            }
         }
     }
 
