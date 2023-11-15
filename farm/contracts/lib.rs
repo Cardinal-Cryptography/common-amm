@@ -251,10 +251,6 @@ mod farm {
                     return Err(FarmError::InvalidFarmStartParams)
                 }
 
-                // Double-check we have enough to cover the whole farm.
-                if duration * reward_rate < *reward_amount {
-                    return Err(FarmError::InvalidFarmStartParams)
-                }
                 reward_rates.push(reward_rate);
             }
             Ok(reward_rates)
