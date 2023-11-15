@@ -91,8 +91,5 @@ pub trait Farm {
     fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmError>;
 
     #[ink(message)]
-    fn view_claimmable(&self, account: AccountId) -> Vec<(AccountId, u128)>;
-
-    #[ink(message)]
     fn view_farm_details(&self) -> FarmDetails;
 }

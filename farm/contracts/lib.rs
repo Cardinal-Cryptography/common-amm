@@ -415,19 +415,6 @@ mod farm {
         }
 
         #[ink(message)]
-        fn view_claimmable(&self, account: AccountId) -> Vec<(TokenId, u128)> {
-            self.reward_tokens
-                .clone()
-                .into_iter()
-                .zip(self.user_claimable_rewards.get(account).unwrap_or(vec![
-                        0;
-                        self.reward_tokens
-                            .len()
-                    ]))
-                .collect()
-        }
-
-        #[ink(message)]
         fn view_farm_details(&self) -> FarmDetails {
             FarmDetails {
                 pool_id: self.pool_id,
