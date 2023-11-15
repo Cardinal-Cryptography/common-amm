@@ -260,6 +260,16 @@ mod farm {
             Ok(reward_rates)
         }
 
+        fn deposit(&mut self, account: AccountId, amount: u128) -> Result<(), FarmError> {
+            self.update()?;
+            self.update_account(account);
+
+            let shares = self.shares.get(account).unwrap_or(0);
+            self.shares.insert(account, &(shares + amount));
+            self.total_shares += amount;
+            Ok(())
+        }
+
         fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
             emitter.emit_event(event);
         }
@@ -372,36 +382,22 @@ mod farm {
 
         #[ink(message)]
         fn deposit_shares(&mut self, amount: u128) -> Result<(), FarmError> {
-            self.update()?;
             let account = self.env().caller();
-            self.update_account(account);
-
+            self.deposit(account, amount)?;
             let mut pool: contract_ref!(PSP22) = self.pool_id.into();
-
             pool.transfer_from(account, self.env().account_id(), amount, vec![])?;
-
-            let shares = self.shares.get(account).unwrap_or(0);
-            self.shares.insert(account, &(shares + amount));
-            self.total_shares += amount;
-
             FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
             Ok(())
         }
 
         #[ink(message)]
         fn deposit_all(&mut self) -> Result<(), FarmError> {
-            self.update()?;
             let account = self.env().caller();
-            self.update_account(account);
-
             let pool: contract_ref!(PSP22) = self.pool_id.into();
             // Check how much have been transferred to the contract. We assume this was done by the caller.
-            let amount = safe_balance_of(&pool, self.env().account_id());
-
-            let shares = self.shares.get(account).unwrap_or(0);
-            self.shares.insert(account, &(shares + amount));
-            self.total_shares += amount;
-
+            let current_balance = safe_balance_of(&pool, self.env().account_id());
+            let amount = self.total_shares - current_balance;
+            self.deposit(account, amount)?;
             FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
             Ok(())
         }
