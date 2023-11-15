@@ -355,13 +355,8 @@ mod farm {
             for (idx, user_reward) in user_rewards.clone().into_iter().enumerate() {
                 if user_reward > 0 {
                     let mut psp22_ref: ink::contract_ref!(PSP22) = self.reward_tokens[idx].into();
-                    // It could happen that user_reward > self.farm_distributed_unclaimed_rewards[idx] because of rounding errors.
-                    let mut user_claim =
-                        core::cmp::min(self.farm_distributed_unclaimed_rewards[idx], user_reward);
-                    // It could also happen that what's left in the farm is less than what the user has earned.
-                    user_claim = core::cmp::max(user_claim, self.farm_rewards_to_distribute[idx]);
-                    self.farm_distributed_unclaimed_rewards[idx] -= user_claim;
-                    safe_transfer(&mut psp22_ref, account, user_claim);
+                    self.farm_distributed_unclaimed_rewards[idx] -= user_reward;
+                    safe_transfer(&mut psp22_ref, account, user_reward);
                 }
             }
 
