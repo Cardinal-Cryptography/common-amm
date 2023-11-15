@@ -86,7 +86,7 @@ mod farm {
         pub farm_rewards_to_distribute: Vec<u128>,
         /// Total rewards that have been distributed but not yet claimed by users.
         pub farm_distributed_unclaimed_rewards: Vec<u128>,
-        /// Cumulative rewards distributed per share since `start` and until `timestmap_at_last_update`.
+        /// Cumulative rewards distributed per share since `start` and until `timestamp_at_last_update`.
         pub farm_cumulative_reward_per_share: Vec<WrappedU256>,
         /// Rewards rate - how many rewards per smallest unit of time are distributed.
         pub farm_reward_rates: Vec<u128>,
