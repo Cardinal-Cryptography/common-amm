@@ -387,6 +387,9 @@ mod farm {
             // Check how much have been transferred to the contract. We assume this was done by the caller.
             let current_balance = safe_balance_of(&pool, self.env().account_id());
             let amount = self.total_shares - current_balance;
+            if amount == 0 {
+                return Err(FarmError::PSP22Error(PSP22Error::InsufficientBalance))
+            }
             self.deposit(account, amount)?;
             FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
             Ok(())
