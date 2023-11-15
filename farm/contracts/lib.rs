@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
 #[ink::contract]
-mod rename {
+mod farm {
 
     type TokenId = AccountId;
     type UserId = AccountId;
