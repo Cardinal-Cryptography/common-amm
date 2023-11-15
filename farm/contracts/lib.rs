@@ -82,8 +82,6 @@ mod farm {
         /// The timestamp at the last call to update().
         pub timestamp_at_last_update: Timestamp,
 
-        /// Farm rewards that are yet to be distributed.
-        pub farm_rewards_to_distribute: Vec<u128>,
         /// Total rewards that have been distributed but not yet claimed by users.
         pub farm_distributed_unclaimed_rewards: Vec<u128>,
         /// Cumulative rewards distributed per share since `start` and until `timestamp_at_last_update`.
@@ -116,7 +114,6 @@ mod farm {
                 start: 0,
                 end: 0,
                 timestamp_at_last_update: 0,
-                farm_rewards_to_distribute: vec![0; n_reward_tokens],
                 farm_distributed_unclaimed_rewards: vec![0; n_reward_tokens],
                 farm_cumulative_reward_per_share: vec![WrappedU256::default(); n_reward_tokens],
                 farm_reward_rates: vec![0; n_reward_tokens],
@@ -159,8 +156,6 @@ mod farm {
                 self.farm_distributed_unclaimed_rewards[idx] = self
                     .farm_distributed_unclaimed_rewards[idx]
                     .saturating_add(delta_reward_distributed);
-                self.farm_rewards_to_distribute[idx] =
-                    self.farm_rewards_to_distribute[idx].saturating_sub(delta_reward_distributed);
                 self.farm_cumulative_reward_per_share[idx] = self.farm_cumulative_reward_per_share
                     [idx]
                     .0
@@ -309,7 +304,6 @@ mod farm {
             self.farm_reward_rates = self.assert_start_params(start, end, rewards.clone())?;
             self.start = start;
             self.end = end;
-            self.farm_rewards_to_distribute = rewards;
             Ok(())
         }
 
