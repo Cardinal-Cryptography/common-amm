@@ -1,5 +1,5 @@
 [package]
-name = "amm_farm"
+name = "farm"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
@@ -18,8 +18,11 @@ primitive-types = { version = "0.12.1", default-features = false, features = [
     "codec",
 ] }
 sp-arithmetic = { version = "18.0.0", default-features = false }
-psp22 = { version = "0.2" , default-features = false }
+psp22 = { version = "0.2", default-features = false }
 amm-helpers = { path = "../../helpers", default-features = false }
+
+farm-trait = { path = "../trait", default-features = false }
+
 [lib]
 path = "lib.rs"
 
@@ -34,6 +37,7 @@ std = [
     "primitive-types/scale-info",
     "sp-arithmetic/std",
     "amm-helpers/std",
+    "farm-trait/std",
 ]
 ink-as-dependency = []
 

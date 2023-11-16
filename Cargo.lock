@@ -23,19 +23,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amm_farm"
-version = "0.1.0"
-dependencies = [
- "amm-helpers",
- "ink",
- "parity-scale-codec",
- "primitive-types",
- "psp22 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "scale-info",
- "sp-arithmetic",
-]
-
-[[package]]
 name = "array-init"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -249,6 +236,31 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "traits",
+]
+
+[[package]]
+name = "farm"
+version = "0.1.0"
+dependencies = [
+ "amm-helpers",
+ "farm-trait",
+ "ink",
+ "parity-scale-codec",
+ "primitive-types",
+ "psp22 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "scale-info",
+ "sp-arithmetic",
+]
+
+[[package]]
+name = "farm-trait"
+version = "0.1.0"
+dependencies = [
+ "amm-helpers",
+ "ink",
+ "parity-scale-codec",
+ "psp22 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "scale-info",
 ]
 
 [[package]]
