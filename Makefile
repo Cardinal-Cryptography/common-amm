@@ -37,22 +37,27 @@ build-node-x86_64:
 AMM_CONTRACTS = ./amm/contracts
 AMM_CONTRACTS_PATHS := $(shell find $(AMM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
-FARM_CONTRACTS = ./farm
-FARM_PATHS := $(shell find $(FARM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
+FARM_CONTRACTS := ./farm/contract
 
 TEST_CONTRACTS = ./test-contracts
 TEST_PATHS := $(shell find $(TEST_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
-.PHONY: build-all
-build-all: ## Builds all production contracts.
+.PHONY: build-farm
+build-farm: ## Builds farm contracts.
+	@for d in $(FARM_CONTRACTS); do \
+		echo "Building $$d contract" ; \
+		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
+	done
+
+.PHONY: build-amm
+build-amm: ## Builds AMM contracts.
 	@for d in $(AMM_CONTRACTS_PATHS); do \
-		echo "Building $$d contract" ; \
-		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
+	 	echo "Building $$d contract" ; \
+	 	cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
-	@for d in $(FARM_PATHS); do \
-		echo "Building $$d contract" ; \
-		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
-	done
+
+.PHONY: build-all
+build-all: build-farm build-amm ## Builds all contracts.
 
 .PHONY: build-test-contracts
 build-test-contracts: ## Builds contracts used in e2e-tests
@@ -65,19 +70,27 @@ build-test-contracts: ## Builds contracts used in e2e-tests
 		fi \
 	done
 
-.PHONY: check-all
-check-all: ## Runs cargo checks and unit tests on all contracts.
-	@cargo check --quiet --all-targets --all-features --all
-	@cargo clippy --quiet --all-features -- --no-deps -D warnings
-	@cargo fmt --all --check
+	
+.PHONY: check-farm
+check-farm: ## Runs cargo checks on farm contracts.
+	@for d in $(FARM_CONTRACTS); do \
+		echo "Checking $$d" ; \
+		cargo check --quiet --all-targets --all-features --manifest-path $$d/Cargo.toml ; \
+		cargo clippy --quiet --all-features --manifest-path $$d/Cargo.toml -- --no-deps -D warnings ; \
+		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
+	done
+
+.PHONY: check-amm
+check-amm: ## Runs cargo (contract) check on AMM contracts.
 	@for d in $(AMM_CONTRACTS_PATHS); do \
 		echo "Checking $$d" ; \
+		cargo check --quiet --all-targets --all-features --manifest-path $$d/Cargo.toml ; \
+		cargo clippy --quiet --all-features --manifest-path $$d/Cargo.toml -- --no-deps -D warnings ; \
 		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
 	done
-	@for d in $(FARM_PATHS); do \
-		echo "Checking $$d" ; \
-		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
-	done
+
+.PHONY: check-all
+check-all: check-farm check-amm ## Runs cargo checks and unit tests on all contracts.
 	@cargo test --quiet --locked --frozen --workspace
 	@echo "Checking AMM e2e tests"
 	@cd ./amm/e2e-tests && cargo check --quiet
