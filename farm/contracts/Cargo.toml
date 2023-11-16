@@ -19,10 +19,10 @@ primitive-types = { version = "0.12.1", default-features = false, features = [
     "codec",
 ] }
 sp-arithmetic = { version = "18.0.0", default-features = false }
-psp22-traits = { path = "../../traits/psp22", default-features = false }
-amm-helpers = { path = "../../../helpers", default-features = false }
+psp22-traits = { path = "../traits/psp22", default-features = false }
+amm-helpers = { path = "../../helpers", default-features = false }
 
-farm-manager-trait = { path = "../../traits/manager", default-features = false }
+farm-manager-trait = { path = "../traits/farm", default-features = false }
 
 [lib]
 path = "lib.rs"

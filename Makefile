@@ -37,13 +37,11 @@ build-node-x86_64:
 AMM_CONTRACTS = ./amm/contracts
 AMM_CONTRACTS_PATHS := $(shell find $(AMM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
-FARM_CONTRACTS_PATHS := $(shell find ./farm/contracts -mindepth 1 -maxdepth 1 -type d)
-# Find all directories in the farm directory that contain a Cargo.toml file.
-FARM_PATHS := $(shell find ./farm -mindepth 1 -maxdepth 3 -name Cargo.toml | xargs dirname)
+FARM_CONTRACTS := ./farm/contracts
 
 .PHONY: build-farm
 build-farm: ## Builds farm contracts.
-	@for d in $(FARM_CONTRACTS_PATHS); do \
+	@for d in $(FARM_CONTRACTS); do \
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
@@ -61,7 +59,7 @@ build-all: build-farm build-amm ## Builds all contracts.
 	
 .PHONY: check-farm
 check-farm: ## Runs cargo checks on farm contracts.
-	@for d in $(FARM_PATHS); do \
+	@for d in $(FARM_CONTRACTS); do \
 		echo "Checking $$d" ; \
 		cargo check --quiet --all-targets --all-features --manifest-path $$d/Cargo.toml ; \
 		cargo clippy --quiet --all-features --manifest-path $$d/Cargo.toml -- --no-deps -D warnings ; \
