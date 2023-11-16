@@ -1,5 +1,5 @@
 [package]
-name = "farm"
+name = "farm_contract"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
