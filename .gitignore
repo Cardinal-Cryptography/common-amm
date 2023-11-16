@@ -10,9 +10,8 @@ addresses.json
 
 # Ignore Rust contract wrappers.
 amm/e2e-tests/src/*_contract.rs
-amm/e2e-tests/src/psp22.rs
 amm/e2e-tests/src/wrapped_azero.rs
-amm/e2e-tests/src/amm_farm.rs
+amm/e2e-tests/src/psp22.rs
 
 # Ignore backup files creates by cargo fmt.
 **/*.rs.bk
