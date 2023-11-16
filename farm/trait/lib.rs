@@ -68,7 +68,6 @@ pub trait Farm {
     #[ink(message)]
     fn reward_tokens(&self) -> Vec<AccountId>;
 
-    // TODO: u64 -> Timestamp (need suitable import)
     #[ink(message)]
     fn owner_start_new_farm(
         &mut self,
@@ -80,7 +79,6 @@ pub trait Farm {
     #[ink(message)]
     fn owner_stop_farm(&mut self) -> Result<(), FarmError>;
 
-    // TODO: AccountId -> TokenId (need suitable import)
     #[ink(message)]
     fn owner_withdraw_token(&mut self, token: AccountId) -> Result<(), FarmError>;
 
