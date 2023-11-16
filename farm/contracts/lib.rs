@@ -375,7 +375,7 @@ mod farm {
         }
 
         #[ink(message)]
-        fn deposit_shares(&mut self, amount: u128) -> Result<(), FarmError> {
+        fn deposit(&mut self, amount: u128) -> Result<(), FarmError> {
             let account = self.env().caller();
             self.deposit(account, amount)?;
             FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
@@ -393,7 +393,7 @@ mod farm {
         }
 
         #[ink(message)]
-        fn withdraw_shares(&mut self, amount: u128) -> Result<(), FarmError> {
+        fn withdraw(&mut self, amount: u128) -> Result<(), FarmError> {
             self.update()?;
             let account = self.env().caller();
             self.update_account(account);

@@ -57,11 +57,11 @@ pub trait Farm {
 
     /// Withdraws `amount` of shares from caller.
     #[ink(message)]
-    fn withdraw_shares(&mut self, amount: u128) -> Result<(), FarmError>;
+    fn withdraw(&mut self, amount: u128) -> Result<(), FarmError>;
 
     /// Deposits `amount` of shares under caller's account.
     #[ink(message)]
-    fn deposit_shares(&mut self, amount: u128) -> Result<(), FarmError>;
+    fn deposit(&mut self, amount: u128) -> Result<(), FarmError>;
 
     /// Deposits all transferred LP tokens under caller's account.
     #[ink(message)]
