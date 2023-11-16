@@ -15,7 +15,7 @@ use aleph_client::{
     Balance,
     SignedConnection,
 };
-use amm::helpers::MINIMUM_LIQUIDITY;
+use amm_helpers::constants::MINIMUM_LIQUIDITY;
 use ink_wrapper_types::{
     util::ToAccountId,
     Connection,
@@ -31,8 +31,8 @@ use crate::{
         Pair,
         PSP22,
     },
-    psp22_token,
-    psp22_token::PSP22 as TokenPSP22,
+    psp22 as psp22_token,
+    psp22::PSP22 as TokenPSP22,
     router_contract,
     router_contract::Router,
     test::setup::{
@@ -48,9 +48,9 @@ use crate::{
         TOKEN_A_SYMBOL,
         WEALTHY_SEED,
     },
-    wnative_contract,
-    wnative_contract::{
-        Wnative,
+    wrapped_azero,
+    wrapped_azero::{
+        WrappedAZERO,
         PSP22 as WnativePSP22,
     },
 };
@@ -63,7 +63,7 @@ static ROUTER_TESTS_CODE_UPLOAD: OnceCell<Result<()>> = OnceCell::const_new();
 struct RouterContractsSetup {
     factory_contract: factory_contract::Instance,
     token_a: psp22_token::Instance,
-    wnative_contract: wnative_contract::Instance,
+    wrapped_azero: wrapped_azero::Instance,
     router_contract: router_contract::Instance,
 }
 
@@ -73,7 +73,7 @@ struct RouterTestSetup {
     regular_account: ink_primitives::AccountId,
     factory_contract: factory_contract::Instance,
     token_a: psp22_token::Instance,
-    wnative_contract: wnative_contract::Instance,
+    wrapped_azero: wrapped_azero::Instance,
     router_contract: router_contract::Instance,
 }
 
@@ -88,9 +88,7 @@ async fn router_tests_code_upload() -> Result<()> {
         .upload(factory_contract::upload())
         .await?;
     wealthy_connection.upload(psp22_token::upload()).await?;
-    wealthy_connection
-        .upload(wnative_contract::upload())
-        .await?;
+    wealthy_connection.upload(wrapped_azero::upload()).await?;
     wealthy_connection.upload(router_contract::upload()).await?;
 
     Ok(())
@@ -119,12 +117,12 @@ async fn set_up_contracts(
             .with_salt(salt.clone()),
         )
         .await?;
-    let wnative_contract = connection
-        .instantiate(wnative_contract::Instance::new().with_salt(salt.clone()))
+    let wrapped_azero = connection
+        .instantiate(wrapped_azero::Instance::new().with_salt(salt.clone()))
         .await?;
     let router_contract = connection
         .instantiate(
-            router_contract::Instance::new(factory_contract.into(), wnative_contract.into())
+            router_contract::Instance::new(factory_contract.into(), wrapped_azero.into())
                 .with_salt(salt),
         )
         .await?;
@@ -132,7 +130,7 @@ async fn set_up_contracts(
     let router_contracts_setup = RouterContractsSetup {
         factory_contract,
         token_a,
-        wnative_contract,
+        wrapped_azero,
         router_contract,
     };
 
@@ -154,7 +152,7 @@ async fn set_up_router_test() -> Result<RouterTestSetup> {
     let RouterContractsSetup {
         factory_contract,
         token_a,
-        wnative_contract,
+        wrapped_azero,
         router_contract,
     } = set_up_contracts(&wealthy_connection, regular_account).await?;
 
@@ -164,7 +162,7 @@ async fn set_up_router_test() -> Result<RouterTestSetup> {
         regular_account,
         factory_contract,
         token_a,
-        wnative_contract,
+        wrapped_azero,
         router_contract,
     };
 
@@ -181,7 +179,7 @@ pub async fn add_liquidity() -> Result<()> {
         factory_contract,
         token_a,
         router_contract,
-        wnative_contract,
+        wrapped_azero,
         ..
     } = set_up_router_test().await?;
 
@@ -217,7 +215,7 @@ pub async fn add_liquidity() -> Result<()> {
     assert!(all_pairs_length_after == all_pairs_length_before + 1);
 
     let pair_contract: pair_contract::Instance = wealthy_connection
-        .read(factory_contract.get_pair(wnative_contract.into(), token_a.into()))
+        .read(factory_contract.get_pair(wrapped_azero.into(), token_a.into()))
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?
         .into();
@@ -240,7 +238,7 @@ pub async fn swap_exact_native_for_tokens() -> Result<()> {
         wealthy_account,
         regular_account,
         token_a,
-        wnative_contract,
+        wrapped_azero,
         router_contract,
         ..
     } = set_up_router_test().await?;
@@ -265,7 +263,7 @@ pub async fn swap_exact_native_for_tokens() -> Result<()> {
         )
         .await?;
 
-    let path = vec![wnative_contract.into(), token_a.into()];
+    let path = vec![wrapped_azero.into(), token_a.into()];
     let amounts_in = wealthy_connection
         .read(router_contract.get_amounts_in(AMOUNT_OUT, path.clone()))
         .await??
@@ -299,7 +297,7 @@ pub async fn swap_native_for_exact_tokens() -> Result<()> {
         wealthy_account,
         regular_account,
         token_a,
-        wnative_contract,
+        wrapped_azero,
         router_contract,
         ..
     } = set_up_router_test().await?;
@@ -324,7 +322,7 @@ pub async fn swap_native_for_exact_tokens() -> Result<()> {
         )
         .await?;
 
-    let path = vec![wnative_contract.into(), token_a.into()];
+    let path = vec![wrapped_azero.into(), token_a.into()];
     let amounts_in = wealthy_connection
         .read(router_contract.get_amounts_in(AMOUNT_OUT, path.clone()))
         .await??
@@ -358,7 +356,7 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
         wealthy_account,
         regular_account,
         token_a,
-        wnative_contract,
+        wrapped_azero,
         router_contract,
         ..
     } = set_up_router_test().await?;
@@ -383,11 +381,11 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
         )
         .await?;
     wealthy_connection
-        .exec(wnative_contract.deposit().with_value(AMOUNT_TOKEN_DESIRED))
+        .exec(wrapped_azero.deposit().with_value(AMOUNT_TOKEN_DESIRED))
         .await?;
 
     wealthy_connection
-        .exec(wnative_contract.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
+        .exec(wrapped_azero.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
 
     let regular_account_balance_before = wealthy_connection
@@ -397,7 +395,7 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
         .exec(router_contract.swap_exact_tokens_for_tokens(
             AMOUNT_TOKEN_DESIRED,
             AMOUNT_OUT,
-            vec![wnative_contract.into(), token_a.into()],
+            vec![wrapped_azero.into(), token_a.into()],
             regular_account,
             deadline,
         ))
@@ -421,7 +419,7 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
         wealthy_account,
         regular_account,
         token_a,
-        wnative_contract,
+        wrapped_azero,
         router_contract,
         ..
     } = set_up_router_test().await?;
@@ -449,11 +447,11 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
     const AMOUNT_FOR_SWAP: Balance = 100_000;
 
     wealthy_connection
-        .exec(wnative_contract.deposit().with_value(AMOUNT_FOR_SWAP))
+        .exec(wrapped_azero.deposit().with_value(AMOUNT_FOR_SWAP))
         .await?;
 
     wealthy_connection
-        .exec(wnative_contract.approve(router_contract.into(), AMOUNT_FOR_SWAP))
+        .exec(wrapped_azero.approve(router_contract.into(), AMOUNT_FOR_SWAP))
         .await?;
 
     let regular_account_balance_before = wealthy_connection
@@ -464,7 +462,7 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
         .exec(router_contract.swap_tokens_for_exact_tokens(
             AMOUNT_OUT,
             AMOUNT_FOR_SWAP,
-            vec![wnative_contract.into(), token_a.into()],
+            vec![wrapped_azero.into(), token_a.into()],
             regular_account,
             deadline,
         ))
@@ -565,7 +563,7 @@ pub async fn remove_liquidity() -> Result<()> {
         regular_account,
         factory_contract,
         token_a,
-        wnative_contract,
+        wrapped_azero,
         router_contract,
     } = set_up_router_test().await?;
 
@@ -595,7 +593,7 @@ pub async fn remove_liquidity() -> Result<()> {
         .await?;
 
     let pair_contract: pair_contract::Instance = wealthy_connection
-        .read(factory_contract.get_pair(wnative_contract.into(), token_a.into()))
+        .read(factory_contract.get_pair(wrapped_azero.into(), token_a.into()))
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?
         .into();

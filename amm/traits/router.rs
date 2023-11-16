@@ -1,16 +1,6 @@
-use crate::{
-    helpers::{
-        helper::HelperError,
-        transfer_helper::TransferHelperError,
-    },
-    traits::{
-        factory::FactoryError,
-        pair::PairError,
-    },
-    Balance,
-};
+use crate::{Balance, FactoryError, MathError, PairError};
 use ink::{
-    prelude::vec::Vec,
+    prelude::{string::String, vec::Vec},
     primitives::AccountId,
     LangError,
 };
@@ -37,13 +27,13 @@ pub trait Router {
         &mut self,
         token_a: AccountId,
         token_b: AccountId,
-        amount_a_desired: Balance,
-        amount_b_desired: Balance,
-        amount_a_min: Balance,
-        amount_b_min: Balance,
+        amount_a_desired: u128,
+        amount_b_desired: u128,
+        amount_a_min: u128,
+        amount_b_min: u128,
         to: AccountId,
         deadline: u64,
-    ) -> Result<(Balance, Balance, Balance), RouterError>;
+    ) -> Result<(u128, u128, u128), RouterError>;
 
     /// Removes `liquidity` amount of tokens from `(token_a, token_b)`
     /// pair and transfers tokens `to` account.
@@ -56,29 +46,29 @@ pub trait Router {
         &mut self,
         token_a: AccountId,
         token_b: AccountId,
-        liquidity: Balance,
-        amount_a_min: Balance,
-        amount_b_min: Balance,
+        liquidity: u128,
+        amount_a_min: u128,
+        amount_b_min: u128,
         to: AccountId,
         deadline: u64,
-    ) -> Result<(Balance, Balance), RouterError>;
+    ) -> Result<(u128, u128), RouterError>;
 
     /// Adds liquidity to `(token, native token)` pair.
     ///
     /// Will add at least `*_min` amount of tokens and up to `*_desired`
     /// while still maintaining the constant `k` product of the pair.
     ///
-    /// If succesful, liquidity tokens will be minted for `to` account.
+    /// If successful, liquidity tokens will be minted for `to` account.
     #[ink(message, payable)]
     fn add_liquidity_native(
         &mut self,
         token: AccountId,
-        amount_token_desired: Balance,
-        amount_token_min: Balance,
+        amount_token_desired: u128,
+        amount_token_min: u128,
         amount_native_min: Balance,
         to: AccountId,
         deadline: u64,
-    ) -> Result<(Balance, Balance, Balance), RouterError>;
+    ) -> Result<(u128, Balance, u128), RouterError>;
 
     /// Removes `liquidity` amount of tokens from `(token, wrapped_native)`
     /// pair and transfers tokens `to` account.
@@ -90,12 +80,12 @@ pub trait Router {
     fn remove_liquidity_native(
         &mut self,
         token: AccountId,
-        liquidity: Balance,
-        amount_token_min: Balance,
+        liquidity: u128,
+        amount_token_min: u128,
         amount_native_min: Balance,
         to: AccountId,
         deadline: u64,
-    ) -> Result<(Balance, Balance), RouterError>;
+    ) -> Result<(u128, Balance), RouterError>;
 
     /// Exchanges tokens along `path` tokens.
     /// Starts with `amount_in` and pair under `(path[0], path[1])` address.
@@ -104,12 +94,12 @@ pub trait Router {
     #[ink(message)]
     fn swap_exact_tokens_for_tokens(
         &mut self,
-        amount_in: Balance,
-        amount_out_min: Balance,
+        amount_in: u128,
+        amount_out_min: u128,
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Exchanges tokens along `path` token pairs
     /// so that at the end caller receives `amount_out`
@@ -120,12 +110,12 @@ pub trait Router {
     #[ink(message)]
     fn swap_tokens_for_exact_tokens(
         &mut self,
-        amount_out: Balance,
-        amount_in_max: Balance,
+        amount_out: u128,
+        amount_in_max: u128,
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Exchanges exact amount of native token,
     /// along the `path` token pairs, and expects
@@ -136,11 +126,11 @@ pub trait Router {
     #[ink(message, payable)]
     fn swap_exact_native_for_tokens(
         &mut self,
-        amount_out_min: Balance,
+        amount_out_min: u128,
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Exchanges tokens along `path` token pairs
     /// so that at the end caller receives `amount_out`
@@ -152,11 +142,11 @@ pub trait Router {
     fn swap_tokens_for_exact_native(
         &mut self,
         amount_out: Balance,
-        amount_in_max: Balance,
+        amount_in_max: u128,
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Exchanges exact amount of token,
     /// along the `path` token pairs, and expects
@@ -167,12 +157,12 @@ pub trait Router {
     #[ink(message)]
     fn swap_exact_tokens_for_native(
         &mut self,
-        amount_in: Balance,
+        amount_in: u128,
         amount_out_min: Balance,
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Exchanges tokens along `path` token pairs
     /// so that at the end caller receives `amount_out`
@@ -183,22 +173,17 @@ pub trait Router {
     #[ink(message, payable)]
     fn swap_native_for_exact_tokens(
         &mut self,
-        amount_out: Balance,
+        amount_out: u128,
         path: Vec<AccountId>,
         to: AccountId,
         deadline: u64,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Returns amount of `B` tokens that have to be supplied
     /// , with the `amount_a` amount of tokens `A, to maintain
     /// constant `k` product of `(A, B)` token pair.
     #[ink(message)]
-    fn quote(
-        &self,
-        amount_a: Balance,
-        reserve_a: Balance,
-        reserve_b: Balance,
-    ) -> Result<Balance, RouterError>;
+    fn quote(&self, amount_a: u128, reserve_a: u128, reserve_b: u128) -> Result<u128, RouterError>;
 
     /// Returns amount of `B` tokens received
     /// for `amount_in` of `A` tokens that maintains
@@ -206,10 +191,10 @@ pub trait Router {
     #[ink(message)]
     fn get_amount_out(
         &self,
-        amount_in: Balance,
-        reserve_a: Balance,
-        reserve_b: Balance,
-    ) -> Result<Balance, RouterError>;
+        amount_in: u128,
+        reserve_a: u128,
+        reserve_b: u128,
+    ) -> Result<u128, RouterError>;
 
     /// Returns amount of `A` tokens user has to supply
     /// to get exactly `amount_out` of `B` token while maintaining
@@ -217,26 +202,26 @@ pub trait Router {
     #[ink(message)]
     fn get_amount_in(
         &self,
-        amount_out: Balance,
-        reserve_a: Balance,
-        reserve_b: Balance,
-    ) -> Result<Balance, RouterError>;
+        amount_out: u128,
+        reserve_a: u128,
+        reserve_b: u128,
+    ) -> Result<u128, RouterError>;
 
     /// Returns amounts of tokens received for `amount_in`.
     #[ink(message)]
     fn get_amounts_out(
         &self,
-        amount_in: Balance,
+        amount_in: u128,
         path: Vec<AccountId>,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 
     /// Returns amounts of tokens user has to supply.
     #[ink(message)]
     fn get_amounts_in(
         &self,
-        amount_out: Balance,
+        amount_out: u128,
         path: Vec<AccountId>,
-    ) -> Result<Vec<Balance>, RouterError>;
+    ) -> Result<Vec<u128>, RouterError>;
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -245,25 +230,22 @@ pub enum RouterError {
     PSP22Error(PSP22Error),
     FactoryError(FactoryError),
     PairError(PairError),
-    HelperError(HelperError),
-    TransferHelperError(TransferHelperError),
     LangError(LangError),
-    TransferError,
-    PairNotFound,
-    InsufficientAmount,
-    InsufficientAAmount,
-    InsufficientOutputAmount,
-    ExcessiveInputAmount,
-    InsufficientBAmount,
-    InsufficientLiquidity,
-    ZeroAddress,
-    IdenticalAddresses,
+    MathError(MathError),
+
+    CrossContractCallFailed(String),
     Expired,
-    SubUnderFlow,
-    MulOverFlow,
-    DivByZero,
-    TransferFailed,
+    IdenticalAddresses,
     InvalidPath,
+    PairNotFound,
+    TransferError,
+
+    ExcessiveInputAmount,
+    InsufficientAmount,
+    InsufficientOutputAmount,
+    InsufficientAmountA,
+    InsufficientAmountB,
+    InsufficientLiquidity,
 }
 
 macro_rules! impl_froms {
@@ -278,11 +260,4 @@ macro_rules! impl_froms {
     };
 }
 
-impl_froms!(
-    PSP22Error,
-    FactoryError,
-    PairError,
-    HelperError,
-    TransferHelperError,
-    LangError
-);
+impl_froms!(PSP22Error, FactoryError, PairError, LangError, MathError);

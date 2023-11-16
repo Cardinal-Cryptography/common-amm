@@ -9,6 +9,7 @@ on:
     branches:
       - main
   merge_group:
+  workflow_dispatch:
 
 jobs:
   tests:
@@ -16,6 +17,8 @@ jobs:
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
+      with:
+        submodules: true
 
     - name: Cache Crates
       uses: actions/cache@v3

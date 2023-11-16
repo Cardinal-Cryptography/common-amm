@@ -37,11 +37,15 @@ build-node-x86_64:
 AMM_CONTRACTS = ./amm/contracts
 AMM_CONTRACTS_PATHS := $(shell find $(AMM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
+TEST_CONTRACTS = ./test-contracts
+TEST_PATHS := $(shell find $(TEST_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
+
 FARM_CONTRACTS := ./farm/contracts
 
 .PHONY: build-farm
 build-farm: ## Builds farm contracts.
 	@for d in $(FARM_CONTRACTS); do \
+
 		echo "Building $$d contract" ; \
 		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
@@ -75,9 +79,23 @@ check-amm: ## Runs cargo (contract) check on AMM contracts.
 		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
 	done
 
+.PHONY: build-test-contracts
+build-test-contracts: ## Builds contracts used in e2e-tests
+	@for d in $(TEST_PATHS); do \
+		echo "Building $$d contract" ; \
+		if [ "$$d" = "$(TEST_CONTRACTS)/psp22" ]; then \
+			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release --features "contract"; \
+		else \
+			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release; \
+		fi \
+	done
+
+
 .PHONY: check-all
 check-all: check-farm check-amm ## Runs cargo checks and unit tests on all contracts.
 	@cargo test --quiet --locked --frozen --workspace
+	@echo "Checking AMM e2e tests"
+	@cd ./amm/e2e-tests && cargo check --quiet
 
 .PHONY: format
 format: ## Formats contract files.
@@ -89,16 +107,16 @@ CONTRACT_DATA = ./target/ink
 wrap-all: ## Generates code for contract interaction.
 	@for c in $(notdir $(shell find $(CONTRACT_DATA) -mindepth 1 -maxdepth 1 -type d)); do \
 		echo "Wrapping $$c" ; \
-	 	ink-wrapper -m ./target/ink/$$c/$$c.json --wasm-path ../../target/ink/$$c/$$c.wasm \
-	 		| rustfmt --edition 2021 > ./e2e-tests/src/$$c.rs ; \
+	 	ink-wrapper -m ./target/ink/$$c/$$c.json --wasm-path ../../../target/ink/$$c/$$c.wasm \
+	 		| rustfmt --edition 2021 > ./amm/e2e-tests/src/$$c.rs ; \
 	done
 
 .PHONY: e2e-tests
 e2e-tests: ## Runs all the e2e tests in sequence.
-	@cd e2e-tests && cargo test -- --test-threads 1 && cd ..
+	@cd amm/e2e-tests && cargo test -- --test-threads 1 && cd ..
 
 .PHONY: build-and-wrap-all
-build-and-wrap-all: build-all wrap-all ## Builds all contracts and generates code for contract interaction.
+build-and-wrap-all: build-all build-test-contracts wrap-all ## Builds all contracts and generates code for contract interaction.
 
 INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.7.0
 

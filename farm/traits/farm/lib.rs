@@ -6,7 +6,7 @@ use ink::{
 };
 
 use amm_helpers::math::MathError;
-use psp22_traits::PSP22Error;
+use psp22::PSP22Error;
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]

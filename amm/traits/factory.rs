@@ -1,8 +1,5 @@
-use crate::traits::pair::PairError;
-use ink::primitives::{
-    AccountId,
-    Hash,
-};
+use crate::PairError;
+use ink::primitives::{AccountId, Hash};
 
 /// Factory trait for tracking all pairs within the UniswapV2 DEX.
 /// Creates new, unique instances of `Pair` smart contract per token pairs.
@@ -59,7 +56,6 @@ pub trait Factory {
 pub enum FactoryError {
     PairError(PairError),
     CallerIsNotFeeSetter,
-    ZeroAddress,
     IdenticalAddresses,
     PairExists,
     PairInstantiationFailed,

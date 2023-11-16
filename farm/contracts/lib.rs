@@ -5,35 +5,21 @@ mod farm {
 
     type TokenId = AccountId;
     type UserId = AccountId;
-    use amm_helpers::{
-        math::casted_mul,
-        types::WrappedU256,
-    };
-    use farm_manager_trait::{
-        Farm,
-        FarmDetails,
-        FarmError,
-    };
+    use amm_helpers::{math::casted_mul, types::WrappedU256};
+    use farm_trait::{Farm, FarmDetails, FarmError};
     use ink::{
-        codegen::{
-            EmitEvent,
-            TraitCallBuilder,
-        },
+        codegen::{EmitEvent, TraitCallBuilder},
         contract_ref,
         reflect::ContractEventBase,
         storage::Mapping,
     };
 
-    use ink::prelude::{
-        vec,
-        vec::Vec,
-    };
+    use ink::prelude::{vec, vec::Vec};
     use primitive_types::U256;
 
-    use psp22_traits::{
-        PSP22Error,
-        PSP22,
-    };
+    use psp22::PSP22Error;
+    use psp22::PSP22;
+
     pub const SCALING_FACTOR: u128 = u128::MAX;
     pub const MAX_REWARD_TOKENS: u32 = 10;
 
@@ -100,10 +86,10 @@ mod farm {
         pub fn new(pool_id: AccountId, reward_tokens: Vec<TokenId>) -> Result<Self, FarmError> {
             let n_reward_tokens = reward_tokens.len();
             if n_reward_tokens > MAX_REWARD_TOKENS as usize {
-                return Err(FarmError::InvalidFarmStartParams)
+                return Err(FarmError::InvalidFarmStartParams);
             }
             if reward_tokens.contains(&pool_id) {
-                return Err(FarmError::InvalidFarmStartParams)
+                return Err(FarmError::InvalidFarmStartParams);
             }
             Ok(FarmContract {
                 pool_id,
@@ -131,14 +117,14 @@ mod farm {
         fn update(&mut self) -> Result<(), FarmError> {
             let current_timestamp = self.env().block_timestamp();
             if self.timestamp_at_last_update >= current_timestamp {
-                return Ok(())
+                return Ok(());
             };
 
             let prev = core::cmp::max(self.timestamp_at_last_update, self.start);
             let now = core::cmp::min(current_timestamp, self.end);
             if prev >= now || self.timestamp_at_last_update == current_timestamp {
                 self.timestamp_at_last_update = current_timestamp;
-                return Ok(())
+                return Ok(());
             }
 
             // At this point we know [prev, now] is the intersection of [self.start, self.end] and [self.timestamp_at_last_update, current_timestamp]
@@ -216,7 +202,7 @@ mod farm {
                 || now >= end
                 || rewards.len() != self.reward_tokens.len()
             {
-                return Err(FarmError::InvalidFarmStartParams)
+                return Err(FarmError::InvalidFarmStartParams);
             }
 
             let duration = end as u128 - now as u128;
@@ -226,7 +212,7 @@ mod farm {
 
             for (token_id, reward_amount) in self.reward_tokens.iter().zip(rewards.iter()) {
                 if *reward_amount == 0 {
-                    return Err(FarmError::InvalidFarmStartParams)
+                    return Err(FarmError::InvalidFarmStartParams);
                 }
 
                 let mut psp22_ref: ink::contract_ref!(PSP22) = (*token_id).into();
@@ -243,7 +229,7 @@ mod farm {
                     .ok_or(FarmError::InvalidFarmStartParams)?;
 
                 if reward_rate == 0 {
-                    return Err(FarmError::InvalidFarmStartParams)
+                    return Err(FarmError::InvalidFarmStartParams);
                 }
 
                 reward_rates.push(reward_rate);
@@ -253,7 +239,7 @@ mod farm {
 
         fn deposit(&mut self, account: AccountId, amount: u128) -> Result<(), FarmError> {
             if amount == 0 {
-                return Err(FarmError::PSP22Error(PSP22Error::InsufficientBalance))
+                return Err(FarmError::PSP22Error(PSP22Error::InsufficientBalance));
             }
             self.update()?;
             self.update_account(account);
@@ -299,11 +285,11 @@ mod farm {
             rewards: Vec<u128>,
         ) -> Result<(), FarmError> {
             if self.env().caller() != self.owner {
-                return Err(FarmError::CallerNotOwner)
+                return Err(FarmError::CallerNotOwner);
             }
             self.update()?;
             if self.is_active() {
-                return Err(FarmError::FarmAlreadyRunning)
+                return Err(FarmError::FarmAlreadyRunning);
             }
             self.farm_reward_rates = self.assert_start_params(start, end, rewards.clone())?;
             self.start = start;
@@ -314,7 +300,7 @@ mod farm {
         #[ink(message)]
         fn owner_stop_farm(&mut self) -> Result<(), FarmError> {
             if self.env().caller() != self.owner {
-                return Err(FarmError::CallerNotOwner)
+                return Err(FarmError::CallerNotOwner);
             }
             self.update()?;
             self.end = self.env().block_timestamp();
@@ -324,7 +310,7 @@ mod farm {
         #[ink(message)]
         fn owner_withdraw_token(&mut self, token: TokenId) -> Result<(), FarmError> {
             if self.env().caller() != self.owner {
-                return Err(FarmError::CallerNotOwner)
+                return Err(FarmError::CallerNotOwner);
             }
             self.update()?;
             assert!(!self.is_active());
@@ -404,7 +390,7 @@ mod farm {
                 self.shares.insert(account, &new_shares);
                 self.total_shares -= amount;
             } else {
-                return Err(PSP22Error::InsufficientBalance.into())
+                return Err(PSP22Error::InsufficientBalance.into());
             }
 
             let mut pool: contract_ref!(PSP22) = self.pool_id.into();
@@ -468,7 +454,7 @@ mod farm {
         to_timestamp: u128,
     ) -> Result<U256, MathError> {
         if total_shares == 0 || from_timestamp > to_timestamp {
-            return Ok(0.into())
+            return Ok(0.into());
         }
 
         let time_delta = to_timestamp

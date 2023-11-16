@@ -1,5 +1,5 @@
 [package]
-name = "farm-manager-trait"
+name = "farm-trait"
 version = "0.1.0"
 authors = ["Cardinal Cryptography"]
 edition = "2021"
@@ -13,7 +13,7 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
 scale-info = { version = "2.5", default-features = false, features = [
     "derive",
 ], optional = true }
-psp22-traits = { path = "../psp22", default-features = false }
+psp22 = { version = "0.2", default-features = false }
 amm-helpers = { path = "../../../helpers", default-features = false }
 
 
@@ -22,11 +22,5 @@ path = "lib.rs"
 
 [features]
 default = ["std"]
-std = [
-    "ink/std",
-    "scale/std",
-    "scale-info/std",
-    "psp22-traits/std",
-    "amm-helpers/std",
-]
+std = ["ink/std", "scale/std", "scale-info/std", "psp22/std", "amm-helpers/std"]
 ink-as-dependency = []

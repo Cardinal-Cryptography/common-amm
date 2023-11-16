@@ -17,7 +17,8 @@ scale-info = { version = "2.9", default-features = false, features = [
 pair_contract = { path = "../pair", default-features = false, features = [
     "ink-as-dependency",
 ] }
-amm = { path = "../../logics", default-features = false }
+traits = { path = "../../traits", default-features = false }
+amm-helpers = { path = "../../../helpers", default-features = false }
 
 [lib]
 name = "factory_contract"
@@ -29,7 +30,8 @@ std = [
     "ink/std",
     "scale/std",
     "scale-info/std",
-    "amm/std",
     "pair_contract/std",
+    "traits/std",
+    "amm-helpers/std",
 ]
 ink-as-dependency = []
