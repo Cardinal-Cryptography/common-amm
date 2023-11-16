@@ -252,9 +252,13 @@ mod farm {
         }
 
         fn deposit(&mut self, account: AccountId, amount: u128) -> Result<(), FarmError> {
+            if amount == 0 {
+                return Err(FarmError::PSP22Error(PSP22Error::InsufficientBalance))
+            }
             self.update()?;
             self.update_account(account);
-
+            let mut pool: contract_ref!(PSP22) = self.pool_id.into();
+            pool.transfer_from(account, self.env().account_id(), amount, vec![])?;
             let shares = self.shares.get(account).unwrap_or(0);
             self.shares.insert(account, &(shares + amount));
             self.total_shares += amount;
@@ -374,8 +378,6 @@ mod farm {
         fn deposit_shares(&mut self, amount: u128) -> Result<(), FarmError> {
             let account = self.env().caller();
             self.deposit(account, amount)?;
-            let mut pool: contract_ref!(PSP22) = self.pool_id.into();
-            pool.transfer_from(account, self.env().account_id(), amount, vec![])?;
             FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
             Ok(())
         }
@@ -384,12 +386,7 @@ mod farm {
         fn deposit_all(&mut self) -> Result<(), FarmError> {
             let account = self.env().caller();
             let pool: contract_ref!(PSP22) = self.pool_id.into();
-            // Check how much have been transferred to the contract. We assume this was done by the caller.
-            let current_balance = safe_balance_of(&pool, self.env().account_id());
-            let amount = self.total_shares - current_balance;
-            if amount == 0 {
-                return Err(FarmError::PSP22Error(PSP22Error::InsufficientBalance))
-            }
+            let amount = safe_balance_of(&pool, account);
             self.deposit(account, amount)?;
             FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
             Ok(())
