@@ -1,5 +1,5 @@
 {
-  "projectFiles": ["amm/contracts/**/*"],
+  "artifactsPath": "artifacts",
   "typechainGeneratedPath": "types",
   "isWorkspace": true,
   "workspacePath": "./"
