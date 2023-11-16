@@ -57,7 +57,7 @@ build-amm: ## Builds AMM contracts.
 	done
 
 .PHONY: build-all
-build-all: build-farm build-amm ## Builds all contracts.
+build-all: build-farm build-amm build-test-contracts ## Builds all contracts.
 
 .PHONY: build-test-contracts
 build-test-contracts: ## Builds contracts used in e2e-tests
