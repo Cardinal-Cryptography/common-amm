@@ -17,7 +17,7 @@ export async function estimateInit(
   api: ApiPromise,
   deployer: KeyringPair,
 ): Promise<WeightV2> {
-  return estimateContractInit(api, deployer, 'psp22_token.contract', [
+  return estimateContractInit(api, deployer, 'psp22.contract', [
     TOTAL_SUPPLY,
     'Doge Coin',
     'DOGE',
@@ -35,5 +35,5 @@ export async function upload(
   api: ApiPromise,
   deployer: KeyringPair,
 ): Promise<HexString> {
-  return uploadCode(api, deployer, 'psp22_token.contract');
+  return uploadCode(api, deployer, 'psp22.contract');
 }

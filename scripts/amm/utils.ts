@@ -1,5 +1,5 @@
-import Token from '../types/contracts/psp22_token';
-import Router from '../types/contracts/router_contract';
+import Token from '../../types/contracts/psp22';
+import Router from '../../types/contracts/router_contract';
 import { DEADLINE, ONE_THOUSAND_WAZERO } from './constants';
 import { Addresses } from './shared';
 import fs from 'fs';
@@ -67,7 +67,7 @@ export async function uploadCode(
   contractName: string,
 ): Promise<HexString> {
   const tokenContractRaw = JSON.parse(
-    fs.readFileSync(__dirname + `/../artifacts/` + contractName, 'utf8'),
+    fs.readFileSync(__dirname + `/../../artifacts/` + contractName, 'utf8'),
   );
   const tokenAbi = new Abi(tokenContractRaw);
   const _txHash = await new Promise(async (resolve, reject) => {
@@ -99,7 +99,7 @@ export async function estimateContractInit(
   sampleArgs: unknown[],
 ): Promise<WeightV2> {
   const contractRaw = JSON.parse(
-    fs.readFileSync(__dirname + `/../artifacts/` + contractName, 'utf8'),
+    fs.readFileSync(__dirname + `/../../artifacts/` + contractName, 'utf8'),
   );
   const contractAbi = new Abi(contractRaw);
   const { gasRequired } = (await api.call.contractsApi.instantiate(

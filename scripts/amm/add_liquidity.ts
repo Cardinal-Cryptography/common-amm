@@ -1,8 +1,8 @@
 import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
 import { loadAddresses } from './utils';
-import Token from '../types/contracts/psp22_token';
-import Router from '../types/contracts/router_contract';
-import Factory from '../types/contracts/factory_contract';
+import Token from '../../types/contracts/psp22';
+import Router from '../../types/contracts/router_contract';
+import Factory from '../../types/contracts/factory_contract';
 import { ONE_THOUSAND_STABLECOIN } from './constants';
 import { addLiquidityNative } from './utils';
 import { parseUnits } from './shared';
