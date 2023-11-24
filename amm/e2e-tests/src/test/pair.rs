@@ -1,54 +1,22 @@
-use anyhow::{
-    anyhow,
-    Result,
-};
+use anyhow::{anyhow, Result};
 use assert2::assert;
 use tokio::sync::OnceCell;
 
-use aleph_client::{
-    Balance,
-    SignedConnection,
-};
-use ink_wrapper_types::{
-    util::ToAccountId,
-    Connection,
-    SignedConnection as _,
-    UploadConnection,
-};
+use aleph_client::{Balance, SignedConnection};
+use ink_wrapper_types::{util::ToAccountId, Connection, SignedConnection as _, UploadConnection};
 
 use crate::{
-    events::{
-        get_burn_events,
-        get_create_pair_events,
-        get_mint_events,
-        get_swap_events,
-    },
+    events::{get_burn_events, get_create_pair_events, get_mint_events, get_swap_events},
     factory_contract,
     factory_contract::Factory,
     pair_contract,
-    pair_contract::{
-        Pair,
-        PSP22 as PairPSP22,
-    },
+    pair_contract::{Pair, PSP22 as PairPSP22},
     psp22 as psp22_token,
     psp22::PSP22 as TokenPSP22,
     test::setup::{
-        get_env,
-        random_salt,
-        replenish_account,
-        set_up_logger,
-        try_upload_contract_code,
-        DEFAULT_NODE_ADDRESS,
-        INITIAL_TRANSFER,
-        PSP22_DECIMALS,
-        PSP22_TOTAL_SUPPLY,
-        REGULAR_SEED,
-        TOKEN_A_NAME,
-        TOKEN_A_SYMBOL,
-        TOKEN_B_NAME,
-        TOKEN_B_SYMBOL,
-        WEALTHY_SEED,
-        ZERO_ADDRESS,
+        get_env, random_salt, replenish_account, set_up_logger, try_upload_contract_code,
+        BURN_ADDRESS, DEFAULT_NODE_ADDRESS, INITIAL_TRANSFER, PSP22_DECIMALS, PSP22_TOTAL_SUPPLY,
+        REGULAR_SEED, TOKEN_A_NAME, TOKEN_A_SYMBOL, TOKEN_B_NAME, TOKEN_B_SYMBOL, WEALTHY_SEED,
     },
 };
 
@@ -211,7 +179,7 @@ pub async fn create_pair() -> Result<()> {
     expected_token_pair.sort();
     let actual_token_pair = vec![token_0, token_1];
 
-    assert!(pair != ZERO_ADDRESS.into());
+    assert!(pair != BURN_ADDRESS.into());
     assert!(actual_token_pair == expected_token_pair);
     assert!(pair_len == 1);
 
@@ -277,12 +245,12 @@ pub async fn mint_pair() -> Result<()> {
     let regular_balance_after = wealthy_connection
         .read(pair_contract.balance_of(regular_account))
         .await??;
-    let zero_address_balance_after = wealthy_connection
-        .read(pair_contract.balance_of(ZERO_ADDRESS.into()))
+    let BURN_ADDRESS_balance_after = wealthy_connection
+        .read(pair_contract.balance_of(BURN_ADDRESS.into()))
         .await??;
 
     assert!(regular_balance_after == expected_balance);
-    assert!(zero_address_balance_after == MIN_BALANCE);
+    assert!(BURN_ADDRESS_balance_after == MIN_BALANCE);
 
     Ok(())
 }

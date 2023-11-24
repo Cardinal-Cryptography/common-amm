@@ -3,7 +3,7 @@
 #[ink::contract]
 pub mod pair {
     use amm_helpers::{
-        constants::{MINIMUM_LIQUIDITY, ZERO_ADDRESS},
+        constants::{BURN_ADDRESS, MINIMUM_LIQUIDITY},
         ensure,
         math::casted_mul,
         types::WrappedU256,
@@ -82,24 +82,23 @@ pub mod pair {
         pub k_last: Option<WrappedU256>,
     }
 
-    impl Default for PairData {
-        fn default() -> Self {
+    impl PairData {
+        fn new(token_0: AccountId, token_1: AccountId, factory: AccountId) -> Self {
             Self {
-                factory: ZERO_ADDRESS.into(),
-                token_0: ZERO_ADDRESS.into(),
-                token_1: ZERO_ADDRESS.into(),
+                factory,
+                token_0,
+                token_1,
                 reserve_0: 0,
                 reserve_1: 0,
                 block_timestamp_last: 0,
-                price_0_cumulative_last: Default::default(),
-                price_1_cumulative_last: Default::default(),
-                k_last: Default::default(),
+                price_0_cumulative_last: 0.into(),
+                price_1_cumulative_last: 0.into(),
+                k_last: None,
             }
         }
     }
 
     #[ink(storage)]
-    #[derive(Default)]
     pub struct PairContract {
         psp22: PSP22Data,
         pair: PairData,
@@ -108,12 +107,11 @@ pub mod pair {
     impl PairContract {
         #[ink(constructor)]
         pub fn new(token_a: AccountId, token_b: AccountId) -> Self {
-            let mut instance = Self::default();
-            let caller = instance.env().caller();
-            instance.pair.token_0 = token_a;
-            instance.pair.token_1 = token_b;
-            instance.pair.factory = caller;
-            instance
+            let pair = PairData::new(token_a, token_b, Self::env().caller());
+            Self {
+                psp22: PSP22Data::default(),
+                pair,
+            }
         }
 
         #[inline]
@@ -287,7 +285,7 @@ pub mod pair {
                     .integer_sqrt()
                     .checked_sub(MINIMUM_LIQUIDITY)
                     .ok_or(MathError::SubUnderflow(4))?;
-                let events = self.psp22.mint(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
+                let events = self.psp22.mint(BURN_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
                 self.emit_events(events)
             } else {
                 let liquidity_1 = amount_0_transferred

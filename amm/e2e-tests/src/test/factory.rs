@@ -1,36 +1,17 @@
-use anyhow::{
-    ensure,
-    Result,
-};
+use anyhow::{ensure, Result};
 use assert2::assert;
 use tokio::sync::OnceCell;
 
-use aleph_client::{
-    KeyPair,
-    SignedConnection,
-};
-use ink_wrapper_types::{
-    util::ToAccountId,
-    Connection,
-    SignedConnection as _,
-    UploadConnection,
-};
+use aleph_client::{KeyPair, SignedConnection};
+use ink_wrapper_types::{util::ToAccountId, Connection, SignedConnection as _, UploadConnection};
 
 use crate::{
     factory_contract,
     factory_contract::Factory,
     pair_contract,
     test::setup::{
-        get_env,
-        random_salt,
-        replenish_account,
-        set_up_logger,
-        try_upload_contract_code,
-        DEFAULT_NODE_ADDRESS,
-        INITIAL_TRANSFER,
-        REGULAR_SEED,
-        WEALTHY_SEED,
-        ZERO_ADDRESS,
+        get_env, random_salt, replenish_account, set_up_logger, try_upload_contract_code,
+        BURN_ADDRESS, DEFAULT_NODE_ADDRESS, INITIAL_TRANSFER, REGULAR_SEED, WEALTHY_SEED,
     },
 };
 
@@ -54,7 +35,7 @@ struct FactoryTestSetup {
 pub fn set_up_accounts(wealthy: &KeyPair, regular: &KeyPair) -> FactoryTestAccounts {
     let wealthy_account = wealthy.account_id().to_account_id();
     let regular_account = regular.account_id().to_account_id();
-    let zero_account = ink_primitives::AccountId::from(ZERO_ADDRESS);
+    let zero_account = ink_primitives::AccountId::from(BURN_ADDRESS);
 
     FactoryTestAccounts {
         wealthy_account,
