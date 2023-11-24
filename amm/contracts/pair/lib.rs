@@ -236,6 +236,16 @@ pub mod pair {
 
     impl Pair for PairContract {
         #[ink(message)]
+        fn get_factory(&self) -> AccountId {
+            self.pair.factory
+        }
+
+        #[ink(message)]
+        fn get_minimum_liquidity(&self) -> u128 {
+            MINIMUM_LIQUIDITY
+        }
+
+        #[ink(message)]
         fn get_reserves(&self) -> (u128, u128, u64) {
             (
                 self.pair.reserve_0,
