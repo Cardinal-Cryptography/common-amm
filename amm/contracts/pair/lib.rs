@@ -2,6 +2,12 @@
 
 #[ink::contract]
 pub mod pair {
+    // Numbers used in the equations below, derived from the UniswapV2 paper.
+    // They have different meaning depending on the context so please consult the WP.
+    const MAGIC_NUMBER_3: u128 = 3;
+    const MAGIC_NUMBER_5: u128 = 5;
+    const MAGIC_NUMBER_1000: u128 = 1000;
+
     use amm_helpers::{
         constants::{BURN_ADDRESS, MINIMUM_LIQUIDITY},
         ensure,
@@ -159,7 +165,7 @@ pub mod pair {
                             )
                             .ok_or(MathError::MulOverflow(1))?;
                         let denominator = root_k
-                            .checked_mul(5)
+                            .checked_mul(MAGIC_NUMBER_5)
                             .ok_or(MathError::MulOverflow(2))?
                             .checked_add(root_k_last)
                             .ok_or(MathError::AddOverflow(1))?;
@@ -445,20 +451,20 @@ pub mod pair {
             );
 
             let balance_0_adjusted = balance_0
-                .checked_mul(1000)
+                .checked_mul(MAGIC_NUMBER_1000)
                 .ok_or(MathError::MulOverflow(8))?
                 .checked_sub(
                     amount_0_in
-                        .checked_mul(3)
+                        .checked_mul(MAGIC_NUMBER_3)
                         .ok_or(MathError::MulOverflow(9))?,
                 )
                 .ok_or(MathError::SubUnderflow(11))?;
             let balance_1_adjusted = balance_1
-                .checked_mul(1000)
+                .checked_mul(MAGIC_NUMBER_1000)
                 .ok_or(MathError::MulOverflow(10))?
                 .checked_sub(
                     amount_1_in
-                        .checked_mul(3)
+                        .checked_mul(MAGIC_NUMBER_3)
                         .ok_or(MathError::MulOverflow(11))?,
                 )
                 .ok_or(MathError::SubUnderflow(12))?;
@@ -467,7 +473,7 @@ pub mod pair {
             ensure!(
                 casted_mul(balance_0_adjusted, balance_1_adjusted)
                     >= casted_mul(reserves.0, reserves.1)
-                        .checked_mul(1000u128.pow(2).into())
+                        .checked_mul(MAGIC_NUMBER_1000.pow(2).into())
                         .ok_or(MathError::MulOverflow(12))?,
                 PairError::KInvariantChanged
             );
