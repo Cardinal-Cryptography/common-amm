@@ -22,7 +22,7 @@ pub mod pair {
     use ink::{contract_ref, prelude::vec::Vec};
     use primitive_types::U256;
     use psp22::{PSP22Data, PSP22Error, PSP22Event, PSP22};
-    use sp_arithmetic::{traits::IntegerSquareRoot, FixedPointNumber, FixedU128};
+    use sp_arithmetic::{FixedPointNumber, FixedU128};
     use traits::{Factory, MathError, Pair, PairError};
 
     #[ink(event)]
@@ -283,34 +283,32 @@ pub mod pair {
             let fee_on = self.mint_fee(reserves.0, reserves.1)?;
             let total_supply = self.psp22.total_supply();
 
-            let liquidity;
-            if total_supply == 0 {
-                let liq = amount_0_transferred
-                    .checked_mul(amount_1_transferred)
-                    .ok_or(MathError::MulOverflow(3))?;
-                liquidity = liq
+            let liquidity = if total_supply == 0 {
+                let liq = casted_mul(amount_0_transferred, amount_1_transferred);
+                let liquidity: u128 = liq
                     .integer_sqrt()
-                    .checked_sub(MINIMUM_LIQUIDITY)
-                    .ok_or(MathError::SubUnderflow(4))?;
+                    .checked_sub(MINIMUM_LIQUIDITY.into())
+                    .ok_or(MathError::SubUnderflow(4))?
+                    .try_into()
+                    .map_err(|_| MathError::CastOverflow(6))?;
                 let events = self.psp22.mint(BURN_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
-                self.emit_events(events)
+                self.emit_events(events);
+                liquidity
             } else {
-                let liquidity_0 = amount_0_transferred
-                    .checked_mul(total_supply)
-                    .ok_or(MathError::MulOverflow(4))?
-                    .checked_div(reserves.0)
-                    .ok_or(MathError::DivByZero(2))?;
-                let liquidity_1 = amount_1_transferred
-                    .checked_mul(total_supply)
-                    .ok_or(MathError::MulOverflow(5))?
-                    .checked_div(reserves.1)
-                    .ok_or(MathError::DivByZero(3))?;
-                liquidity = if liquidity_0 < liquidity_1 {
-                    liquidity_0
-                } else {
-                    liquidity_1
-                };
-            }
+                let liquidity_0: u128 = casted_mul(amount_0_transferred, total_supply)
+                    .checked_div(reserves.0.into())
+                    .ok_or(MathError::DivByZero(2))?
+                    .try_into()
+                    .map_err(|_| MathError::CastOverflow(7))?;
+
+                let liquidity_1 = casted_mul(amount_1_transferred, total_supply)
+                    .checked_div(reserves.1.into())
+                    .ok_or(MathError::DivByZero(3))?
+                    .try_into()
+                    .map_err(|_| MathError::CastOverflow(8))?;
+
+                liquidity_0.min(liquidity_1)
+            };
 
             ensure!(liquidity > 0, PairError::InsufficientLiquidityMinted);
 
