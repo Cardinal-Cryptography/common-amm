@@ -410,37 +410,28 @@ pub mod pair {
             let contract = self.env().account_id();
             let (balance_0, balance_1) = self.token_1alances(contract);
 
-            let amount_0_in = if balance_0
-                > reserves
-                    .0
-                    .checked_sub(amount_0_out)
-                    .ok_or(MathError::SubUnderflow(5))?
-            {
+            let liquidity_depth_0 = reserves
+                .0
+                .checked_sub(amount_0_out)
+                .ok_or(MathError::SubUnderflow(5))?;
+
+            let amount_0_in = if balance_0 > liquidity_depth_0 {
                 balance_0
-                    .checked_sub(
-                        reserves
-                            .0
-                            .checked_sub(amount_0_out)
-                            .ok_or(MathError::SubUnderflow(6))?,
-                    )
-                    .ok_or(MathError::SubUnderflow(7))?
+                    .checked_sub(liquidity_depth_0)
+                    .ok_or(MathError::SubUnderflow(6))?
             } else {
                 0
             };
-            let amount_1_in = if balance_1
-                > reserves
-                    .1
-                    .checked_sub(amount_1_out)
-                    .ok_or(MathError::SubUnderflow(8))?
-            {
+
+            let liquidity_depth_1 = reserves
+                .1
+                .checked_sub(amount_1_out)
+                .ok_or(MathError::SubUnderflow(7))?;
+
+            let amount_1_in = if balance_1 > liquidity_depth_1 {
                 balance_1
-                    .checked_sub(
-                        reserves
-                            .1
-                            .checked_sub(amount_1_out)
-                            .ok_or(MathError::SubUnderflow(9))?,
-                    )
-                    .ok_or(MathError::SubUnderflow(10))?
+                    .checked_sub(liquidity_depth_1)
+                    .ok_or(MathError::SubUnderflow(8))?
             } else {
                 0
             };
@@ -458,7 +449,7 @@ pub mod pair {
                         .checked_mul(MAGIC_NUMBER_3)
                         .ok_or(MathError::MulOverflow(9))?,
                 )
-                .ok_or(MathError::SubUnderflow(11))?;
+                .ok_or(MathError::SubUnderflow(9))?;
             let balance_1_adjusted = balance_1
                 .checked_mul(MAGIC_NUMBER_1000)
                 .ok_or(MathError::MulOverflow(10))?
@@ -467,7 +458,7 @@ pub mod pair {
                         .checked_mul(MAGIC_NUMBER_3)
                         .ok_or(MathError::MulOverflow(11))?,
                 )
-                .ok_or(MathError::SubUnderflow(12))?;
+                .ok_or(MathError::SubUnderflow(10))?;
 
             // Cast to U256 to prevent Overflow
             ensure!(
@@ -500,10 +491,10 @@ pub mod pair {
             let (amount_0, amount_1) = (
                 balance_0
                     .checked_sub(reserve_0)
-                    .ok_or(MathError::SubUnderflow(13))?,
+                    .ok_or(MathError::SubUnderflow(11))?,
                 balance_1
                     .checked_sub(reserve_1)
-                    .ok_or(MathError::SubUnderflow(14))?,
+                    .ok_or(MathError::SubUnderflow(12))?,
             );
             self.token_0().transfer(to, amount_0, Vec::new())?;
             self.token_1().transfer(to, amount_1, Vec::new())?;
