@@ -79,7 +79,7 @@ pub mod pair {
         pub block_timestamp_last: u64,
         pub price_0_cumulative_last: WrappedU256,
         pub price_1_cumulative_last: WrappedU256,
-        pub k_last: WrappedU256,
+        pub k_last: Option<WrappedU256>,
     }
 
     impl Default for PairData {
@@ -142,10 +142,9 @@ pub mod pair {
         fn mint_fee(&mut self, reserve_0: u128, reserve_1: u128) -> Result<bool, PairError> {
             let fee_to = self.factory().fee_to();
             let fee_on = fee_to != ZERO_ADDRESS.into();
-            let k_last: U256 = self.pair.k_last.into();
             if fee_on {
                 // Section 2.4 Protocol fee in the whitepaper.
-                if !k_last.is_zero() {
+                if let Some(k_last) = self.pair.k_last.map(Into::<U256>::into) {
                     let root_k: u128 = casted_mul(reserve_0, reserve_1)
                         .integer_sqrt()
                         .try_into()
@@ -177,8 +176,8 @@ pub mod pair {
                         }
                     }
                 }
-            } else if !k_last.is_zero() {
-                self.pair.k_last = 0.into();
+            } else if self.pair.k_last.is_some() {
+                self.pair.k_last = None
             }
             Ok(fee_on)
         }
@@ -315,7 +314,7 @@ pub mod pair {
             self.update(balance_0, balance_1, reserves.0, reserves.1)?;
 
             if fee_on {
-                self.pair.k_last = casted_mul(reserves.0, reserves.1).into();
+                self.pair.k_last = Some(casted_mul(reserves.0, reserves.1).into());
             }
 
             self.env().emit_event(Mint {
@@ -363,7 +362,7 @@ pub mod pair {
             self.update(balance_0_after, balance_1_after, reserves.0, reserves.1)?;
 
             if fee_on {
-                self.pair.k_last = casted_mul(reserves.0, reserves.1).into();
+                self.pair.k_last = Some(casted_mul(reserves.0, reserves.1).into());
             }
 
             self.env().emit_event(Burn {
