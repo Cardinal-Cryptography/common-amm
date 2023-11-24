@@ -6,7 +6,6 @@ pub mod router {
     use ink::{
         codegen::TraitCallBuilder,
         contract_ref,
-        env::CallFlags,
         prelude::{string::String, vec, vec::Vec},
     };
     use psp22::{PSP22Error, PSP22};
@@ -140,7 +139,6 @@ pub mod router {
                 let mut pair: contract_ref!(Pair) = self.get_pair(input, output)?.into();
                 pair.call_mut()
                     .swap(amount_0_out, amount_1_out, to)
-                    .call_flags(CallFlags::default().set_allow_reentry(true))
                     .try_invoke()
                     .map_err(|_| {
                         RouterError::CrossContractCallFailed(String::from("Pair:swap"))
@@ -309,12 +307,10 @@ pub mod router {
 
             let mut pair: contract_ref!(Pair) = pair_contract.into();
 
-            let (amount_0, amount_1) = pair
-                .call_mut()
-                .burn(to)
-                .call_flags(CallFlags::default().set_allow_reentry(true))
-                .try_invoke()
-                .map_err(|_| RouterError::CrossContractCallFailed(String::from("Pair:burn")))???;
+            let (amount_0, amount_1) =
+                pair.call_mut().burn(to).try_invoke().map_err(|_| {
+                    RouterError::CrossContractCallFailed(String::from("Pair:burn"))
+                })???;
             let (amount_a, amount_b) = if token_a < token_b {
                 (amount_0, amount_1)
             } else {
