@@ -110,14 +110,14 @@ pub mod factory {
         #[ink(message)]
         fn create_pair(
             &mut self,
-            token_a: AccountId,
-            token_b: AccountId,
+            token_0: AccountId,
+            token_1: AccountId,
         ) -> Result<AccountId, FactoryError> {
-            ensure!(token_a != token_b, FactoryError::IdenticalAddresses);
-            let token_pair = if token_a < token_b {
-                (token_a, token_b)
+            ensure!(token_0 != token_1, FactoryError::IdenticalAddresses);
+            let token_pair = if token_0 < token_1 {
+                (token_0, token_1)
             } else {
-                (token_b, token_a)
+                (token_1, token_0)
             };
             ensure!(
                 self.get_pair.get(token_pair).is_none(),
@@ -170,8 +170,8 @@ pub mod factory {
         }
 
         #[ink(message)]
-        fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId> {
-            self.get_pair.get((token_a, token_b))
+        fn get_pair(&self, token_0: AccountId, token_1: AccountId) -> Option<AccountId> {
+            self.get_pair.get((token_0, token_1))
         }
     }
 

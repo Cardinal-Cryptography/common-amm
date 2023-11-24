@@ -1,58 +1,29 @@
-use std::time::{
-    Duration,
-    SystemTime,
-    UNIX_EPOCH,
-};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use anyhow::{
-    anyhow,
-    Result,
-};
+use anyhow::{anyhow, Result};
 use assert2::assert;
 use tokio::sync::OnceCell;
 
-use aleph_client::{
-    Balance,
-    SignedConnection,
-};
+use aleph_client::{Balance, SignedConnection};
 use amm_helpers::constants::MINIMUM_LIQUIDITY;
-use ink_wrapper_types::{
-    util::ToAccountId,
-    Connection,
-    SignedConnection as _,
-    UploadConnection,
-};
+use ink_wrapper_types::{util::ToAccountId, Connection, SignedConnection as _, UploadConnection};
 
 use crate::{
     factory_contract,
     factory_contract::Factory,
     pair_contract,
-    pair_contract::{
-        Pair,
-        PSP22,
-    },
+    pair_contract::{Pair, PSP22},
     psp22 as psp22_token,
     psp22::PSP22 as TokenPSP22,
     router_contract,
     router_contract::Router,
     test::setup::{
-        get_env,
-        random_salt,
-        set_up_logger,
-        try_upload_contract_code,
-        DEFAULT_NODE_ADDRESS,
-        PSP22_DECIMALS,
-        PSP22_TOTAL_SUPPLY,
-        REGULAR_SEED,
-        TOKEN_A_NAME,
-        TOKEN_A_SYMBOL,
+        get_env, random_salt, set_up_logger, try_upload_contract_code, DEFAULT_NODE_ADDRESS,
+        PSP22_DECIMALS, PSP22_TOTAL_SUPPLY, REGULAR_SEED, TOKEN_A_NAME, TOKEN_A_SYMBOL,
         WEALTHY_SEED,
     },
     wrapped_azero,
-    wrapped_azero::{
-        WrappedAZERO,
-        PSP22 as WnativePSP22,
-    },
+    wrapped_azero::{WrappedAZERO, PSP22 as WnativePSP22},
 };
 
 const AMOUNT_TOKEN_DESIRED: Balance = 10_000;
@@ -62,7 +33,7 @@ static ROUTER_TESTS_CODE_UPLOAD: OnceCell<Result<()>> = OnceCell::const_new();
 
 struct RouterContractsSetup {
     factory_contract: factory_contract::Instance,
-    token_a: psp22_token::Instance,
+    token_0: psp22_token::Instance,
     wrapped_azero: wrapped_azero::Instance,
     router_contract: router_contract::Instance,
 }
@@ -72,7 +43,7 @@ struct RouterTestSetup {
     wealthy_account: ink_primitives::AccountId,
     regular_account: ink_primitives::AccountId,
     factory_contract: factory_contract::Instance,
-    token_a: psp22_token::Instance,
+    token_0: psp22_token::Instance,
     wrapped_azero: wrapped_azero::Instance,
     router_contract: router_contract::Instance,
 }
@@ -106,7 +77,7 @@ async fn set_up_contracts(
                 .with_salt(salt.clone()),
         )
         .await?;
-    let token_a = connection
+    let token_0 = connection
         .instantiate(
             psp22_token::Instance::new(
                 PSP22_TOTAL_SUPPLY,
@@ -129,7 +100,7 @@ async fn set_up_contracts(
 
     let router_contracts_setup = RouterContractsSetup {
         factory_contract,
-        token_a,
+        token_0,
         wrapped_azero,
         router_contract,
     };
@@ -151,7 +122,7 @@ async fn set_up_router_test() -> Result<RouterTestSetup> {
 
     let RouterContractsSetup {
         factory_contract,
-        token_a,
+        token_0,
         wrapped_azero,
         router_contract,
     } = set_up_contracts(&wealthy_connection, regular_account).await?;
@@ -161,7 +132,7 @@ async fn set_up_router_test() -> Result<RouterTestSetup> {
         wealthy_account,
         regular_account,
         factory_contract,
-        token_a,
+        token_0,
         wrapped_azero,
         router_contract,
     };
@@ -177,7 +148,7 @@ pub async fn add_liquidity() -> Result<()> {
         wealthy_connection,
         wealthy_account,
         factory_contract,
-        token_a,
+        token_0,
         router_contract,
         wrapped_azero,
         ..
@@ -186,7 +157,7 @@ pub async fn add_liquidity() -> Result<()> {
     let deadline = timestamp_one_hour_forward_millis();
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
+        .exec(token_0.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
 
     let all_pairs_length_before = wealthy_connection
@@ -197,7 +168,7 @@ pub async fn add_liquidity() -> Result<()> {
         .exec(
             router_contract
                 .add_liquidity_native(
-                    token_a.into(),
+                    token_0.into(),
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
@@ -215,7 +186,7 @@ pub async fn add_liquidity() -> Result<()> {
     assert!(all_pairs_length_after == all_pairs_length_before + 1);
 
     let pair_contract: pair_contract::Instance = wealthy_connection
-        .read(factory_contract.get_pair(wrapped_azero.into(), token_a.into()))
+        .read(factory_contract.get_pair(wrapped_azero.into(), token_0.into()))
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?
         .into();
@@ -237,7 +208,7 @@ pub async fn swap_exact_native_for_tokens() -> Result<()> {
         wealthy_connection,
         wealthy_account,
         regular_account,
-        token_a,
+        token_0,
         wrapped_azero,
         router_contract,
         ..
@@ -246,13 +217,13 @@ pub async fn swap_exact_native_for_tokens() -> Result<()> {
     let deadline = timestamp_one_hour_forward_millis();
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
+        .exec(token_0.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
     wealthy_connection
         .exec(
             router_contract
                 .add_liquidity_native(
-                    token_a.into(),
+                    token_0.into(),
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
@@ -263,13 +234,13 @@ pub async fn swap_exact_native_for_tokens() -> Result<()> {
         )
         .await?;
 
-    let path = vec![wrapped_azero.into(), token_a.into()];
+    let path = vec![wrapped_azero.into(), token_0.into()];
     let amounts_in = wealthy_connection
         .read(router_contract.get_amounts_in(AMOUNT_OUT, path.clone()))
         .await??
         .map_err(|e| anyhow!("Cannot read amounts in from router contract: {:?}", e))?;
     let regular_account_balance_before = wealthy_connection
-        .read(token_a.balance_of(regular_account))
+        .read(token_0.balance_of(regular_account))
         .await??;
     wealthy_connection
         .exec(
@@ -279,7 +250,7 @@ pub async fn swap_exact_native_for_tokens() -> Result<()> {
         )
         .await?;
     let regular_account_balance_after = wealthy_connection
-        .read(token_a.balance_of(regular_account))
+        .read(token_0.balance_of(regular_account))
         .await??;
     let balance_diff = regular_account_balance_after - regular_account_balance_before;
 
@@ -296,7 +267,7 @@ pub async fn swap_native_for_exact_tokens() -> Result<()> {
         wealthy_connection,
         wealthy_account,
         regular_account,
-        token_a,
+        token_0,
         wrapped_azero,
         router_contract,
         ..
@@ -305,13 +276,13 @@ pub async fn swap_native_for_exact_tokens() -> Result<()> {
     let deadline = timestamp_one_hour_forward_millis();
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
+        .exec(token_0.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
     wealthy_connection
         .exec(
             router_contract
                 .add_liquidity_native(
-                    token_a.into(),
+                    token_0.into(),
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
@@ -322,13 +293,13 @@ pub async fn swap_native_for_exact_tokens() -> Result<()> {
         )
         .await?;
 
-    let path = vec![wrapped_azero.into(), token_a.into()];
+    let path = vec![wrapped_azero.into(), token_0.into()];
     let amounts_in = wealthy_connection
         .read(router_contract.get_amounts_in(AMOUNT_OUT, path.clone()))
         .await??
         .map_err(|e| anyhow!("Cannot read amounts in from router contract: {:?}", e))?;
     let regular_account_balance_before = wealthy_connection
-        .read(token_a.balance_of(regular_account))
+        .read(token_0.balance_of(regular_account))
         .await??;
     wealthy_connection
         .exec(
@@ -338,7 +309,7 @@ pub async fn swap_native_for_exact_tokens() -> Result<()> {
         )
         .await?;
     let regular_account_balance_after = wealthy_connection
-        .read(token_a.balance_of(regular_account))
+        .read(token_0.balance_of(regular_account))
         .await??;
     let balance_diff = regular_account_balance_after - regular_account_balance_before;
 
@@ -355,7 +326,7 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
         wealthy_connection,
         wealthy_account,
         regular_account,
-        token_a,
+        token_0,
         wrapped_azero,
         router_contract,
         ..
@@ -364,13 +335,13 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
     let deadline = timestamp_one_hour_forward_millis();
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
+        .exec(token_0.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
     wealthy_connection
         .exec(
             router_contract
                 .add_liquidity_native(
-                    token_a.into(),
+                    token_0.into(),
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
@@ -389,19 +360,19 @@ pub async fn swap_exact_tokens_for_tokens() -> Result<()> {
         .await?;
 
     let regular_account_balance_before = wealthy_connection
-        .read(token_a.balance_of(regular_account))
+        .read(token_0.balance_of(regular_account))
         .await??;
     wealthy_connection
         .exec(router_contract.swap_exact_tokens_for_tokens(
             AMOUNT_TOKEN_DESIRED,
             AMOUNT_OUT,
-            vec![wrapped_azero.into(), token_a.into()],
+            vec![wrapped_azero.into(), token_0.into()],
             regular_account,
             deadline,
         ))
         .await?;
     let regular_account_balance_after = wealthy_connection
-        .read(token_a.balance_of(regular_account))
+        .read(token_0.balance_of(regular_account))
         .await??;
     let balance_diff = regular_account_balance_after - regular_account_balance_before;
 
@@ -418,7 +389,7 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
         wealthy_connection,
         wealthy_account,
         regular_account,
-        token_a,
+        token_0,
         wrapped_azero,
         router_contract,
         ..
@@ -427,13 +398,13 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
     let deadline = timestamp_one_hour_forward_millis();
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
+        .exec(token_0.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
     wealthy_connection
         .exec(
             router_contract
                 .add_liquidity_native(
-                    token_a.into(),
+                    token_0.into(),
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
@@ -455,21 +426,21 @@ pub async fn swap_tokens_for_exact_tokens() -> Result<()> {
         .await?;
 
     let regular_account_balance_before = wealthy_connection
-        .read(token_a.balance_of(regular_account))
+        .read(token_0.balance_of(regular_account))
         .await??;
 
     wealthy_connection
         .exec(router_contract.swap_tokens_for_exact_tokens(
             AMOUNT_OUT,
             AMOUNT_FOR_SWAP,
-            vec![wrapped_azero.into(), token_a.into()],
+            vec![wrapped_azero.into(), token_0.into()],
             regular_account,
             deadline,
         ))
         .await?;
 
     let regular_account_balance_after = wealthy_connection
-        .read(token_a.balance_of(regular_account))
+        .read(token_0.balance_of(regular_account))
         .await??;
     let balance_diff = regular_account_balance_after - regular_account_balance_before;
 
@@ -486,7 +457,7 @@ pub async fn add_more_liquidity() -> Result<()> {
         wealthy_connection,
         wealthy_account,
         factory_contract,
-        token_a,
+        token_0,
         router_contract,
         ..
     } = set_up_router_test().await?;
@@ -498,14 +469,14 @@ pub async fn add_more_liquidity() -> Result<()> {
         .await??;
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), 2 * AMOUNT_TOKEN_DESIRED))
+        .exec(token_0.approve(router_contract.into(), 2 * AMOUNT_TOKEN_DESIRED))
         .await?;
 
     wealthy_connection
         .exec(
             router_contract
                 .add_liquidity_native(
-                    token_a.into(),
+                    token_0.into(),
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
@@ -517,7 +488,7 @@ pub async fn add_more_liquidity() -> Result<()> {
         .await?;
 
     let wealthy_account_balance_before_second_liquidity_addition = wealthy_connection
-        .read(token_a.balance_of(wealthy_account))
+        .read(token_0.balance_of(wealthy_account))
         .await??;
 
     const LARGE_AMOUNT: Balance = 1_000_000_000_000_000;
@@ -526,7 +497,7 @@ pub async fn add_more_liquidity() -> Result<()> {
         .exec(
             router_contract
                 .add_liquidity_native(
-                    token_a.into(),
+                    token_0.into(),
                     AMOUNT_TOKEN_DESIRED,
                     0,
                     0,
@@ -542,7 +513,7 @@ pub async fn add_more_liquidity() -> Result<()> {
         .await??;
 
     let wealthy_account_balance_after_second_liquidity_addition = wealthy_connection
-        .read(token_a.balance_of(wealthy_account))
+        .read(token_0.balance_of(wealthy_account))
         .await??;
     let balance_diff = wealthy_account_balance_before_second_liquidity_addition
         - wealthy_account_balance_after_second_liquidity_addition;
@@ -562,7 +533,7 @@ pub async fn remove_liquidity() -> Result<()> {
         wealthy_account,
         regular_account,
         factory_contract,
-        token_a,
+        token_0,
         wrapped_azero,
         router_contract,
     } = set_up_router_test().await?;
@@ -570,7 +541,7 @@ pub async fn remove_liquidity() -> Result<()> {
     let deadline = timestamp_one_hour_forward_millis();
 
     wealthy_connection
-        .exec(token_a.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
+        .exec(token_0.approve(router_contract.into(), AMOUNT_TOKEN_DESIRED))
         .await?;
 
     let all_pairs_length_before = wealthy_connection
@@ -581,7 +552,7 @@ pub async fn remove_liquidity() -> Result<()> {
         .exec(
             router_contract
                 .add_liquidity_native(
-                    token_a.into(),
+                    token_0.into(),
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
                     AMOUNT_TOKEN_DESIRED,
@@ -593,7 +564,7 @@ pub async fn remove_liquidity() -> Result<()> {
         .await?;
 
     let pair_contract: pair_contract::Instance = wealthy_connection
-        .read(factory_contract.get_pair(wrapped_azero.into(), token_a.into()))
+        .read(factory_contract.get_pair(wrapped_azero.into(), token_0.into()))
         .await??
         .ok_or(anyhow!("Specified token pair does not exist!"))?
         .into();
@@ -602,7 +573,7 @@ pub async fn remove_liquidity() -> Result<()> {
         .await?;
 
     let regular_account_balance_before = wealthy_connection
-        .read(token_a.balance_of(regular_account))
+        .read(token_0.balance_of(regular_account))
         .await??;
 
     let wealthy_account_pair_balance_before = wealthy_connection
@@ -610,7 +581,7 @@ pub async fn remove_liquidity() -> Result<()> {
         .await??;
     wealthy_connection
         .exec(router_contract.remove_liquidity_native(
-            token_a.into(),
+            token_0.into(),
             wealthy_account_pair_balance_before,
             0,
             0,
@@ -624,7 +595,7 @@ pub async fn remove_liquidity() -> Result<()> {
         .await??;
 
     let regular_account_balance_after = wealthy_connection
-        .read(token_a.balance_of(regular_account))
+        .read(token_0.balance_of(regular_account))
         .await??;
     let balance_diff = regular_account_balance_after - regular_account_balance_before;
     let pair_contract_reserves_after = wealthy_connection

@@ -106,8 +106,8 @@ pub mod pair {
 
     impl PairContract {
         #[ink(constructor)]
-        pub fn new(token_a: AccountId, token_b: AccountId) -> Self {
-            let pair = PairData::new(token_a, token_b, Self::env().caller());
+        pub fn new(token_0: AccountId, token_1: AccountId) -> Self {
+            let pair = PairData::new(token_0, token_1, Self::env().caller());
             Self {
                 psp22: PSP22Data::default(),
                 pair,
@@ -130,7 +130,7 @@ pub mod pair {
         }
 
         #[inline]
-        fn token_balances(&self, who: AccountId) -> (u128, u128) {
+        fn token_1alances(&self, who: AccountId) -> (u128, u128) {
             (
                 self.token_0().balance_of(who),
                 self.token_1().balance_of(who),
@@ -265,7 +265,7 @@ pub mod pair {
         fn mint(&mut self, to: AccountId) -> Result<u128, PairError> {
             let reserves = self.get_reserves();
             let contract = self.env().account_id();
-            let (balance_0, balance_1) = self.token_balances(contract);
+            let (balance_0, balance_1) = self.token_1alances(contract);
             let amount_0_transferred = balance_0
                 .checked_sub(reserves.0)
                 .ok_or(MathError::SubUnderflow(2))?;
@@ -329,7 +329,7 @@ pub mod pair {
         fn burn(&mut self, to: AccountId) -> Result<(u128, u128), PairError> {
             let reserves = self.get_reserves();
             let contract = self.env().account_id();
-            let (balance_0_before, balance_1_before) = self.token_balances(contract);
+            let (balance_0_before, balance_1_before) = self.token_1alances(contract);
             let liquidity = self.balance_of(contract);
 
             let fee_on = self.mint_fee(reserves.0, reserves.1)?;
@@ -356,7 +356,7 @@ pub mod pair {
             self.token_0().transfer(to, amount_0, Vec::new())?;
             self.token_1().transfer(to, amount_1, Vec::new())?;
 
-            let (balance_0_after, balance_1_after) = self.token_balances(contract);
+            let (balance_0_after, balance_1_after) = self.token_1alances(contract);
 
             self.update(balance_0_after, balance_1_after, reserves.0, reserves.1)?;
 
@@ -402,7 +402,7 @@ pub mod pair {
                 self.token_1().transfer(to, amount_1_out, Vec::new())?;
             }
             let contract = self.env().account_id();
-            let (balance_0, balance_1) = self.token_balances(contract);
+            let (balance_0, balance_1) = self.token_1alances(contract);
 
             let amount_0_in = if balance_0
                 > reserves
@@ -490,7 +490,7 @@ pub mod pair {
             let contract = self.env().account_id();
             let reserve_0 = self.pair.reserve_0;
             let reserve_1 = self.pair.reserve_1;
-            let (balance_0, balance_1) = self.token_balances(contract);
+            let (balance_0, balance_1) = self.token_1alances(contract);
             let (amount_0, amount_1) = (
                 balance_0
                     .checked_sub(reserve_0)
@@ -509,7 +509,7 @@ pub mod pair {
             let contract = self.env().account_id();
             let reserve_0 = self.pair.reserve_0;
             let reserve_1 = self.pair.reserve_1;
-            let (balance_0, balance_1) = self.token_balances(contract);
+            let (balance_0, balance_1) = self.token_1alances(contract);
             self.update(balance_0, balance_1, reserve_0, reserve_1)
         }
 
