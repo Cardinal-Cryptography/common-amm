@@ -294,20 +294,20 @@ pub mod pair {
                 let events = self.psp22.mint(BURN_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
                 self.emit_events(events)
             } else {
-                let liquidity_1 = amount_0_transferred
+                let liquidity_0 = amount_0_transferred
                     .checked_mul(total_supply)
                     .ok_or(MathError::MulOverflow(4))?
                     .checked_div(reserves.0)
                     .ok_or(MathError::DivByZero(2))?;
-                let liquidity_2 = amount_1_transferred
+                let liquidity_1 = amount_1_transferred
                     .checked_mul(total_supply)
                     .ok_or(MathError::MulOverflow(5))?
                     .checked_div(reserves.1)
                     .ok_or(MathError::DivByZero(3))?;
-                liquidity = if liquidity_1 < liquidity_2 {
-                    liquidity_1
+                liquidity = if liquidity_0 < liquidity_1 {
+                    liquidity_0
                 } else {
-                    liquidity_2
+                    liquidity_1
                 };
             }
 
