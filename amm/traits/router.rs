@@ -19,7 +19,7 @@ pub trait Router {
     /// Adds liquidity to `(token_0, token_1)` pair.
     ///
     /// Will add at least `*_min` amount of tokens and up to `*_desired`
-    /// while still maintaining the constant `k` product of the pair.
+    /// while still maintaining the constant `k` ratio of the pair.
     ///
     /// If successful, liquidity tokens will be minted for `to` account.
     #[ink(message)]
@@ -56,7 +56,7 @@ pub trait Router {
     /// Adds liquidity to `(token, native token)` pair.
     ///
     /// Will add at least `*_min` amount of tokens and up to `*_desired`
-    /// while still maintaining the constant `k` product of the pair.
+    /// while still maintaining the constant `k` ratio of the pair.
     ///
     /// If successful, liquidity tokens will be minted for `to` account.
     #[ink(message, payable)]
@@ -181,13 +181,13 @@ pub trait Router {
 
     /// Returns amount of `B` tokens that have to be supplied
     /// , with the `amount_0` amount of tokens `A, to maintain
-    /// constant `k` product of `(A, B)` token pair.
+    /// constant `k` ratio of `(A, B)` token pair.
     #[ink(message)]
     fn quote(&self, amount_0: u128, reserve_0: u128, reserve_1: u128) -> Result<u128, RouterError>;
 
     /// Returns amount of `B` tokens received
     /// for `amount_in` of `A` tokens that maintains
-    /// the constant product of `reserve_0 * reserve_1`.
+    /// the constant ratio of `reserve_0 / reserve_1`.
     #[ink(message)]
     fn get_amount_out(
         &self,
@@ -198,7 +198,7 @@ pub trait Router {
 
     /// Returns amount of `A` tokens user has to supply
     /// to get exactly `amount_out` of `B` token while maintaining
-    /// pool's constant product.
+    /// pool's constant ratio.
     #[ink(message)]
     fn get_amount_in(
         &self,

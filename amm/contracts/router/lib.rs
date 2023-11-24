@@ -524,7 +524,7 @@ pub mod router {
         }
 
         /// Returns how much of `token_B` tokens should be added
-        /// to the pool to maintain the constant product `k = reserve_a * reserve_b`,
+        /// to the pool to maintain the constant ratio `k = reserve_0 / reserve_1`,
         /// given `amount_0` of `token_A`.
         #[ink(message)]
         fn quote(
@@ -550,7 +550,7 @@ pub mod router {
 
         /// Returns amount of `B` tokens received
         /// for `amount_in` of `A` tokens that maintains
-        /// the constant product of `k = reserve_a * reserve_b`.
+        /// the constant ratio of `k = reserve_0 / reserve_1`.
         #[ink(message)]
         fn get_amount_out(
             &self,
@@ -586,7 +586,7 @@ pub mod router {
 
         /// Returns amount of `A` tokens user has to supply
         /// to get exactly `amount_out` of `B` token while maintaining
-        /// the constant product of `k = reserve_a * reserve_b`.
+        /// the constant ratio of `k = reserve_0 / reserve_1`.
         #[ink(message)]
         fn get_amount_in(
             &self,
