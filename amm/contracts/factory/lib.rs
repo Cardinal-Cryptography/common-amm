@@ -53,7 +53,7 @@ pub mod factory {
             let pair = match PairContractRef::new(token_0, token_1)
                 .endowment(0)
                 .code_hash(pair_hash)
-                .salt_bytes(&salt_bytes[..4])
+                .salt_bytes(&salt_bytes)
                 .try_instantiate()
             {
                 Ok(Ok(res)) => Ok(res),
