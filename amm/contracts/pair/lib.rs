@@ -561,15 +561,9 @@ pub mod pair {
             value: u128,
             _data: Vec<u8>,
         ) -> Result<(), PSP22Error> {
-            let caller = self.env().caller();
-            let infinite_allowance = self.psp22.allowance(from, caller) == u128::MAX;
-            let mut events = self
+            let events = self
                 .psp22
                 .transfer_from(self.env().caller(), from, to, value)?;
-            if infinite_allowance {
-                self.psp22.approve(from, caller, u128::MAX)?;
-                events.remove(0);
-            }
             self.emit_events(events);
             Ok(())
         }
