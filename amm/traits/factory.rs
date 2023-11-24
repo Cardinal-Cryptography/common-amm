@@ -39,7 +39,7 @@ pub trait Factory {
 
     /// Returns recipient address of the trading fees.
     #[ink(message)]
-    fn fee_to(&self) -> AccountId;
+    fn fee_to(&self) -> Option<AccountId>;
 
     /// Returns account allowed to call `set_fee_to_setter`.
     #[ink(message)]

@@ -140,9 +140,7 @@ pub mod pair {
         }
 
         fn mint_fee(&mut self, reserve_0: u128, reserve_1: u128) -> Result<bool, PairError> {
-            let fee_to = self.factory().fee_to();
-            let fee_on = fee_to != ZERO_ADDRESS.into();
-            if fee_on {
+            if let Some(fee_to) = self.factory().fee_to() {
                 // Section 2.4 Protocol fee in the whitepaper.
                 if let Some(k_last) = self.pair.k_last.map(Into::<U256>::into) {
                     let root_k: u128 = casted_mul(reserve_0, reserve_1)
@@ -176,10 +174,13 @@ pub mod pair {
                         }
                     }
                 }
+                Ok(true)
             } else if self.pair.k_last.is_some() {
-                self.pair.k_last = None
+                self.pair.k_last = None;
+                Ok(false)
+            } else {
+                Ok(false)
             }
-            Ok(fee_on)
         }
 
         fn update(

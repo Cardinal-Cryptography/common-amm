@@ -2,7 +2,7 @@
 
 #[ink::contract]
 pub mod factory {
-    use amm_helpers::{constants::ZERO_ADDRESS, ensure};
+    use amm_helpers::ensure;
     use ink::{codegen::EmitEvent, env::hash::Blake2x256, storage::Mapping, ToAccountId};
     use pair_contract::pair::PairContractRef;
     use traits::{Factory, FactoryError};
@@ -23,24 +23,21 @@ pub mod factory {
         all_pairs: Mapping<u64, AccountId>,
         all_pairs_length: u64,
         pair_contract_code_hash: Hash,
-        fee_to: AccountId,
+        fee_to: Option<AccountId>,
         fee_to_setter: AccountId,
     }
 
     impl FactoryContract {
         #[ink(constructor)]
         pub fn new(fee_to_setter: AccountId, pair_code_hash: Hash) -> Self {
-            let mut instance = Self {
+            Self {
                 get_pair: Default::default(),
                 all_pairs: Default::default(),
                 all_pairs_length: 0,
-                pair_contract_code_hash: Default::default(),
-                fee_to: ZERO_ADDRESS.into(),
-                fee_to_setter: ZERO_ADDRESS.into(),
-            };
-            instance.pair_contract_code_hash = pair_code_hash;
-            instance.fee_to_setter = fee_to_setter;
-            instance
+                pair_contract_code_hash: pair_code_hash,
+                fee_to: None,
+                fee_to_setter,
+            }
         }
 
         fn _instantiate_pair(
@@ -151,7 +148,7 @@ pub mod factory {
         #[ink(message)]
         fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), FactoryError> {
             self._only_fee_setter()?;
-            self.fee_to = fee_to;
+            self.fee_to = Some(fee_to);
             Ok(())
         }
 
@@ -163,7 +160,7 @@ pub mod factory {
         }
 
         #[ink(message)]
-        fn fee_to(&self) -> AccountId {
+        fn fee_to(&self) -> Option<AccountId> {
             self.fee_to
         }
 
@@ -188,7 +185,7 @@ pub mod factory {
         fn initialize_works() {
             let accounts = default_accounts::<ink::env::DefaultEnvironment>();
             let factory = FactoryContract::new(accounts.alice, Hash::default());
-            assert_eq!(factory.fee_to, amm_helpers::constants::ZERO_ADDRESS.into());
+            assert_eq!(factory.fee_to, None);
         }
     }
 }
