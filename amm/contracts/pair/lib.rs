@@ -152,16 +152,10 @@ pub mod pair {
             if let Some(fee_to) = self.factory().fee_to() {
                 // Section 2.4 Protocol fee in the whitepaper.
                 if let Some(k_last) = self.pair.k_last.map(Into::<U256>::into) {
-                    let root_k: u128 = casted_mul(reserve_0, reserve_1)
-                        .integer_sqrt()
-                        .try_into()
-                        .map_err(|_| MathError::CastOverflow(1))?;
-                    let root_k_last = k_last
-                        .integer_sqrt()
-                        .try_into()
-                        .map_err(|_| MathError::CastOverflow(2))?;
+                    let root_k: U256 = casted_mul(reserve_0, reserve_1).integer_sqrt();
+                    let root_k_last = k_last.integer_sqrt();
                     if root_k > root_k_last {
-                        let total_supply = self.psp22.total_supply();
+                        let total_supply: U256 = self.psp22.total_supply().into();
                         let numerator = total_supply
                             .checked_mul(
                                 root_k
@@ -170,13 +164,15 @@ pub mod pair {
                             )
                             .ok_or(MathError::MulOverflow(1))?;
                         let denominator = root_k
-                            .checked_mul(PROTOCOL_FEE_ADJ_DENOM)
+                            .checked_mul(PROTOCOL_FEE_ADJ_DENOM.into())
                             .ok_or(MathError::MulOverflow(2))?
                             .checked_add(root_k_last)
                             .ok_or(MathError::AddOverflow(1))?;
-                        let liquidity = numerator
+                        let liquidity: u128 = numerator
                             .checked_div(denominator)
-                            .ok_or(MathError::DivByZero(1))?;
+                            .ok_or(MathError::DivByZero(1))?
+                            .try_into()
+                            .map_err(|_| MathError::CastOverflow(1))?;
                         if liquidity > 0 {
                             let events = self.psp22.mint(fee_to, liquidity)?;
                             self.emit_events(events)
