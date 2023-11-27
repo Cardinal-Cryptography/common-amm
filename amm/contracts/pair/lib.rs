@@ -290,7 +290,7 @@ pub mod pair {
                     .checked_sub(MINIMUM_LIQUIDITY.into())
                     .ok_or(MathError::SubUnderflow(4))?
                     .try_into()
-                    .map_err(|_| MathError::CastOverflow(6))?;
+                    .map_err(|_| MathError::CastOverflow(2))?;
                 let events = self.psp22.mint(BURN_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
                 self.emit_events(events);
                 liquidity
@@ -299,13 +299,13 @@ pub mod pair {
                     .checked_div(reserves.0.into())
                     .ok_or(MathError::DivByZero(2))?
                     .try_into()
-                    .map_err(|_| MathError::CastOverflow(7))?;
+                    .map_err(|_| MathError::CastOverflow(3))?;
 
                 let liquidity_1 = casted_mul(amount_1_transferred, total_supply)
                     .checked_div(reserves.1.into())
                     .ok_or(MathError::DivByZero(3))?
                     .try_into()
-                    .map_err(|_| MathError::CastOverflow(8))?;
+                    .map_err(|_| MathError::CastOverflow(4))?;
 
                 liquidity_0.min(liquidity_1)
             };
@@ -343,12 +343,12 @@ pub mod pair {
                 .checked_div(total_supply)
                 .ok_or(MathError::DivByZero(4))?
                 .try_into()
-                .map_err(|_| MathError::CastOverflow(9))?;
+                .map_err(|_| MathError::CastOverflow(5))?;
             let amount_1 = casted_mul(liquidity, balance_1_before)
                 .checked_div(total_supply)
                 .ok_or(MathError::DivByZero(5))?
                 .try_into()
-                .map_err(|_| MathError::CastOverflow(10))?;
+                .map_err(|_| MathError::CastOverflow(6))?;
 
             ensure!(
                 amount_0 > 0 && amount_1 > 0,
@@ -442,20 +442,20 @@ pub mod pair {
 
             let balance_0_adjusted = balance_0
                 .checked_mul(TRADING_FEE_ADJ_RESERVES)
-                .ok_or(MathError::MulOverflow(8))?
+                .ok_or(MathError::MulOverflow(3))?
                 .checked_sub(
                     amount_0_in
                         .checked_mul(TRADING_FEE_ADJ_AMOUNTS)
-                        .ok_or(MathError::MulOverflow(9))?,
+                        .ok_or(MathError::MulOverflow(4))?,
                 )
                 .ok_or(MathError::SubUnderflow(9))?;
             let balance_1_adjusted = balance_1
                 .checked_mul(TRADING_FEE_ADJ_RESERVES)
-                .ok_or(MathError::MulOverflow(10))?
+                .ok_or(MathError::MulOverflow(5))?
                 .checked_sub(
                     amount_1_in
                         .checked_mul(TRADING_FEE_ADJ_AMOUNTS)
-                        .ok_or(MathError::MulOverflow(11))?,
+                        .ok_or(MathError::MulOverflow(6))?,
                 )
                 .ok_or(MathError::SubUnderflow(10))?;
 
@@ -464,7 +464,7 @@ pub mod pair {
                 casted_mul(balance_0_adjusted, balance_1_adjusted)
                     >= casted_mul(reserves.0, reserves.1)
                         .checked_mul(TRADING_FEE_ADJ_RESERVES.pow(2).into())
-                        .ok_or(MathError::MulOverflow(12))?,
+                        .ok_or(MathError::MulOverflow(7))?,
                 PairError::KInvariantChanged
             );
 
