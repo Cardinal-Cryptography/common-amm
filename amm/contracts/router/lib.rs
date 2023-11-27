@@ -2,8 +2,10 @@
 
 #[ink::contract]
 pub mod router {
-    const MAGIC_NUMBER_1000: u128 = 1000;
-    const MAGIC_NUMBER_997: u128 = 997;
+    // Trading fee is 0.3%. This is the same as in Uniswap.
+    // Adjusted to not deal with floating point numbers.
+    const TRADING_FEE_ADJ_DENOM: u128 = 1000;
+    const TRADING_FEE_ADJ_NUM: u128 = 997;
 
     use amm_helpers::{ensure, math::casted_mul};
     use ink::{
@@ -565,7 +567,7 @@ pub mod router {
             );
 
             // Adjusts for fees paid in the `token_in`.
-            let amount_in_with_fee = casted_mul(amount_in, MAGIC_NUMBER_997);
+            let amount_in_with_fee = casted_mul(amount_in, TRADING_FEE_ADJ_NUM);
 
             let numerator = amount_in_with_fee
                 .checked_mul(reserve_1.into())
@@ -601,14 +603,14 @@ pub mod router {
             );
 
             let numerator = casted_mul(reserve_0, amount_out)
-                .checked_mul(MAGIC_NUMBER_1000.into())
+                .checked_mul(TRADING_FEE_ADJ_DENOM.into())
                 .ok_or(MathError::MulOverflow(14))?;
 
             let denominator = casted_mul(
                 reserve_1
                     .checked_sub(amount_out)
                     .ok_or(MathError::SubUnderflow(15))?,
-                MAGIC_NUMBER_997,
+                TRADING_FEE_ADJ_NUM,
             );
 
             let amount_in: u128 = numerator

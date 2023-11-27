@@ -4,9 +4,14 @@
 pub mod pair {
     // Numbers used in the equations below, derived from the UniswapV2 paper.
     // They have different meaning depending on the context so please consult the WP.
-    const MAGIC_NUMBER_3: u128 = 3;
-    const MAGIC_NUMBER_5: u128 = 5;
-    const MAGIC_NUMBER_1000: u128 = 1000;
+    // Adjustments made to not deal with floating point numbers.
+
+    // Whitepaper 3.2.1, equation (11)
+    const TRADING_FEE_ADJ_RESERVES: u128 = 1000;
+    const TRADING_FEE_ADJ_AMOUNTS: u128 = 3;
+
+    // Whitepaper 2.4, equation (7)
+    const PROTOCOL_FEE_ADJ_DENOM: u128 = 5;
 
     use amm_helpers::{
         constants::{BURN_ADDRESS, MINIMUM_LIQUIDITY},
@@ -165,7 +170,7 @@ pub mod pair {
                             )
                             .ok_or(MathError::MulOverflow(1))?;
                         let denominator = root_k
-                            .checked_mul(MAGIC_NUMBER_5)
+                            .checked_mul(PROTOCOL_FEE_ADJ_DENOM)
                             .ok_or(MathError::MulOverflow(2))?
                             .checked_add(root_k_last)
                             .ok_or(MathError::AddOverflow(1))?;
@@ -442,20 +447,20 @@ pub mod pair {
             );
 
             let balance_0_adjusted = balance_0
-                .checked_mul(MAGIC_NUMBER_1000)
+                .checked_mul(TRADING_FEE_ADJ_RESERVES)
                 .ok_or(MathError::MulOverflow(8))?
                 .checked_sub(
                     amount_0_in
-                        .checked_mul(MAGIC_NUMBER_3)
+                        .checked_mul(TRADING_FEE_ADJ_AMOUNTS)
                         .ok_or(MathError::MulOverflow(9))?,
                 )
                 .ok_or(MathError::SubUnderflow(9))?;
             let balance_1_adjusted = balance_1
-                .checked_mul(MAGIC_NUMBER_1000)
+                .checked_mul(TRADING_FEE_ADJ_RESERVES)
                 .ok_or(MathError::MulOverflow(10))?
                 .checked_sub(
                     amount_1_in
-                        .checked_mul(MAGIC_NUMBER_3)
+                        .checked_mul(TRADING_FEE_ADJ_AMOUNTS)
                         .ok_or(MathError::MulOverflow(11))?,
                 )
                 .ok_or(MathError::SubUnderflow(10))?;
@@ -464,7 +469,7 @@ pub mod pair {
             ensure!(
                 casted_mul(balance_0_adjusted, balance_1_adjusted)
                     >= casted_mul(reserves.0, reserves.1)
-                        .checked_mul(MAGIC_NUMBER_1000.pow(2).into())
+                        .checked_mul(TRADING_FEE_ADJ_RESERVES.pow(2).into())
                         .ok_or(MathError::MulOverflow(12))?,
                 PairError::KInvariantChanged
             );
