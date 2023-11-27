@@ -338,17 +338,17 @@ pub mod pair {
             let liquidity = self.balance_of(contract);
 
             let fee_on = self.mint_fee(reserves.0, reserves.1)?;
-            let total_supply = self.psp22.total_supply();
-            let amount_0 = liquidity
-                .checked_mul(balance_0_before)
-                .ok_or(MathError::MulOverflow(6))?
+            let total_supply = self.psp22.total_supply().into();
+            let amount_0 = casted_mul(liquidity, balance_0_before)
                 .checked_div(total_supply)
-                .ok_or(MathError::DivByZero(4))?;
-            let amount_1 = liquidity
-                .checked_mul(balance_1_before)
-                .ok_or(MathError::MulOverflow(7))?
+                .ok_or(MathError::DivByZero(4))?
+                .try_into()
+                .map_err(|_| MathError::CastOverflow(9))?;
+            let amount_1 = casted_mul(liquidity, balance_1_before)
                 .checked_div(total_supply)
-                .ok_or(MathError::DivByZero(5))?;
+                .ok_or(MathError::DivByZero(5))?
+                .try_into()
+                .map_err(|_| MathError::CastOverflow(10))?;
 
             ensure!(
                 amount_0 > 0 && amount_1 > 0,
