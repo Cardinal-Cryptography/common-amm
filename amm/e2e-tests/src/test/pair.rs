@@ -245,12 +245,12 @@ pub async fn mint_pair() -> Result<()> {
     let regular_balance_after = wealthy_connection
         .read(pair_contract.balance_of(regular_account))
         .await??;
-    let BURN_ADDRESS_balance_after = wealthy_connection
+    let burn_address_balance_after = wealthy_connection
         .read(pair_contract.balance_of(BURN_ADDRESS.into()))
         .await??;
 
     assert!(regular_balance_after == expected_balance);
-    assert!(BURN_ADDRESS_balance_after == MIN_BALANCE);
+    assert!(burn_address_balance_after == MIN_BALANCE);
 
     Ok(())
 }
@@ -362,10 +362,10 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
         .exec(pair_contract.swap(FIRST_AMOUNT_OUT, SECOND_AMOUNT_OUT, regular_account))
         .await?;
 
-    let first_token_1alance_before = wealthy_connection
+    let first_token_balance_before = wealthy_connection
         .read(first_token.balance_of(regular_account))
         .await??;
-    let second_token_1alance_before = wealthy_connection
+    let second_token_balance_before = wealthy_connection
         .read(second_token.balance_of(regular_account))
         .await??;
 
@@ -389,17 +389,17 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
         burn_events_len
     );
 
-    let first_token_1alance_after = wealthy_connection
+    let first_token_balance_after = wealthy_connection
         .read(first_token.balance_of(regular_account))
         .await??;
-    let second_token_1alance_after = wealthy_connection
+    let second_token_balance_after = wealthy_connection
         .read(second_token.balance_of(regular_account))
         .await??;
-    let first_token_1alance_diff = first_token_1alance_after - first_token_1alance_before;
-    let second_token_1alance_diff = second_token_1alance_after - second_token_1alance_before;
+    let first_token_balance_diff = first_token_balance_after - first_token_balance_before;
+    let second_token_balance_diff = second_token_balance_after - second_token_balance_before;
 
-    assert!(first_token_1alance_diff == FIRST_BALANCE_LOCKED);
-    assert!(second_token_1alance_diff == SECOND_BALANCE_LOCKED);
+    assert!(first_token_balance_diff == FIRST_BALANCE_LOCKED);
+    assert!(second_token_balance_diff == SECOND_BALANCE_LOCKED);
 
     Ok(())
 }
