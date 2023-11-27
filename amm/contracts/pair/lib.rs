@@ -285,12 +285,10 @@ pub mod pair {
 
             let liquidity = if total_supply == 0 {
                 let liq = casted_mul(amount_0_transferred, amount_1_transferred);
-                let liquidity: u128 = liq
-                    .integer_sqrt()
-                    .checked_sub(MINIMUM_LIQUIDITY.into())
-                    .ok_or(MathError::SubUnderflow(4))?
-                    .try_into()
-                    .map_err(|_| MathError::CastOverflow(2))?;
+                let liquidity: u128 = u128::try_from(liq.integer_sqrt())
+                    .map_err(|_| MathError::CastOverflow(2))?
+                    .checked_sub(MINIMUM_LIQUIDITY)
+                    .ok_or(MathError::SubUnderflow(4))?;
                 let events = self.psp22.mint(BURN_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
                 self.emit_events(events);
                 liquidity
