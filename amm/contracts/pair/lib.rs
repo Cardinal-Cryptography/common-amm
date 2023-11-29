@@ -2,6 +2,12 @@
 
 #[ink::contract]
 pub mod pair {
+    // From the UniswapV2 whitepaper. Section 3.7.
+    // This number is high enough to support 18-decimal-place tokens
+    // with a totalSupply over 1 quadrillion.
+    // 2^112 - 1
+    const RESERVES_UPPER_BOUND: u128 = 5192296858534827628530496329220095;
+
     // Numbers used in the equations below, derived from the UniswapV2 paper.
     // They have different meaning depending on the context so please consult the WP.
     // Adjustments made to not deal with floating point numbers.
@@ -195,6 +201,10 @@ pub mod pair {
             reserve_0: u128,
             reserve_1: u128,
         ) -> Result<(), PairError> {
+            ensure!(
+                balance_0 <= RESERVES_UPPER_BOUND && balance_1 <= RESERVES_UPPER_BOUND,
+                PairError::ReservesOverflow
+            );
             let now = Self::env().block_timestamp();
             let last_timestamp = self.pair.block_timestamp_last;
             if now != last_timestamp {
