@@ -5,6 +5,9 @@ pub mod pair {
     // From the UniswapV2 whitepaper. Section 3.7.
     // This number is high enough to support 18-decimal-place tokens
     // with a totalSupply over 1 quadrillion.
+    // RESERVES_UPPER_BOUND cannot be u128::MAX because reserve_0*1000*reserve_1*1000
+    // must fit in U256 for swap to work correctly.
+    //
     // 2^112 - 1
     const RESERVES_UPPER_BOUND: u128 = 5192296858534827628530496329220095;
 
