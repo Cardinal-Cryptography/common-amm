@@ -1,9 +1,9 @@
 import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
 import Factory_factory from '../../types/constructors/factory_contract';
-import Wnative_factory from '../../types/constructors/wrapped_azero';
+import Wnative_factory from '../../types/constructors/wnative_contract';
 import Router_factory from '../../types/constructors/router_contract';
 import Factory from '../../types/contracts/factory_contract';
-import Wnative from '../../types/contracts/wrapped_azero';
+import Wnative from '../../types/contracts/wnative_contract';
 import { storeAddresses } from './utils';
 import { Addresses } from './shared';
 import * as pair from './pair';

@@ -1,6 +1,6 @@
 import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
 import { loadAddresses, storeAddresses } from './utils';
-import Token_factory from '../../types/constructors/psp22';
+import Token_factory from '../../types/constructors/psp22_token';
 import * as token from './token';
 import { TOTAL_SUPPLY, STABLE_TOTAL_SUPPLY } from './constants';
 

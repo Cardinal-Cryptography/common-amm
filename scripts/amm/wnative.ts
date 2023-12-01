@@ -12,5 +12,5 @@ export async function estimateInit(
   api: ApiPromise,
   deployer: KeyringPair,
 ): Promise<WeightV2> {
-  return estimateContractInit(api, deployer, 'wrapped_azero.contract', []);
+  return estimateContractInit(api, deployer, 'wnative_contract.contract', []);
 }
