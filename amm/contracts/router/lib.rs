@@ -2,11 +2,15 @@
 
 #[ink::contract]
 pub mod router {
+    // Trading fee is 0.3%. This is the same as in Uniswap.
+    // Adjusted to not deal with floating point numbers.
+    const TRADING_FEE_ADJ_DENOM: u128 = 1000;
+    const TRADING_FEE_ADJ_NUM: u128 = 997;
+
     use amm_helpers::{ensure, math::casted_mul};
     use ink::{
         codegen::TraitCallBuilder,
         contract_ref,
-        env::CallFlags,
         prelude::{string::String, vec, vec::Vec},
     };
     use psp22::{PSP22Error, PSP22};
@@ -36,28 +40,28 @@ pub mod router {
         }
 
         /// Returns address of a `Pair` contract instance (if exists) for
-        /// `(token_a, token_b)` pair registered in `factory` Factory instance.
+        /// `(token_0, token_1)` pair registered in `factory` Factory instance.
         #[inline]
         fn get_pair(
             &self,
-            token_a: AccountId,
-            token_b: AccountId,
+            token_0: AccountId,
+            token_1: AccountId,
         ) -> Result<AccountId, RouterError> {
             self.factory_ref()
-                .get_pair(token_a, token_b)
+                .get_pair(token_0, token_1)
                 .ok_or(RouterError::PairNotFound)
         }
 
         #[inline]
         fn get_reserves(
             &self,
-            token_a: AccountId,
-            token_b: AccountId,
+            token_0: AccountId,
+            token_1: AccountId,
         ) -> Result<(u128, u128), RouterError> {
-            ensure!(token_a != token_b, RouterError::IdenticalAddresses);
-            let pair: contract_ref!(Pair) = self.get_pair(token_a, token_b)?.into();
+            ensure!(token_0 != token_1, RouterError::IdenticalAddresses);
+            let pair: contract_ref!(Pair) = self.get_pair(token_0, token_1)?.into();
             let (reserve_0, reserve_1, _) = pair.get_reserves();
-            if token_a < token_b {
+            if token_0 < token_1 {
                 Ok((reserve_0, reserve_1))
             } else {
                 Ok((reserve_1, reserve_0))
@@ -79,38 +83,38 @@ pub mod router {
 
         fn calculate_liquidity(
             &self,
-            token_a: AccountId,
-            token_b: AccountId,
-            amount_a_desired: u128,
-            amount_b_desired: u128,
-            amount_a_min: u128,
-            amount_b_min: u128,
+            token_0: AccountId,
+            token_1: AccountId,
+            amount_0_desired: u128,
+            amount_1_desired: u128,
+            amount_0_min: u128,
+            amount_1_min: u128,
         ) -> Result<(u128, u128), RouterError> {
-            if self.get_pair(token_a, token_b).is_err() {
-                self.factory_ref().create_pair(token_a, token_b)?;
+            if self.get_pair(token_0, token_1).is_err() {
+                self.factory_ref().create_pair(token_0, token_1)?;
             };
 
-            let (reserve_a, reserve_b) = self.get_reserves(token_a, token_b)?;
+            let (reserve_0, reserve_1) = self.get_reserves(token_0, token_1)?;
 
-            if reserve_a == 0 && reserve_b == 0 {
-                return Ok((amount_a_desired, amount_b_desired));
+            if reserve_0 == 0 && reserve_1 == 0 {
+                return Ok((amount_0_desired, amount_1_desired));
             }
 
-            let amount_b_optimal = self.quote(amount_a_desired, reserve_a, reserve_b)?;
-            if amount_b_optimal <= amount_b_desired {
+            let amount_1_optimal = self.quote(amount_0_desired, reserve_0, reserve_1)?;
+            if amount_1_optimal <= amount_1_desired {
                 ensure!(
-                    amount_b_optimal >= amount_b_min,
+                    amount_1_optimal >= amount_1_min,
                     RouterError::InsufficientAmountB
                 );
-                Ok((amount_a_desired, amount_b_optimal))
+                Ok((amount_0_desired, amount_1_optimal))
             } else {
-                let amount_a_optimal = self.quote(amount_b_desired, reserve_b, reserve_a)?;
-                // amount_a_optimal <= amount_a_desired holds as amount_b_optimal > amount_b_desired
+                let amount_0_optimal = self.quote(amount_1_desired, reserve_1, reserve_0)?;
+                // amount_0_optimal <= amount_0_desired holds as amount_1_optimal > amount_1_desired
                 ensure!(
-                    amount_a_optimal >= amount_a_min,
+                    amount_0_optimal >= amount_0_min,
                     RouterError::InsufficientAmountA
                 );
-                Ok((amount_a_optimal, amount_b_desired))
+                Ok((amount_0_optimal, amount_1_desired))
             }
         }
 
@@ -140,7 +144,6 @@ pub mod router {
                 let mut pair: contract_ref!(Pair) = self.get_pair(input, output)?.into();
                 pair.call_mut()
                     .swap(amount_0_out, amount_1_out, to)
-                    .call_flags(CallFlags::default().set_allow_reentry(true))
                     .try_invoke()
                     .map_err(|_| {
                         RouterError::CrossContractCallFailed(String::from("Pair:swap"))
@@ -162,8 +165,8 @@ pub mod router {
             let mut amounts = vec![0; path.len()];
             amounts[path.len() - 1] = amount_out;
             for i in (0..path.len() - 1).rev() {
-                let (reserve_a, reserve_b) = self.get_reserves(path[i], path[i + 1])?;
-                amounts[i] = self.get_amount_in(amounts[i + 1], reserve_a, reserve_b)?;
+                let (reserve_0, reserve_1) = self.get_reserves(path[i], path[i + 1])?;
+                amounts[i] = self.get_amount_in(amounts[i + 1], reserve_0, reserve_1)?;
             }
 
             Ok(amounts)
@@ -185,8 +188,8 @@ pub mod router {
             let mut amounts = Vec::with_capacity(path.len());
             amounts.push(amount_in);
             for i in 0..path.len() - 1 {
-                let (reserve_a, reserve_b) = self.get_reserves(path[i], path[i + 1])?;
-                amounts.push(self.get_amount_out(amounts[i], reserve_a, reserve_b)?);
+                let (reserve_0, reserve_1) = self.get_reserves(path[i], path[i + 1])?;
+                amounts.push(self.get_amount_out(amounts[i], reserve_0, reserve_1)?);
             }
 
             Ok(amounts)
@@ -217,35 +220,35 @@ pub mod router {
         #[ink(message)]
         fn add_liquidity(
             &mut self,
-            token_a: AccountId,
-            token_b: AccountId,
-            amount_a_desired: u128,
-            amount_b_desired: u128,
-            amount_a_min: u128,
-            amount_b_min: u128,
+            token_0: AccountId,
+            token_1: AccountId,
+            amount_0_desired: u128,
+            amount_1_desired: u128,
+            amount_0_min: u128,
+            amount_1_min: u128,
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, u128, u128), RouterError> {
             self.check_timestamp(deadline)?;
-            let (amount_a, amount_b) = self.calculate_liquidity(
-                token_a,
-                token_b,
-                amount_a_desired,
-                amount_b_desired,
-                amount_a_min,
-                amount_b_min,
+            let (amount_0, amount_1) = self.calculate_liquidity(
+                token_0,
+                token_1,
+                amount_0_desired,
+                amount_1_desired,
+                amount_0_min,
+                amount_1_min,
             )?;
 
-            let pair_contract = self.get_pair(token_a, token_b)?;
+            let pair_contract = self.get_pair(token_0, token_1)?;
 
             let caller = self.env().caller();
-            psp22_transfer_from(token_a, caller, pair_contract, amount_a)?;
-            psp22_transfer_from(token_b, caller, pair_contract, amount_b)?;
+            psp22_transfer_from(token_0, caller, pair_contract, amount_0)?;
+            psp22_transfer_from(token_1, caller, pair_contract, amount_1)?;
 
             let mut pair: contract_ref!(Pair) = pair_contract.into();
             let liquidity = pair.mint(to)?;
 
-            Ok((amount_a, amount_b, liquidity))
+            Ok((amount_0, amount_1, liquidity))
         }
 
         #[ink(message)]
@@ -262,7 +265,7 @@ pub mod router {
             let wnative = self.wnative;
             let received_value = self.env().transferred_value();
 
-            let (amount_a, amount_native) = self.calculate_liquidity(
+            let (amount_0, amount_native) = self.calculate_liquidity(
                 token,
                 wnative,
                 amount_token_desired,
@@ -274,7 +277,7 @@ pub mod router {
             let pair_contract = self.get_pair(token, wnative)?;
 
             let caller = self.env().caller();
-            psp22_transfer_from(token, caller, pair_contract, amount_a)?;
+            psp22_transfer_from(token, caller, pair_contract, amount_0)?;
             self.wrap(amount_native)?;
             psp22_transfer(wnative, pair_contract, amount_native)?;
 
@@ -287,44 +290,42 @@ pub mod router {
                     .map_err(|_| RouterError::TransferError)?;
             }
 
-            Ok((amount_a, amount_native, liquidity))
+            Ok((amount_0, amount_native, liquidity))
         }
 
         #[ink(message)]
         fn remove_liquidity(
             &mut self,
-            token_a: AccountId,
-            token_b: AccountId,
+            token_0: AccountId,
+            token_1: AccountId,
             liquidity: u128,
-            amount_a_min: u128,
-            amount_b_min: u128,
+            amount_0_min: u128,
+            amount_1_min: u128,
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, u128), RouterError> {
             self.check_timestamp(deadline)?;
-            ensure!(token_a != token_b, RouterError::IdenticalAddresses);
-            let pair_contract = self.get_pair(token_a, token_b)?;
+            ensure!(token_0 != token_1, RouterError::IdenticalAddresses);
+            let pair_contract = self.get_pair(token_0, token_1)?;
 
             psp22_transfer_from(pair_contract, self.env().caller(), pair_contract, liquidity)?;
 
             let mut pair: contract_ref!(Pair) = pair_contract.into();
 
-            let (amount_0, amount_1) = pair
-                .call_mut()
-                .burn(to)
-                .call_flags(CallFlags::default().set_allow_reentry(true))
-                .try_invoke()
-                .map_err(|_| RouterError::CrossContractCallFailed(String::from("Pair:burn")))???;
-            let (amount_a, amount_b) = if token_a < token_b {
+            let (amount_0, amount_1) =
+                pair.call_mut().burn(to).try_invoke().map_err(|_| {
+                    RouterError::CrossContractCallFailed(String::from("Pair:burn"))
+                })???;
+            let (amount_0, amount_1) = if token_0 < token_1 {
                 (amount_0, amount_1)
             } else {
                 (amount_1, amount_0)
             };
 
-            ensure!(amount_a >= amount_a_min, RouterError::InsufficientAmountA);
-            ensure!(amount_b >= amount_b_min, RouterError::InsufficientAmountB);
+            ensure!(amount_0 >= amount_0_min, RouterError::InsufficientAmountA);
+            ensure!(amount_1 >= amount_1_min, RouterError::InsufficientAmountB);
 
-            Ok((amount_a, amount_b))
+            Ok((amount_0, amount_1))
         }
 
         #[ink(message)]
@@ -525,54 +526,54 @@ pub mod router {
         }
 
         /// Returns how much of `token_B` tokens should be added
-        /// to the pool to maintain the constant product `k = reserve_a * reserve_b`,
-        /// given `amount_a` of `token_A`.
+        /// to the pool to maintain the constant ratio `k = reserve_0 / reserve_1`,
+        /// given `amount_0` of `token_A`.
         #[ink(message)]
         fn quote(
             &self,
-            amount_a: u128,
-            reserve_a: u128,
-            reserve_b: u128,
+            amount_0: u128,
+            reserve_0: u128,
+            reserve_1: u128,
         ) -> Result<u128, RouterError> {
-            ensure!(amount_a > 0, RouterError::InsufficientAmount);
+            ensure!(amount_0 > 0, RouterError::InsufficientAmount);
             ensure!(
-                reserve_a > 0 && reserve_b > 0,
+                reserve_0 > 0 && reserve_1 > 0,
                 RouterError::InsufficientLiquidity
             );
 
-            let amount_b: u128 = casted_mul(amount_a, reserve_b)
-                .checked_div(reserve_a.into())
+            let amount_1: u128 = casted_mul(amount_0, reserve_1)
+                .checked_div(reserve_0.into())
                 .ok_or(MathError::DivByZero(6))?
                 .try_into()
                 .map_err(|_| MathError::CastOverflow(3))?;
 
-            Ok(amount_b)
+            Ok(amount_1)
         }
 
         /// Returns amount of `B` tokens received
         /// for `amount_in` of `A` tokens that maintains
-        /// the constant product of `k = reserve_a * reserve_b`.
+        /// the constant ratio of `k = reserve_0 / reserve_1`.
         #[ink(message)]
         fn get_amount_out(
             &self,
             amount_in: u128,
-            reserve_a: u128,
-            reserve_b: u128,
+            reserve_0: u128,
+            reserve_1: u128,
         ) -> Result<u128, RouterError> {
             ensure!(amount_in > 0, RouterError::InsufficientAmount);
             ensure!(
-                reserve_a > 0 && reserve_b > 0,
+                reserve_0 > 0 && reserve_1 > 0,
                 RouterError::InsufficientLiquidity
             );
 
             // Adjusts for fees paid in the `token_in`.
-            let amount_in_with_fee = casted_mul(amount_in, 997);
+            let amount_in_with_fee = casted_mul(amount_in, TRADING_FEE_ADJ_NUM);
 
             let numerator = amount_in_with_fee
-                .checked_mul(reserve_b.into())
+                .checked_mul(reserve_1.into())
                 .ok_or(MathError::MulOverflow(13))?;
 
-            let denominator = casted_mul(reserve_a, 1000)
+            let denominator = casted_mul(reserve_0, 1000)
                 .checked_add(amount_in_with_fee)
                 .ok_or(MathError::AddOverflow(2))?;
 
@@ -587,29 +588,29 @@ pub mod router {
 
         /// Returns amount of `A` tokens user has to supply
         /// to get exactly `amount_out` of `B` token while maintaining
-        /// the constant product of `k = reserve_a * reserve_b`.
+        /// the constant ratio of `k = reserve_0 / reserve_1`.
         #[ink(message)]
         fn get_amount_in(
             &self,
             amount_out: u128,
-            reserve_a: u128,
-            reserve_b: u128,
+            reserve_0: u128,
+            reserve_1: u128,
         ) -> Result<u128, RouterError> {
             ensure!(amount_out > 0, RouterError::InsufficientAmount);
             ensure!(
-                reserve_a > 0 && reserve_b > 0,
+                reserve_0 > 0 && reserve_1 > 0,
                 RouterError::InsufficientLiquidity
             );
 
-            let numerator = casted_mul(reserve_a, amount_out)
-                .checked_mul(1000.into())
+            let numerator = casted_mul(reserve_0, amount_out)
+                .checked_mul(TRADING_FEE_ADJ_DENOM.into())
                 .ok_or(MathError::MulOverflow(14))?;
 
             let denominator = casted_mul(
-                reserve_b
+                reserve_1
                     .checked_sub(amount_out)
                     .ok_or(MathError::SubUnderflow(15))?,
-                997,
+                TRADING_FEE_ADJ_NUM,
             );
 
             let amount_in: u128 = numerator

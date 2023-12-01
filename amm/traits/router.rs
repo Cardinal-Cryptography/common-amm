@@ -16,26 +16,26 @@ pub trait Router {
     #[ink(message)]
     fn wnative(&self) -> AccountId;
 
-    /// Adds liquidity to `(token_a, token_b)` pair.
+    /// Adds liquidity to `(token_0, token_1)` pair.
     ///
     /// Will add at least `*_min` amount of tokens and up to `*_desired`
-    /// while still maintaining the constant `k` product of the pair.
+    /// while still maintaining the constant `k` ratio of the pair.
     ///
     /// If successful, liquidity tokens will be minted for `to` account.
     #[ink(message)]
     fn add_liquidity(
         &mut self,
-        token_a: AccountId,
-        token_b: AccountId,
-        amount_a_desired: u128,
+        token_0: AccountId,
+        token_1: AccountId,
+        amount_0_desired: u128,
         amount_b_desired: u128,
-        amount_a_min: u128,
+        amount_0_min: u128,
         amount_b_min: u128,
         to: AccountId,
         deadline: u64,
     ) -> Result<(u128, u128, u128), RouterError>;
 
-    /// Removes `liquidity` amount of tokens from `(token_a, token_b)`
+    /// Removes `liquidity` amount of tokens from `(token_0, token_1)`
     /// pair and transfers tokens `to` account.
     ///
     /// Fails if any of the balances is lower than respective `*_min` amount.
@@ -44,10 +44,10 @@ pub trait Router {
     #[ink(message)]
     fn remove_liquidity(
         &mut self,
-        token_a: AccountId,
-        token_b: AccountId,
+        token_0: AccountId,
+        token_1: AccountId,
         liquidity: u128,
-        amount_a_min: u128,
+        amount_0_min: u128,
         amount_b_min: u128,
         to: AccountId,
         deadline: u64,
@@ -56,7 +56,7 @@ pub trait Router {
     /// Adds liquidity to `(token, native token)` pair.
     ///
     /// Will add at least `*_min` amount of tokens and up to `*_desired`
-    /// while still maintaining the constant `k` product of the pair.
+    /// while still maintaining the constant `k` ratio of the pair.
     ///
     /// If successful, liquidity tokens will be minted for `to` account.
     #[ink(message, payable)]
@@ -180,31 +180,31 @@ pub trait Router {
     ) -> Result<Vec<u128>, RouterError>;
 
     /// Returns amount of `B` tokens that have to be supplied
-    /// , with the `amount_a` amount of tokens `A, to maintain
-    /// constant `k` product of `(A, B)` token pair.
+    /// , with the `amount_0` amount of tokens `A, to maintain
+    /// constant `k` ratio of `(A, B)` token pair.
     #[ink(message)]
-    fn quote(&self, amount_a: u128, reserve_a: u128, reserve_b: u128) -> Result<u128, RouterError>;
+    fn quote(&self, amount_0: u128, reserve_0: u128, reserve_1: u128) -> Result<u128, RouterError>;
 
     /// Returns amount of `B` tokens received
     /// for `amount_in` of `A` tokens that maintains
-    /// the constant product of `reserve_a * reserve_b`.
+    /// the constant ratio of `reserve_0 / reserve_1`.
     #[ink(message)]
     fn get_amount_out(
         &self,
         amount_in: u128,
-        reserve_a: u128,
-        reserve_b: u128,
+        reserve_0: u128,
+        reserve_1: u128,
     ) -> Result<u128, RouterError>;
 
     /// Returns amount of `A` tokens user has to supply
     /// to get exactly `amount_out` of `B` token while maintaining
-    /// pool's constant product.
+    /// pool's constant ratio.
     #[ink(message)]
     fn get_amount_in(
         &self,
         amount_out: u128,
-        reserve_a: u128,
-        reserve_b: u128,
+        reserve_0: u128,
+        reserve_1: u128,
     ) -> Result<u128, RouterError>;
 
     /// Returns amounts of tokens received for `amount_in`.

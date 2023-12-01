@@ -18,15 +18,15 @@ pub trait Factory {
     #[ink(message)]
     fn pair_contract_code_hash(&self) -> Hash;
 
-    /// Creates an instance of the `Pair` contract for the `(token_a, token_b)` pair.
+    /// Creates an instance of the `Pair` contract for the `(token_0, token_1)` pair.
     /// Returns the address of the contract instance if successful.
     /// Fails if the `Pair` instance of the token pair already exists
     /// or the token pair is illegal.
     #[ink(message)]
     fn create_pair(
         &mut self,
-        token_a: AccountId,
-        token_b: AccountId,
+        token_0: AccountId,
+        token_1: AccountId,
     ) -> Result<AccountId, FactoryError>;
 
     /// Sets the address for receiving protocol's share of trading fees.
@@ -39,15 +39,15 @@ pub trait Factory {
 
     /// Returns recipient address of the trading fees.
     #[ink(message)]
-    fn fee_to(&self) -> AccountId;
+    fn fee_to(&self) -> Option<AccountId>;
 
     /// Returns account allowed to call `set_fee_to_setter`.
     #[ink(message)]
     fn fee_to_setter(&self) -> AccountId;
 
-    /// Returns address of `Pair` contract instance (if any) for `(token_a, token_b)` pair.
+    /// Returns address of `Pair` contract instance (if any) for `(token_0, token_1)` pair.
     #[ink(message)]
-    fn get_pair(&self, token_a: AccountId, token_b: AccountId) -> Option<AccountId>;
+    fn get_pair(&self, token_0: AccountId, token_1: AccountId) -> Option<AccountId>;
 }
 
 /// Errors that can be returned from calling `Factory`'s methods.

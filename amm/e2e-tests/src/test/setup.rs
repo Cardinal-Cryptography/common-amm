@@ -1,27 +1,15 @@
-use std::{
-    env,
-    future::Future,
-    str::FromStr,
-};
+use std::{env, future::Future, str::FromStr};
 
-use anyhow::{
-    anyhow,
-    Result,
-};
+use anyhow::{anyhow, Result};
 use rand::RngCore;
 use tokio::sync::OnceCell;
 
 use aleph_client::{
-    pallets::{
-        balances::BalanceUserApi,
-        system::SystemApi,
-    },
-    Balance,
-    SignedConnection,
-    TxStatus,
+    pallets::{balances::BalanceUserApi, system::SystemApi},
+    Balance, SignedConnection, TxStatus,
 };
 
-pub use amm_helpers::constants::ZERO_ADDRESS;
+pub use amm_helpers::constants::BURN_ADDRESS;
 
 pub const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:9944";
 pub const WEALTHY_SEED: &str = "//Alice";
@@ -60,7 +48,7 @@ where
     Fut: Future<Output = Result<()>>,
 {
     if let Err(e) = cell.get_or_init(upload).await {
-        return Err(anyhow!("Failed to upload contract code: {:?}", e))
+        return Err(anyhow!("Failed to upload contract code: {:?}", e));
     }
     Ok(())
 }

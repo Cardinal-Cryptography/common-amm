@@ -2,8 +2,19 @@
 
 #[ink::contract]
 pub mod pair {
+    // Numbers used in the equations below, derived from the UniswapV2 paper.
+    // They have different meaning depending on the context so please consult the WP.
+    // Adjustments made to not deal with floating point numbers.
+
+    // Whitepaper 3.2.1, equation (11)
+    const TRADING_FEE_ADJ_RESERVES: u128 = 1000;
+    const TRADING_FEE_ADJ_AMOUNTS: u128 = 3;
+
+    // Whitepaper 2.4, equation (7)
+    const PROTOCOL_FEE_ADJ_DENOM: u128 = 5;
+
     use amm_helpers::{
-        constants::{MINIMUM_LIQUIDITY, ZERO_ADDRESS},
+        constants::{BURN_ADDRESS, MINIMUM_LIQUIDITY},
         ensure,
         math::casted_mul,
         types::WrappedU256,
@@ -79,27 +90,26 @@ pub mod pair {
         pub block_timestamp_last: u64,
         pub price_0_cumulative_last: WrappedU256,
         pub price_1_cumulative_last: WrappedU256,
-        pub k_last: WrappedU256,
+        pub k_last: Option<WrappedU256>,
     }
 
-    impl Default for PairData {
-        fn default() -> Self {
+    impl PairData {
+        fn new(token_0: AccountId, token_1: AccountId, factory: AccountId) -> Self {
             Self {
-                factory: ZERO_ADDRESS.into(),
-                token_0: ZERO_ADDRESS.into(),
-                token_1: ZERO_ADDRESS.into(),
+                factory,
+                token_0,
+                token_1,
                 reserve_0: 0,
                 reserve_1: 0,
                 block_timestamp_last: 0,
-                price_0_cumulative_last: Default::default(),
-                price_1_cumulative_last: Default::default(),
-                k_last: Default::default(),
+                price_0_cumulative_last: 0.into(),
+                price_1_cumulative_last: 0.into(),
+                k_last: None,
             }
         }
     }
 
     #[ink(storage)]
-    #[derive(Default)]
     pub struct PairContract {
         psp22: PSP22Data,
         pair: PairData,
@@ -107,13 +117,12 @@ pub mod pair {
 
     impl PairContract {
         #[ink(constructor)]
-        pub fn new(token_a: AccountId, token_b: AccountId) -> Self {
-            let mut instance = Self::default();
-            let caller = instance.env().caller();
-            instance.pair.token_0 = token_a;
-            instance.pair.token_1 = token_b;
-            instance.pair.factory = caller;
-            instance
+        pub fn new(token_0: AccountId, token_1: AccountId) -> Self {
+            let pair = PairData::new(token_0, token_1, Self::env().caller());
+            Self {
+                psp22: PSP22Data::default(),
+                pair,
+            }
         }
 
         #[inline]
@@ -140,12 +149,9 @@ pub mod pair {
         }
 
         fn mint_fee(&mut self, reserve_0: u128, reserve_1: u128) -> Result<bool, PairError> {
-            let fee_to = self.factory().fee_to();
-            let fee_on = fee_to != ZERO_ADDRESS.into();
-            let k_last: U256 = self.pair.k_last.into();
-            if fee_on {
+            if let Some(fee_to) = self.factory().fee_to() {
                 // Section 2.4 Protocol fee in the whitepaper.
-                if !k_last.is_zero() {
+                if let Some(k_last) = self.pair.k_last.map(Into::<U256>::into) {
                     let root_k: u128 = casted_mul(reserve_0, reserve_1)
                         .integer_sqrt()
                         .try_into()
@@ -164,7 +170,7 @@ pub mod pair {
                             )
                             .ok_or(MathError::MulOverflow(1))?;
                         let denominator = root_k
-                            .checked_mul(5)
+                            .checked_mul(PROTOCOL_FEE_ADJ_DENOM)
                             .ok_or(MathError::MulOverflow(2))?
                             .checked_add(root_k_last)
                             .ok_or(MathError::AddOverflow(1))?;
@@ -177,10 +183,13 @@ pub mod pair {
                         }
                     }
                 }
-            } else if !k_last.is_zero() {
-                self.pair.k_last = 0.into();
+                Ok(true)
+            } else if self.pair.k_last.is_some() {
+                self.pair.k_last = None;
+                Ok(false)
+            } else {
+                Ok(false)
             }
-            Ok(fee_on)
         }
 
         fn update(
@@ -236,6 +245,16 @@ pub mod pair {
 
     impl Pair for PairContract {
         #[ink(message)]
+        fn get_factory(&self) -> AccountId {
+            self.pair.factory
+        }
+
+        #[ink(message)]
+        fn get_minimum_liquidity(&self) -> u128 {
+            MINIMUM_LIQUIDITY
+        }
+
+        #[ink(message)]
         fn get_reserves(&self) -> (u128, u128, u64) {
             (
                 self.pair.reserve_0,
@@ -277,23 +296,23 @@ pub mod pair {
                     .integer_sqrt()
                     .checked_sub(MINIMUM_LIQUIDITY)
                     .ok_or(MathError::SubUnderflow(4))?;
-                let events = self.psp22.mint(ZERO_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
+                let events = self.psp22.mint(BURN_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
                 self.emit_events(events)
             } else {
-                let liquidity_1 = amount_0_transferred
+                let liquidity_0 = amount_0_transferred
                     .checked_mul(total_supply)
                     .ok_or(MathError::MulOverflow(4))?
                     .checked_div(reserves.0)
                     .ok_or(MathError::DivByZero(2))?;
-                let liquidity_2 = amount_1_transferred
+                let liquidity_1 = amount_1_transferred
                     .checked_mul(total_supply)
                     .ok_or(MathError::MulOverflow(5))?
                     .checked_div(reserves.1)
                     .ok_or(MathError::DivByZero(3))?;
-                liquidity = if liquidity_1 < liquidity_2 {
-                    liquidity_1
+                liquidity = if liquidity_0 < liquidity_1 {
+                    liquidity_0
                 } else {
-                    liquidity_2
+                    liquidity_1
                 };
             }
 
@@ -305,7 +324,7 @@ pub mod pair {
             self.update(balance_0, balance_1, reserves.0, reserves.1)?;
 
             if fee_on {
-                self.pair.k_last = casted_mul(reserves.0, reserves.1).into();
+                self.pair.k_last = Some(casted_mul(reserves.0, reserves.1).into());
             }
 
             self.env().emit_event(Mint {
@@ -353,7 +372,7 @@ pub mod pair {
             self.update(balance_0_after, balance_1_after, reserves.0, reserves.1)?;
 
             if fee_on {
-                self.pair.k_last = casted_mul(reserves.0, reserves.1).into();
+                self.pair.k_last = Some(casted_mul(reserves.0, reserves.1).into());
             }
 
             self.env().emit_event(Burn {
@@ -396,37 +415,28 @@ pub mod pair {
             let contract = self.env().account_id();
             let (balance_0, balance_1) = self.token_balances(contract);
 
-            let amount_0_in = if balance_0
-                > reserves
-                    .0
-                    .checked_sub(amount_0_out)
-                    .ok_or(MathError::SubUnderflow(5))?
-            {
+            let liquidity_depth_0 = reserves
+                .0
+                .checked_sub(amount_0_out)
+                .ok_or(MathError::SubUnderflow(5))?;
+
+            let amount_0_in = if balance_0 > liquidity_depth_0 {
                 balance_0
-                    .checked_sub(
-                        reserves
-                            .0
-                            .checked_sub(amount_0_out)
-                            .ok_or(MathError::SubUnderflow(6))?,
-                    )
-                    .ok_or(MathError::SubUnderflow(7))?
+                    .checked_sub(liquidity_depth_0)
+                    .ok_or(MathError::SubUnderflow(6))?
             } else {
                 0
             };
-            let amount_1_in = if balance_1
-                > reserves
-                    .1
-                    .checked_sub(amount_1_out)
-                    .ok_or(MathError::SubUnderflow(8))?
-            {
+
+            let liquidity_depth_1 = reserves
+                .1
+                .checked_sub(amount_1_out)
+                .ok_or(MathError::SubUnderflow(7))?;
+
+            let amount_1_in = if balance_1 > liquidity_depth_1 {
                 balance_1
-                    .checked_sub(
-                        reserves
-                            .1
-                            .checked_sub(amount_1_out)
-                            .ok_or(MathError::SubUnderflow(9))?,
-                    )
-                    .ok_or(MathError::SubUnderflow(10))?
+                    .checked_sub(liquidity_depth_1)
+                    .ok_or(MathError::SubUnderflow(8))?
             } else {
                 0
             };
@@ -437,29 +447,29 @@ pub mod pair {
             );
 
             let balance_0_adjusted = balance_0
-                .checked_mul(1000)
+                .checked_mul(TRADING_FEE_ADJ_RESERVES)
                 .ok_or(MathError::MulOverflow(8))?
                 .checked_sub(
                     amount_0_in
-                        .checked_mul(3)
+                        .checked_mul(TRADING_FEE_ADJ_AMOUNTS)
                         .ok_or(MathError::MulOverflow(9))?,
                 )
-                .ok_or(MathError::SubUnderflow(11))?;
+                .ok_or(MathError::SubUnderflow(9))?;
             let balance_1_adjusted = balance_1
-                .checked_mul(1000)
+                .checked_mul(TRADING_FEE_ADJ_RESERVES)
                 .ok_or(MathError::MulOverflow(10))?
                 .checked_sub(
                     amount_1_in
-                        .checked_mul(3)
+                        .checked_mul(TRADING_FEE_ADJ_AMOUNTS)
                         .ok_or(MathError::MulOverflow(11))?,
                 )
-                .ok_or(MathError::SubUnderflow(12))?;
+                .ok_or(MathError::SubUnderflow(10))?;
 
             // Cast to U256 to prevent Overflow
             ensure!(
                 casted_mul(balance_0_adjusted, balance_1_adjusted)
                     >= casted_mul(reserves.0, reserves.1)
-                        .checked_mul(1000u128.pow(2).into())
+                        .checked_mul(TRADING_FEE_ADJ_RESERVES.pow(2).into())
                         .ok_or(MathError::MulOverflow(12))?,
                 PairError::KInvariantChanged
             );
@@ -486,10 +496,10 @@ pub mod pair {
             let (amount_0, amount_1) = (
                 balance_0
                     .checked_sub(reserve_0)
-                    .ok_or(MathError::SubUnderflow(13))?,
+                    .ok_or(MathError::SubUnderflow(11))?,
                 balance_1
                     .checked_sub(reserve_1)
-                    .ok_or(MathError::SubUnderflow(14))?,
+                    .ok_or(MathError::SubUnderflow(12))?,
             );
             self.token_0().transfer(to, amount_0, Vec::new())?;
             self.token_1().transfer(to, amount_1, Vec::new())?;
@@ -552,15 +562,9 @@ pub mod pair {
             value: u128,
             _data: Vec<u8>,
         ) -> Result<(), PSP22Error> {
-            let caller = self.env().caller();
-            let infinite_allowance = self.psp22.allowance(from, caller) == u128::MAX;
-            let mut events = self
+            let events = self
                 .psp22
                 .transfer_from(self.env().caller(), from, to, value)?;
-            if infinite_allowance {
-                self.psp22.approve(from, caller, u128::MAX)?;
-                events.remove(0);
-            }
             self.emit_events(events);
             Ok(())
         }

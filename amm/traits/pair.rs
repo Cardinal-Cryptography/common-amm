@@ -5,6 +5,14 @@ use psp22::PSP22Error;
 
 #[ink::trait_definition]
 pub trait Pair {
+    /// Returns address of the `Factory` contract that created this pair.
+    #[ink(message)]
+    fn get_factory(&self) -> AccountId;
+
+    /// Returns the minimum liquidity that must be minted for the add_liquidity to be valid.
+    #[ink(message)]
+    fn get_minimum_liquidity(&self) -> u128;
+
     /// Returns amounts of tokens this pair holds and a timestamp.
     ///
     /// NOTE: This does not include the tokens that were transferred to the contract
