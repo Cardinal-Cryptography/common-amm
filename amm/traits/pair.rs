@@ -95,6 +95,7 @@ pub enum PairError {
     InsufficientLiquidity,
     InsufficientInputAmount,
     InvalidTo,
+    ReservesOverflow,
 }
 
 impl From<PSP22Error> for PairError {
