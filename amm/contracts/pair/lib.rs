@@ -217,7 +217,7 @@ pub mod pair {
                     .unwrap_or_default()
                     % u32::MAX as u64,
             )
-            .unwrap(); // mod 32 is guaranteed to not exceed 2^32.
+            .unwrap(); // mod u32::MAX is guaranteed to not exceed 2^32-1
 
             // Wrapping subtraction so that the time_elapsed works correctly over the 2^32 boundary.
             // i.e. (1 - (2^32 - 1) = 2
@@ -636,7 +636,7 @@ pub mod pair {
     ) -> Result<U256, PairError> {
         // We use overflowing_add below to make the algorithm work correctly across the 2^256 boundary.
         Ok(
-            UQ112x112::from_frac(num, denom).ok_or(PairError::ReservesOverflow)? // u224.div(u224) at most 2^224
+            UQ112x112::from_frac(num, denom).ok_or(PairError::ReservesOverflow)? // u224.div(u112) at most 2^224
             .saturating_mul(time_elapsed_seconds.into()) // so 2^224 * 2^32 never overflows 2^256.
             .overflowing_add(last_price.into())
             .0, // We don't care about the overflow flag, we just want the value.
@@ -660,14 +660,19 @@ pub mod pair {
         use super::*;
 
         #[test]
+        fn consts() {
+            assert_eq!(Q112, 2u128.pow(112))
+        }
+
+        #[test]
         fn u112x112() {
             assert!(
                 UQ112x112::from_frac(Q112, 1).is_none(),
-                "Should not work with num > Q112"
+                "Should not work with num >= Q112"
             );
             assert!(
                 UQ112x112::from_frac(1, Q112).is_none(),
-                "Should not work with denom > Q112"
+                "Should not work with denom >= Q112"
             );
 
             assert_eq!(
@@ -678,6 +683,16 @@ pub mod pair {
             assert_eq!(
                 UQ112x112::from_frac(1u128, 2u128).unwrap(),
                 U256::from(Q112 / 2)
+            );
+
+            assert_eq!(
+                UQ112x112::from_frac(Q112 - 1, Q112 - 1).unwrap(), // (n * (n-1)) / (n - 1) = n
+                U256::from(Q112),
+            );
+
+            assert_eq!(
+                UQ112x112::from_frac(Q112 - 1, 1).unwrap(),
+                U256::from(2).pow(224.into()) - U256::from(Q112),
             );
         }
 
@@ -703,16 +718,40 @@ pub mod pair {
         }
 
         #[ink::test]
-        fn price_cumulative_overflows() {
-            assert!(price_cumulative(
+        fn price_cumulative_biggies() {
+            assert_eq!(
+                price_cumulative(
+                    RESERVES_UPPER_BOUND,
+                    RESERVES_UPPER_BOUND,
+                    u32::MAX,
+                    0.into(),
+                )
+                .unwrap(),
+                U256::from(2).pow(144.into()) - U256::from(2).pow(112.into())
+            );
+            let max_cumulative_without_overflow =
+                U256::MAX - U256::from(2).pow(144.into()) - U256::from(2).pow(224.into())
+                    + Q112
+                    + 1; // Add 1 since u256::MAX is 2^256-1
+            assert_eq!(
+                // max reserve 0, min reserve 1, max time elapsed.
+                // [(2^112 - 1) * 2^112] / 1 * (2^32 - 1)
+                price_cumulative(RESERVES_UPPER_BOUND, 1, u32::MAX, 0.into()).unwrap(),
+                max_cumulative_without_overflow,
+            );
+            let new_cumulative_overflow = price_cumulative(
                 RESERVES_UPPER_BOUND,
-                RESERVES_UPPER_BOUND,
+                1,
                 u32::MAX,
-                0.into(),
+                max_cumulative_without_overflow.into(),
             )
-            .is_ok());
-            assert!(price_cumulative(RESERVES_UPPER_BOUND, 1, u32::MAX, 0.into()).is_ok());
-            assert!(price_cumulative(RESERVES_UPPER_BOUND, 1, u32::MAX, U256::MAX.into()).is_ok());
+            .unwrap();
+            assert!(
+                new_cumulative_overflow < max_cumulative_without_overflow,
+                "value after overflow should be lower"
+            );
+            let diff = U256::MAX - max_cumulative_without_overflow + new_cumulative_overflow;
+            assert_eq!(diff + 1, max_cumulative_without_overflow); // +1 to account for overflow; u256::MAX = 2^256 - 1
         }
     }
 }
