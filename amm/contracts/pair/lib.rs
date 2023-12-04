@@ -2,6 +2,8 @@
 
 #[ink::contract]
 pub mod pair {
+    // 2^112
+    const Q112: u128 = 5192296858534827628530496329220096;
     // From the UniswapV2 whitepaper. Section 3.7.
     // This number is high enough to support 18-decimal-place tokens
     // with a totalSupply over 1 quadrillion.
@@ -9,7 +11,6 @@ pub mod pair {
     // must fit in U256 for swap to work correctly.
     //
     // 2^112 - 1
-    const Q112: u128 = 5192296858534827628530496329220096;
     const RESERVES_UPPER_BOUND: u128 = Q112 - 1;
 
     // Numbers used in the equations below, derived from the UniswapV2 paper.
@@ -214,23 +215,28 @@ pub mod pair {
                     .block_timestamp()
                     .checked_div(1000)
                     .unwrap_or_default()
-                    % 2u64.pow(32),
+                    % u32::MAX as u64,
             )
             .unwrap(); // mod 32 is guaranteed to not exceed 2^32.
 
-            // Wrapping subtraction so that the time_elapsed works correctly over the 2^64 boundary.
-            // i.e. (1 - (2^64 - 1) = 2
+            // Wrapping subtraction so that the time_elapsed works correctly over the 2^32 boundary.
+            // i.e. (1 - (2^32 - 1) = 2
             let time_elapsed = now_seconds.wrapping_sub(self.pair.block_timestamp_last);
             if time_elapsed > 0 && reserve_0 > 0 && reserve_1 > 0 {
-                let (price_0_cumulative_last, price_1_cumulative_last) = update_cumulative(
-                    self.pair.price_0_cumulative_last,
-                    self.pair.price_1_cumulative_last,
+                self.pair.price_0_cumulative_last = price_cumulative(
+                    reserve_1,
+                    reserve_0,
                     time_elapsed.into(),
-                    UQ112x112::encode(reserve_0).unwrap(), // We just checked in the ensure! above.
-                    UQ112x112::encode(reserve_1).unwrap(),
-                );
-                self.pair.price_0_cumulative_last = price_0_cumulative_last;
-                self.pair.price_1_cumulative_last = price_1_cumulative_last;
+                    self.pair.price_0_cumulative_last,
+                )?
+                .into();
+                self.pair.price_1_cumulative_last = price_cumulative(
+                    reserve_0,
+                    reserve_1,
+                    time_elapsed.into(),
+                    self.pair.price_1_cumulative_last,
+                )?
+                .into();
             }
             self.pair.reserve_0 = balance_0;
             self.pair.reserve_1 = balance_1;
@@ -619,59 +625,33 @@ pub mod pair {
         }
     }
 
+    // Reserves are at most 2^112 - 1.
+    // Consumer of the `price_cumulative_last` should use `overflowing_sub` to get the correct value.
     #[inline]
-    pub fn update_cumulative(
-        price_0_cumulative_last: WrappedU256,
-        price_1_cumulative_last: WrappedU256,
+    fn price_cumulative(
+        num: u128,
+        denom: u128,
         time_elapsed_seconds: u32,
-        reserve_0: UQ112x112,
-        reserve_1: UQ112x112,
-    ) -> (WrappedU256, WrappedU256) {
-        // Reserves are at most 2^112 - 1.
-        // We use overflowing_add below to make the algorithm work correctly across the 2^224 boundary.
-        // Consumer of the `price_cumulative_last` should use `overflowing_sub` to get the correct value.
-        let price_cumulative_last_0: WrappedU256 =
-            U256::from(reserve_1.div(&reserve_0)) // u224.div(u224) at most 2^224
+        last_price: WrappedU256,
+    ) -> Result<U256, PairError> {
+        // We use overflowing_add below to make the algorithm work correctly across the 2^256 boundary.
+        Ok(
+            UQ112x112::from_frac(num, denom).ok_or(PairError::ReservesOverflow)? // u224.div(u224) at most 2^224
             .saturating_mul(time_elapsed_seconds.into()) // so 2^224 * 2^32 never overflows 2^256.
-            .overflowing_add(price_0_cumulative_last.into())
-            .0 // We don't care about the overflow flag, we just want the value.
-            .into();
-        let price_cumulative_last_1: WrappedU256 = U256::from(reserve_0.div(&reserve_1))
-            .saturating_mul(time_elapsed_seconds.into())
-            .overflowing_add(price_1_cumulative_last.into())
-            .0
-            .into();
-        (price_cumulative_last_0, price_cumulative_last_1)
+            .overflowing_add(last_price.into())
+            .0, // We don't care about the overflow flag, we just want the value.
+        )
     }
 
-    #[cfg_attr(test, derive(PartialEq, Eq, Debug))]
-    pub struct UQ112x112(U256);
+    struct UQ112x112;
 
     impl UQ112x112 {
-        fn encode(reserve: u128) -> Option<Self> {
-            if reserve >= Q112 {
+        fn from_frac(num: u128, denom: u128) -> Option<U256> {
+            if num >= Q112 || denom >= Q112 {
                 None
             } else {
-                Some(Self(U256::from(reserve) << 112))
+                Some(U256::from(num).checked_mul(Q112.into()).unwrap() / U256::from(denom))
             }
-        }
-
-        fn div(&self, other: &Self) -> Self {
-            UQ112x112(self.0.checked_div(other.0).unwrap_or_default())
-        }
-    }
-
-    impl TryFrom<u128> for UQ112x112 {
-        type Error = ();
-
-        fn try_from(value: u128) -> Result<Self, Self::Error> {
-            Self::encode(value).ok_or(())
-        }
-    }
-
-    impl From<UQ112x112> for U256 {
-        fn from(value: UQ112x112) -> Self {
-            value.0
         }
     }
 
@@ -680,17 +660,25 @@ pub mod pair {
         use super::*;
 
         #[test]
-        fn u112x112_encode() {
-            let zero = 0u128;
-            let uq_zero = UQ112x112::encode(zero);
-            assert_eq!(uq_zero, Some(UQ112x112(0.into())));
+        fn u112x112() {
+            assert!(
+                UQ112x112::from_frac(Q112, 1).is_none(),
+                "Should not work with num > Q112"
+            );
+            assert!(
+                UQ112x112::from_frac(1, Q112).is_none(),
+                "Should not work with denom > Q112"
+            );
 
-            let too_much = Q112 + 1;
-            assert!(UQ112x112::encode(too_much).is_none());
+            assert_eq!(
+                UQ112x112::from_frac(1u128, 1u128).unwrap(),
+                U256::from(Q112)
+            );
 
-            let uq_100 = UQ112x112::encode(100).unwrap();
-            let uq_one = UQ112x112::encode(1).unwrap();
-            assert_eq!(uq_100.div(&uq_one), UQ112x112(100.into()));
+            assert_eq!(
+                UQ112x112::from_frac(1u128, 2u128).unwrap(),
+                U256::from(Q112 / 2)
+            );
         }
 
         #[ink::test]
@@ -703,29 +691,28 @@ pub mod pair {
         }
 
         #[ink::test]
-        fn update_cumulative_from_zero_time_elapsed() {
-            let (cumulative0, cumulative1) = update_cumulative(
-                0.into(),
-                0.into(),
-                0,
-                10.try_into().unwrap(),
-                10.try_into().unwrap(),
-            );
-            assert_eq!(cumulative0, 0.into());
-            assert_eq!(cumulative1, 0.into());
+        fn price_cumulative_from_zero_time_elapsed() {
+            let cumulative = price_cumulative(1, 1, 0, 0.into()).unwrap();
+            assert_eq!(cumulative, 0.into());
         }
 
         #[ink::test]
-        fn update_cumulative_from_one_time_elapsed() {
-            let (cumulative0, cumulative1) = update_cumulative(
+        fn price_cumulative_from_one_time_elapsed() {
+            let cumulative = price_cumulative(1, 1, 1, 0.into()).unwrap();
+            assert_eq!(cumulative, U256::from(Q112).into());
+        }
+
+        #[ink::test]
+        fn price_cumulative_overflows() {
+            assert!(price_cumulative(
+                RESERVES_UPPER_BOUND,
+                RESERVES_UPPER_BOUND,
+                u32::MAX,
                 0.into(),
-                0.into(),
-                1,
-                10.try_into().unwrap(),
-                10.try_into().unwrap(),
-            );
-            assert_eq!(cumulative0, 1.into());
-            assert_eq!(cumulative1, 1.into());
+            )
+            .is_ok());
+            assert!(price_cumulative(RESERVES_UPPER_BOUND, 1, u32::MAX, 0.into()).is_ok());
+            assert!(price_cumulative(RESERVES_UPPER_BOUND, 1, u32::MAX, U256::MAX.into()).is_ok());
         }
     }
 }
