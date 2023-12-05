@@ -215,7 +215,7 @@ pub mod pair {
                     .block_timestamp()
                     .checked_div(1000)
                     .unwrap_or_default()
-                    % u32::MAX as u64,
+                    % 2u64.pow(32),
             )
             .unwrap(); // mod u32::MAX is guaranteed to not exceed 2^32-1
 
