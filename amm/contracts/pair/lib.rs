@@ -226,14 +226,14 @@ pub mod pair {
                 self.pair.price_0_cumulative_last = price_cumulative(
                     reserve_1,
                     reserve_0,
-                    time_elapsed.into(),
+                    time_elapsed,
                     self.pair.price_0_cumulative_last,
                 )?
                 .into();
                 self.pair.price_1_cumulative_last = price_cumulative(
                     reserve_0,
                     reserve_1,
-                    time_elapsed.into(),
+                    time_elapsed,
                     self.pair.price_1_cumulative_last,
                 )?
                 .into();
