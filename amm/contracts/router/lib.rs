@@ -143,7 +143,7 @@ pub mod router {
 
                 let mut pair: contract_ref!(Pair) = self.get_pair(input, output)?.into();
                 pair.call_mut()
-                    .swap(amount_0_out, amount_1_out, to)
+                    .swap(amount_0_out, amount_1_out, to, None)
                     .try_invoke()
                     .map_err(|_| {
                         RouterError::CrossContractCallFailed(String::from("Pair:swap"))

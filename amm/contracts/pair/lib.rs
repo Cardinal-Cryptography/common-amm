@@ -35,7 +35,7 @@ pub mod pair {
     use ink::{contract_ref, prelude::vec::Vec};
     use primitive_types::U256;
     use psp22::{PSP22Data, PSP22Error, PSP22Event, PSP22};
-    use traits::{Factory, MathError, Pair, PairError};
+    use traits::{Factory, MathError, Pair, PairError, SwapCallee};
 
     #[ink(event)]
     pub struct Mint {
@@ -415,6 +415,7 @@ pub mod pair {
             amount_0_out: u128,
             amount_1_out: u128,
             to: AccountId,
+            data: Option<Vec<u8>>,
         ) -> Result<(), PairError> {
             ensure!(
                 amount_0_out > 0 || amount_1_out > 0,
@@ -430,12 +431,19 @@ pub mod pair {
             let token_1 = self.pair.token_1;
 
             ensure!(to != token_0 && to != token_1, PairError::InvalidTo);
+            // Optimistically transfer tokens.
             if amount_0_out > 0 {
                 self.token_0().transfer(to, amount_0_out, Vec::new())?;
             }
             if amount_1_out > 0 {
                 self.token_1().transfer(to, amount_1_out, Vec::new())?;
             }
+            if let Some(data) = data {
+                // Call the callback.
+                let mut swap_callee: contract_ref!(SwapCallee) = to.into();
+                swap_callee.swap_call(self.env().caller(), amount_0_out, amount_1_out, data);
+            }
+
             let contract = self.env().account_id();
             let (balance_0, balance_1) = self.token_balances(contract);
 
