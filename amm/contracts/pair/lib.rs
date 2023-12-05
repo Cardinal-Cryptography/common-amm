@@ -24,6 +24,8 @@ pub mod pair {
     // Whitepaper 2.4, equation (7)
     const PROTOCOL_FEE_ADJ_DENOM: u128 = 5;
 
+    const TWO_POW_32: u64 = 4294967296;
+
     use amm_helpers::{
         constants::{BURN_ADDRESS, MINIMUM_LIQUIDITY},
         ensure,
@@ -215,7 +217,7 @@ pub mod pair {
                     .block_timestamp()
                     .checked_div(1000)
                     .unwrap_or_default()
-                    % 2u64.pow(32),
+                    % TWO_POW_32,
             )
             .unwrap(); // mod u32::MAX is guaranteed to not exceed 2^32-1
 
