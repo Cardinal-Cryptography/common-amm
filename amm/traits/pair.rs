@@ -18,7 +18,7 @@ pub trait Pair {
     /// NOTE: This does not include the tokens that were transferred to the contract
     /// as part of the _current_ transaction.
     #[ink(message)]
-    fn get_reserves(&self) -> (u128, u128, u64);
+    fn get_reserves(&self) -> (u128, u128, u32);
 
     /// Returns cumulative prive of the first token.
     ///
