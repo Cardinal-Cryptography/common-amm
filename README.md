@@ -24,7 +24,7 @@ Apache 2.0
 
 Please note that this project contains two git submodules so the proper way to clone it will be `git clone --recurse-submodules git@github.com:Cardinal-Cryptography/common-amm.git`.
 
-If you've already cloned the repo previously and want to just update, run `git submodules --init`.
+If you've already cloned the repo previously and want to just update, run `git submodule update --init --recursive`.
 
 ##### 💫 Build
 
