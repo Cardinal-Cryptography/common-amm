@@ -7,19 +7,19 @@ There will be multiple AMM models implemented, each being the most suitable mode
 
 Currently, this repository contains the line by line implementation of [uniswap-v2 core](https://github.com/Uniswap/v2-core) and [uniswap-v2 periphery](https://github.com/Uniswap/v2-periphery). Code was adapted to match Subatrate platform and ink! language.
 
-### Purpose
+## Purpose
 
 This is an unaudited full dex implementation ready to be used.
 
-### Versions
+## Versions
 
 [ink! 4.3.0](https://github.com/paritytech/ink/tree/v4.3.0)
 
-### License
+## License
 
 Apache 2.0
 
-## 🏗️ How to use - Contracts
+### 🏗️ How to use - Contracts
 
 ##### Cloning
 
@@ -101,6 +101,6 @@ You can see a list of available `make` recipes by running:
 make help
 ```
 
-### Acknowledgement
+## Acknowledgement
 
 In the initial phases of our code repository's creation, it was developed by a team of Astar developers - @HyunggyuJang, @PierreOssun and @shunsukew. Since then, a multitude of fixes, enhancements, and alterations have been implemented to refine its functionality and address evolving needs. Through collaborative efforts and continuous improvement, the repository has undergone significant changes, paving the way for a more robust and efficient system that aligns with our current objectives.
