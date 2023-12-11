@@ -99,3 +99,7 @@ You can see a list of available `make` recipes by running:
 ```sh
 make help
 ```
+
+### Acknowledgement
+
+In the initial phases of our code repository's creation, it was developed by a team of Astar developers - @HyunggyuJang, @PierreOssun and @shunsukew. Since then, a multitude of fixes, enhancements, and alterations have been implemented to refine its functionality and address evolving needs. Through collaborative efforts and continuous improvement, the repository has undergone significant changes, paving the way for a more robust and efficient system that aligns with our current objectives.
