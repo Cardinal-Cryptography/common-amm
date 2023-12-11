@@ -5,8 +5,6 @@ This repository contains implementations of AMM DEXes written for Common product
 
 There will be multiple AMM models implemented, each being the most suitable model for a certain token pair (stablecoin pairs being created in a CFM based on Curve StableSwap, PSP22 token pair on UniswapV2, etc.)
 
-Currently, this repository contains the line by line implementation of [uniswap-v2 core](https://github.com/Uniswap/v2-core) and [uniswap-v2 periphery](https://github.com/Uniswap/v2-periphery). Code was adapted to match Subatrate platform and ink! language.
-
 ## Purpose
 
 This is an unaudited full dex implementation ready to be used.
@@ -103,4 +101,4 @@ make help
 
 ## Acknowledgement
 
-In the initial phases of our code repository's creation, it was developed by a team of Astar developers - @HyunggyuJang, @PierreOssun and @shunsukew. Since then, a multitude of fixes, enhancements, and alterations have been implemented to refine its functionality and address evolving needs. Through collaborative efforts and continuous improvement, the repository has undergone significant changes, paving the way for a more robust and efficient system that aligns with our current objectives.
+The contracts here implement a constant-product AMM based on the classical Uniswap V2 model. The initial version of the code has been developed by @HyunggyuJang, @PierreOssun and @shunsukew from Astar and was based on the Solidity implementation of UniswapV2. Since then, a multitude of fixes, enhancements, and alterations have been implemented to refine its functionality and address evolving needs. Through collaborative efforts and continuous improvement, the repository has undergone significant changes, paving the way for a more robust and efficient system that aligns with our current objectives.
