@@ -1,5 +1,6 @@
 use crate::MathError;
 use amm_helpers::types::WrappedU256;
+use ink::prelude::vec::Vec;
 use ink::{primitives::AccountId, LangError};
 use psp22::PSP22Error;
 
@@ -57,6 +58,7 @@ pub trait Pair {
         amount_0_out: u128,
         amount_1_out: u128,
         to: AccountId,
+        data: Option<Vec<u8>>,
     ) -> Result<(), PairError>;
 
     /// Skims the excess of tokens (difference between balance and reserves) and
