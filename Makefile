@@ -50,14 +50,14 @@ build-farm: ## Builds farm contracts.
 	done
 
 .PHONY: build-amm
-build-amm: ## Builds AMM contracts.
+build-amm: build-test-contracts ## Builds AMM contracts.
 	@for d in $(AMM_CONTRACTS_PATHS); do \
 	 	echo "Building $$d contract" ; \
 	 	cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
 
 .PHONY: build-all
-build-all: build-farm build-amm build-test-contracts ## Builds all contracts.
+build-all: build-farm build-amm ## Builds all contracts.
 
 .PHONY: build-test-contracts
 build-test-contracts: ## Builds contracts used in e2e-tests
@@ -70,7 +70,15 @@ build-test-contracts: ## Builds contracts used in e2e-tests
 		fi \
 	done
 
-	
+.PHONY: build-all-dockerized-subscan
+build-all-dockerized-subscan: ## Builds all contracts in Subscan's container.
+	@docker run \
+		--name subscan-builder \
+		-v "$(shell pwd)":/builds/contract \
+		-v ./target:/target \
+		quay.io/subscan-explorer/wasm-compile-build:amd64-stable-v3.2.0  \
+		make build-all
+
 .PHONY: check-farm
 check-farm: ## Runs cargo checks on farm contracts.
 	@for d in $(FARM_CONTRACTS); do \
