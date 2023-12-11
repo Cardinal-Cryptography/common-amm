@@ -1,4 +1,5 @@
-# Common AMM
+# ![Common logo](common_logo.svg "Common logo")
+
 
 This repository contains implementations of AMM DEXes written for Common product.
 
