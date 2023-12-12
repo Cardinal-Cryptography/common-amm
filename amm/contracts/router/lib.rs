@@ -251,7 +251,7 @@ pub mod router {
             Ok((amount_0, amount_1, liquidity))
         }
 
-        #[ink(message)]
+        #[ink(message, payable)]
         fn add_liquidity_native(
             &mut self,
             token: AccountId,
@@ -407,7 +407,7 @@ pub mod router {
             Ok(amounts)
         }
 
-        #[ink(message)]
+        #[ink(message, payable)]
         fn swap_exact_native_for_tokens(
             &mut self,
             amount_out_min: u128,
@@ -496,7 +496,7 @@ pub mod router {
             Ok(amounts)
         }
 
-        #[ink(message)]
+        #[ink(message, payable)]
         fn swap_native_for_exact_tokens(
             &mut self,
             amount_out: u128,
