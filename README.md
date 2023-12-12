@@ -12,6 +12,7 @@ This is an unaudited full dex implementation ready to be used.
 ## Versions
 
 [ink! 4.3.0](https://github.com/paritytech/ink/tree/v4.3.0)
+`cargo-contract` in version `3.2.0`
 
 ## License
 
