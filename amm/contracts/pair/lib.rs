@@ -2,6 +2,17 @@
 
 #[ink::contract]
 pub mod pair {
+    // 2^112
+    const Q112: u128 = 5192296858534827628530496329220096;
+    // From the UniswapV2 whitepaper. Section 3.7.
+    // This number is high enough to support 18-decimal-place tokens
+    // with a totalSupply over 1 quadrillion.
+    // RESERVES_UPPER_BOUND cannot be u128::MAX because reserve_0*1000*reserve_1*1000
+    // must fit in U256 for swap to work correctly.
+    //
+    // 2^112 - 1
+    const RESERVES_UPPER_BOUND: u128 = Q112 - 1;
+
     // Numbers used in the equations below, derived from the UniswapV2 paper.
     // They have different meaning depending on the context so please consult the WP.
     // Adjustments made to not deal with floating point numbers.
@@ -13,6 +24,8 @@ pub mod pair {
     // Whitepaper 2.4, equation (7)
     const PROTOCOL_FEE_ADJ_DENOM: u128 = 5;
 
+    const TWO_POW_32: u64 = 4294967296;
+
     use amm_helpers::{
         constants::{BURN_ADDRESS, MINIMUM_LIQUIDITY},
         ensure,
@@ -22,8 +35,7 @@ pub mod pair {
     use ink::{contract_ref, prelude::vec::Vec};
     use primitive_types::U256;
     use psp22::{PSP22Data, PSP22Error, PSP22Event, PSP22};
-    use sp_arithmetic::{traits::IntegerSquareRoot, FixedPointNumber, FixedU128};
-    use traits::{Factory, MathError, Pair, PairError};
+    use traits::{Factory, MathError, Pair, PairError, SwapCallee};
 
     #[ink(event)]
     pub struct Mint {
@@ -87,7 +99,7 @@ pub mod pair {
         pub token_1: AccountId,
         pub reserve_0: u128,
         pub reserve_1: u128,
-        pub block_timestamp_last: u64,
+        pub block_timestamp_last: u32,
         pub price_0_cumulative_last: WrappedU256,
         pub price_1_cumulative_last: WrappedU256,
         pub k_last: Option<WrappedU256>,
@@ -152,16 +164,10 @@ pub mod pair {
             if let Some(fee_to) = self.factory().fee_to() {
                 // Section 2.4 Protocol fee in the whitepaper.
                 if let Some(k_last) = self.pair.k_last.map(Into::<U256>::into) {
-                    let root_k: u128 = casted_mul(reserve_0, reserve_1)
-                        .integer_sqrt()
-                        .try_into()
-                        .map_err(|_| MathError::CastOverflow(1))?;
-                    let root_k_last = k_last
-                        .integer_sqrt()
-                        .try_into()
-                        .map_err(|_| MathError::CastOverflow(2))?;
+                    let root_k: U256 = casted_mul(reserve_0, reserve_1).integer_sqrt();
+                    let root_k_last = k_last.integer_sqrt();
                     if root_k > root_k_last {
-                        let total_supply = self.psp22.total_supply();
+                        let total_supply: U256 = self.psp22.total_supply().into();
                         let numerator = total_supply
                             .checked_mul(
                                 root_k
@@ -170,13 +176,15 @@ pub mod pair {
                             )
                             .ok_or(MathError::MulOverflow(1))?;
                         let denominator = root_k
-                            .checked_mul(PROTOCOL_FEE_ADJ_DENOM)
+                            .checked_mul(PROTOCOL_FEE_ADJ_DENOM.into())
                             .ok_or(MathError::MulOverflow(2))?
                             .checked_add(root_k_last)
                             .ok_or(MathError::AddOverflow(1))?;
-                        let liquidity = numerator
+                        let liquidity: u128 = numerator
                             .checked_div(denominator)
-                            .ok_or(MathError::DivByZero(1))?;
+                            .ok_or(MathError::DivByZero(1))?
+                            .try_into()
+                            .map_err(|_| MathError::CastOverflow(1))?;
                         if liquidity > 0 {
                             let events = self.psp22.mint(fee_to, liquidity)?;
                             self.emit_events(events)
@@ -199,22 +207,42 @@ pub mod pair {
             reserve_0: u128,
             reserve_1: u128,
         ) -> Result<(), PairError> {
-            let now = Self::env().block_timestamp();
-            let last_timestamp = self.pair.block_timestamp_last;
-            if now != last_timestamp {
-                let (price_0_cumulative_last, price_1_cumulative_last) = update_cumulative(
+            ensure!(
+                balance_0 <= RESERVES_UPPER_BOUND && balance_1 <= RESERVES_UPPER_BOUND,
+                PairError::ReservesOverflow
+            );
+
+            let now_seconds = u32::try_from(
+                self.env()
+                    .block_timestamp()
+                    .checked_div(1000)
+                    .unwrap_or_default()
+                    % TWO_POW_32,
+            )
+            .unwrap(); // mod u32::MAX is guaranteed to not exceed 2^32-1
+
+            // Wrapping subtraction so that the time_elapsed works correctly over the 2^32 boundary.
+            // i.e. (1 - (2^32 - 1) = 2
+            let time_elapsed = now_seconds.wrapping_sub(self.pair.block_timestamp_last);
+            if time_elapsed > 0 && reserve_0 > 0 && reserve_1 > 0 {
+                self.pair.price_0_cumulative_last = price_cumulative(
+                    reserve_1,
+                    reserve_0,
+                    time_elapsed,
                     self.pair.price_0_cumulative_last,
-                    self.pair.price_1_cumulative_last,
-                    now.saturating_sub(last_timestamp).into(),
+                )?
+                .into();
+                self.pair.price_1_cumulative_last = price_cumulative(
                     reserve_0,
                     reserve_1,
-                );
-                self.pair.price_0_cumulative_last = price_0_cumulative_last;
-                self.pair.price_1_cumulative_last = price_1_cumulative_last;
+                    time_elapsed,
+                    self.pair.price_1_cumulative_last,
+                )?
+                .into();
             }
             self.pair.reserve_0 = balance_0;
             self.pair.reserve_1 = balance_1;
-            self.pair.block_timestamp_last = now;
+            self.pair.block_timestamp_last = now_seconds;
 
             self.env().emit_event(Sync {
                 reserve_0: balance_0,
@@ -255,7 +283,7 @@ pub mod pair {
         }
 
         #[ink(message)]
-        fn get_reserves(&self) -> (u128, u128, u64) {
+        fn get_reserves(&self) -> (u128, u128, u32) {
             (
                 self.pair.reserve_0,
                 self.pair.reserve_1,
@@ -287,34 +315,30 @@ pub mod pair {
             let fee_on = self.mint_fee(reserves.0, reserves.1)?;
             let total_supply = self.psp22.total_supply();
 
-            let liquidity;
-            if total_supply == 0 {
-                let liq = amount_0_transferred
-                    .checked_mul(amount_1_transferred)
-                    .ok_or(MathError::MulOverflow(3))?;
-                liquidity = liq
-                    .integer_sqrt()
+            let liquidity = if total_supply == 0 {
+                let liq = casted_mul(amount_0_transferred, amount_1_transferred);
+                let liquidity: u128 = u128::try_from(liq.integer_sqrt())
+                    .map_err(|_| MathError::CastOverflow(2))?
                     .checked_sub(MINIMUM_LIQUIDITY)
                     .ok_or(MathError::SubUnderflow(4))?;
                 let events = self.psp22.mint(BURN_ADDRESS.into(), MINIMUM_LIQUIDITY)?;
-                self.emit_events(events)
+                self.emit_events(events);
+                liquidity
             } else {
-                let liquidity_0 = amount_0_transferred
-                    .checked_mul(total_supply)
-                    .ok_or(MathError::MulOverflow(4))?
-                    .checked_div(reserves.0)
-                    .ok_or(MathError::DivByZero(2))?;
-                let liquidity_1 = amount_1_transferred
-                    .checked_mul(total_supply)
-                    .ok_or(MathError::MulOverflow(5))?
-                    .checked_div(reserves.1)
-                    .ok_or(MathError::DivByZero(3))?;
-                liquidity = if liquidity_0 < liquidity_1 {
-                    liquidity_0
-                } else {
-                    liquidity_1
-                };
-            }
+                let liquidity_0: u128 = casted_mul(amount_0_transferred, total_supply)
+                    .checked_div(reserves.0.into())
+                    .ok_or(MathError::DivByZero(2))?
+                    .try_into()
+                    .map_err(|_| MathError::CastOverflow(3))?;
+
+                let liquidity_1 = casted_mul(amount_1_transferred, total_supply)
+                    .checked_div(reserves.1.into())
+                    .ok_or(MathError::DivByZero(3))?
+                    .try_into()
+                    .map_err(|_| MathError::CastOverflow(4))?;
+
+                liquidity_0.min(liquidity_1)
+            };
 
             ensure!(liquidity > 0, PairError::InsufficientLiquidityMinted);
 
@@ -344,17 +368,17 @@ pub mod pair {
             let liquidity = self.balance_of(contract);
 
             let fee_on = self.mint_fee(reserves.0, reserves.1)?;
-            let total_supply = self.psp22.total_supply();
-            let amount_0 = liquidity
-                .checked_mul(balance_0_before)
-                .ok_or(MathError::MulOverflow(6))?
+            let total_supply = self.psp22.total_supply().into();
+            let amount_0 = casted_mul(liquidity, balance_0_before)
                 .checked_div(total_supply)
-                .ok_or(MathError::DivByZero(4))?;
-            let amount_1 = liquidity
-                .checked_mul(balance_1_before)
-                .ok_or(MathError::MulOverflow(7))?
+                .ok_or(MathError::DivByZero(4))?
+                .try_into()
+                .map_err(|_| MathError::CastOverflow(5))?;
+            let amount_1 = casted_mul(liquidity, balance_1_before)
                 .checked_div(total_supply)
-                .ok_or(MathError::DivByZero(5))?;
+                .ok_or(MathError::DivByZero(5))?
+                .try_into()
+                .map_err(|_| MathError::CastOverflow(6))?;
 
             ensure!(
                 amount_0 > 0 && amount_1 > 0,
@@ -391,6 +415,7 @@ pub mod pair {
             amount_0_out: u128,
             amount_1_out: u128,
             to: AccountId,
+            data: Option<Vec<u8>>,
         ) -> Result<(), PairError> {
             ensure!(
                 amount_0_out > 0 || amount_1_out > 0,
@@ -406,12 +431,19 @@ pub mod pair {
             let token_1 = self.pair.token_1;
 
             ensure!(to != token_0 && to != token_1, PairError::InvalidTo);
+            // Optimistically transfer tokens.
             if amount_0_out > 0 {
                 self.token_0().transfer(to, amount_0_out, Vec::new())?;
             }
             if amount_1_out > 0 {
                 self.token_1().transfer(to, amount_1_out, Vec::new())?;
             }
+            if let Some(data) = data {
+                // Call the callback.
+                let mut swap_callee: contract_ref!(SwapCallee) = to.into();
+                swap_callee.swap_call(self.env().caller(), amount_0_out, amount_1_out, data);
+            }
+
             let contract = self.env().account_id();
             let (balance_0, balance_1) = self.token_balances(contract);
 
@@ -448,20 +480,20 @@ pub mod pair {
 
             let balance_0_adjusted = balance_0
                 .checked_mul(TRADING_FEE_ADJ_RESERVES)
-                .ok_or(MathError::MulOverflow(8))?
+                .ok_or(MathError::MulOverflow(3))?
                 .checked_sub(
                     amount_0_in
                         .checked_mul(TRADING_FEE_ADJ_AMOUNTS)
-                        .ok_or(MathError::MulOverflow(9))?,
+                        .ok_or(MathError::MulOverflow(4))?,
                 )
                 .ok_or(MathError::SubUnderflow(9))?;
             let balance_1_adjusted = balance_1
                 .checked_mul(TRADING_FEE_ADJ_RESERVES)
-                .ok_or(MathError::MulOverflow(10))?
+                .ok_or(MathError::MulOverflow(5))?
                 .checked_sub(
                     amount_1_in
                         .checked_mul(TRADING_FEE_ADJ_AMOUNTS)
-                        .ok_or(MathError::MulOverflow(11))?,
+                        .ok_or(MathError::MulOverflow(6))?,
                 )
                 .ok_or(MathError::SubUnderflow(10))?;
 
@@ -470,7 +502,7 @@ pub mod pair {
                 casted_mul(balance_0_adjusted, balance_1_adjusted)
                     >= casted_mul(reserves.0, reserves.1)
                         .checked_mul(TRADING_FEE_ADJ_RESERVES.pow(2).into())
-                        .ok_or(MathError::MulOverflow(12))?,
+                        .ok_or(MathError::MulOverflow(7))?,
                 PairError::KInvariantChanged
             );
 
@@ -603,37 +635,76 @@ pub mod pair {
         }
     }
 
+    // Reserves are at most 2^112 - 1.
+    // Consumer of the `price_cumulative_last` should use `overflowing_sub` to get the correct value.
     #[inline]
-    pub fn update_cumulative(
-        price_0_cumulative_last: WrappedU256,
-        price_1_cumulative_last: WrappedU256,
-        time_elapsed: U256,
-        reserve_0: u128,
-        reserve_1: u128,
-    ) -> (WrappedU256, WrappedU256) {
-        let price_cumulative_last_0: WrappedU256 = U256::from(
-            FixedU128::checked_from_rational(reserve_1, reserve_0)
-                .unwrap_or_default()
-                .into_inner(),
+    fn price_cumulative(
+        num: u128,
+        denom: u128,
+        time_elapsed_seconds: u32,
+        last_price: WrappedU256,
+    ) -> Result<U256, PairError> {
+        // We use overflowing_add below to make the algorithm work correctly across the 2^256 boundary.
+        Ok(
+            UQ112x112::from_frac(num, denom).ok_or(PairError::ReservesOverflow)? // u224.div(u112) at most 2^224
+            .saturating_mul(time_elapsed_seconds.into()) // so 2^224 * 2^32 never overflows 2^256.
+            .overflowing_add(last_price.into())
+            .0, // We don't care about the overflow flag, we just want the value.
         )
-        .saturating_mul(time_elapsed)
-        .saturating_add(price_0_cumulative_last.into())
-        .into();
-        let price_cumulative_last_1: WrappedU256 = U256::from(
-            FixedU128::checked_from_rational(reserve_0, reserve_1)
-                .unwrap_or_default()
-                .into_inner(),
-        )
-        .saturating_mul(time_elapsed)
-        .saturating_add(price_1_cumulative_last.into())
-        .into();
-        (price_cumulative_last_0, price_cumulative_last_1)
+    }
+
+    struct UQ112x112;
+
+    impl UQ112x112 {
+        fn from_frac(num: u128, denom: u128) -> Option<U256> {
+            if num >= Q112 || denom >= Q112 {
+                None
+            } else {
+                Some(U256::from(num).checked_mul(Q112.into()).unwrap() / U256::from(denom))
+            }
+        }
     }
 
     #[cfg(test)]
     mod tests {
         use super::*;
-        use sp_arithmetic::FixedU128;
+
+        #[test]
+        fn consts() {
+            assert_eq!(Q112, 2u128.pow(112))
+        }
+
+        #[test]
+        fn u112x112() {
+            assert!(
+                UQ112x112::from_frac(Q112, 1).is_none(),
+                "Should not work with num >= Q112"
+            );
+            assert!(
+                UQ112x112::from_frac(1, Q112).is_none(),
+                "Should not work with denom >= Q112"
+            );
+
+            assert_eq!(
+                UQ112x112::from_frac(1u128, 1u128).unwrap(),
+                U256::from(Q112)
+            );
+
+            assert_eq!(
+                UQ112x112::from_frac(1u128, 2u128).unwrap(),
+                U256::from(Q112 / 2)
+            );
+
+            assert_eq!(
+                UQ112x112::from_frac(Q112 - 1, Q112 - 1).unwrap(), // (n * (n-1)) / (n - 1) = n
+                U256::from(Q112),
+            );
+
+            assert_eq!(
+                UQ112x112::from_frac(Q112 - 1, 1).unwrap(),
+                U256::from(2).pow(224.into()) - U256::from(Q112),
+            );
+        }
 
         #[ink::test]
         fn initialize_works() {
@@ -645,25 +716,52 @@ pub mod pair {
         }
 
         #[ink::test]
-        fn update_cumulative_from_zero_time_elapsed() {
-            let (cumulative0, cumulative1) =
-                update_cumulative(0.into(), 0.into(), 0.into(), 10, 10);
-            assert_eq!(cumulative0, 0.into());
-            assert_eq!(cumulative1, 0.into());
+        fn price_cumulative_from_zero_time_elapsed() {
+            let cumulative = price_cumulative(1, 1, 0, 0.into()).unwrap();
+            assert_eq!(cumulative, 0.into());
         }
 
         #[ink::test]
-        fn update_cumulative_from_one_time_elapsed() {
-            let (cumulative0, cumulative1) =
-                update_cumulative(0.into(), 0.into(), 1.into(), 10, 10);
+        fn price_cumulative_from_one_time_elapsed() {
+            let cumulative = price_cumulative(1, 1, 1, 0.into()).unwrap();
+            assert_eq!(cumulative, U256::from(Q112).into());
+        }
+
+        #[ink::test]
+        fn price_cumulative_biggies() {
             assert_eq!(
-                FixedU128::from_inner(U256::from(cumulative0).as_u128()),
-                1.into()
+                price_cumulative(
+                    RESERVES_UPPER_BOUND,
+                    RESERVES_UPPER_BOUND,
+                    u32::MAX,
+                    0.into(),
+                )
+                .unwrap(),
+                U256::from(2).pow(144.into()) - U256::from(2).pow(112.into())
             );
+            let max_cumulative_without_overflow =
+                U256::MAX - U256::from(2).pow(144.into()) - U256::from(2).pow(224.into())
+                    + Q112
+                    + 1; // Add 1 since u256::MAX is 2^256-1
             assert_eq!(
-                FixedU128::from_inner(U256::from(cumulative1).as_u128()),
-                1.into()
+                // max reserve 0, min reserve 1, max time elapsed.
+                // [(2^112 - 1) * 2^112] / 1 * (2^32 - 1)
+                price_cumulative(RESERVES_UPPER_BOUND, 1, u32::MAX, 0.into()).unwrap(),
+                max_cumulative_without_overflow,
             );
+            let new_cumulative_overflow = price_cumulative(
+                RESERVES_UPPER_BOUND,
+                1,
+                u32::MAX,
+                max_cumulative_without_overflow.into(),
+            )
+            .unwrap();
+            assert!(
+                new_cumulative_overflow < max_cumulative_without_overflow,
+                "value after overflow should be lower"
+            );
+            let diff = U256::MAX - max_cumulative_without_overflow + new_cumulative_overflow;
+            assert_eq!(diff + 1, max_cumulative_without_overflow); // +1 to account for overflow; u256::MAX = 2^256 - 1
         }
     }
 }

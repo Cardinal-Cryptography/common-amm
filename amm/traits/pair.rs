@@ -1,5 +1,6 @@
 use crate::MathError;
 use amm_helpers::types::WrappedU256;
+use ink::prelude::vec::Vec;
 use ink::{primitives::AccountId, LangError};
 use psp22::PSP22Error;
 
@@ -18,7 +19,7 @@ pub trait Pair {
     /// NOTE: This does not include the tokens that were transferred to the contract
     /// as part of the _current_ transaction.
     #[ink(message)]
-    fn get_reserves(&self) -> (u128, u128, u64);
+    fn get_reserves(&self) -> (u128, u128, u32);
 
     /// Returns cumulative prive of the first token.
     ///
@@ -57,6 +58,7 @@ pub trait Pair {
         amount_0_out: u128,
         amount_1_out: u128,
         to: AccountId,
+        data: Option<Vec<u8>>,
     ) -> Result<(), PairError>;
 
     /// Skims the excess of tokens (difference between balance and reserves) and
@@ -95,6 +97,7 @@ pub enum PairError {
     InsufficientLiquidity,
     InsufficientInputAmount,
     InvalidTo,
+    ReservesOverflow,
 }
 
 impl From<PSP22Error> for PairError {
