@@ -1,4 +1,4 @@
-import Token from '../../types/contracts/psp22_token';
+import Token from '../../types/contracts/psp22';
 import Router from '../../types/contracts/router_contract';
 import { DEADLINE, ONE_THOUSAND_WAZERO } from './constants';
 import { Addresses } from './shared';

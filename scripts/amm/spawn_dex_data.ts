@@ -1,6 +1,6 @@
 import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
-import Token_factory from '../../types/constructors/psp22_token';
-import Token from '../../types/contracts/psp22_token'
+import Token_factory from '../../types/constructors/psp22';
+import Token from '../../types/contracts/psp22'
 import * as psp22 from './token';
 import {DEADLINE} from './constants';
 import {parseUnits} from './shared';
@@ -11,7 +11,7 @@ import BN from 'bn.js';
 console.log('Setting up tokens on', process.env.WS_NODE)
 
 const WAZERO_DECIMALS = 12
-const POSSIBLE_DECIMALS = [10, 12/*, 15, 18 TODO: uncomment once overflows are fixed on backend: https://cardinal-cryptography.atlassian.net/browse/A0-3545 */]
+const POSSIBLE_DECIMALS = [10, 12, 15, 18]
 const NUMBER_OF_DIFFERENT_TOTAL_TOKEN_SUPPLY_LEVELS = 8
 const TOKENS_DATA = [
   { symbol: 'CRC', name: 'Circle', },
