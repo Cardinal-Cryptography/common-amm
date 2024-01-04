@@ -2,7 +2,6 @@
 
 #[ink::contract]
 mod farm {
-
     type TokenId = AccountId;
     type UserId = AccountId;
     use amm_helpers::{math::casted_mul, types::WrappedU256};
@@ -78,6 +77,7 @@ mod farm {
         /// cumulative_per_share at the last update for each user.
         pub user_cumulative_reward_last_update: Mapping<UserId, Vec<WrappedU256>>,
 
+        // Missing documentation
         pub user_claimable_rewards: Mapping<UserId, Vec<u128>>,
     }
 
@@ -101,6 +101,7 @@ mod farm {
                 end: 0,
                 timestamp_at_last_update: 0,
                 farm_distributed_unclaimed_rewards: vec![0; n_reward_tokens],
+                // I am a bit biased against using defaults, but it's correct, so non-important.
                 farm_cumulative_reward_per_share: vec![WrappedU256::default(); n_reward_tokens],
                 farm_reward_rates: vec![0; n_reward_tokens],
                 user_cumulative_reward_last_update: Mapping::default(),
@@ -122,6 +123,7 @@ mod farm {
 
             let prev = core::cmp::max(self.timestamp_at_last_update, self.start);
             let now = core::cmp::min(current_timestamp, self.end);
+            // right side of this alternative will never happen, because of the check above
             if prev >= now || self.timestamp_at_last_update == current_timestamp {
                 self.timestamp_at_last_update = current_timestamp;
                 return Ok(());
@@ -130,6 +132,7 @@ mod farm {
             // At this point we know [prev, now] is the intersection of [self.start, self.end] and [self.timestamp_at_last_update, current_timestamp]
             // It is non-empty because of the checks above and self.start <= now <= self.end
 
+            // why enumerate instead of 0..self.reward_tokens.len()?
             for (idx, _) in self.reward_tokens.iter().enumerate() {
                 let delta_reward_per_share = rewards_per_share_in_time_interval(
                     self.farm_reward_rates[idx],
@@ -150,7 +153,6 @@ mod farm {
             }
 
             self.timestamp_at_last_update = current_timestamp;
-
             Ok(())
         }
 
@@ -197,20 +199,20 @@ mod farm {
             rewards: Vec<u128>,
         ) -> Result<Vec<u128>, FarmError> {
             let now = Self::env().block_timestamp();
+            let tokens_len = self.reward_tokens.len();
 
-            if start <= self.timestamp_at_last_update
-                || now >= end
-                || rewards.len() != self.reward_tokens.len()
-            {
+            // Do we also want to check that start >= now?
+            if start <= self.timestamp_at_last_update || now >= end || rewards.len() != tokens_len {
                 return Err(FarmError::InvalidFarmStartParams);
             }
 
-            let duration = end as u128 - now as u128;
-
-            let tokens_len = self.reward_tokens.len();
+            // This substraction should be "checked"
+            // It's important that we substract "start" and not "now"
+            let duration = end as u128 - start as u128;
             let mut reward_rates = Vec::with_capacity(tokens_len);
 
             for (token_id, reward_amount) in self.reward_tokens.iter().zip(rewards.iter()) {
+                // Why can't we start a farm with 0 rewards for one of the tokens?
                 if *reward_amount == 0 {
                     return Err(FarmError::InvalidFarmStartParams);
                 }
@@ -228,6 +230,8 @@ mod farm {
                     .checked_div(duration)
                     .ok_or(FarmError::InvalidFarmStartParams)?;
 
+                // This also prevents giving zero rewards for any token.
+                // It would perhaps make more sense to just check if sum of all reward rates is positive
                 if reward_rate == 0 {
                     return Err(FarmError::InvalidFarmStartParams);
                 }
@@ -239,6 +243,7 @@ mod farm {
 
         fn deposit(&mut self, account: AccountId, amount: u128) -> Result<(), FarmError> {
             if amount == 0 {
+                // that's a very confusing error
                 return Err(FarmError::PSP22Error(PSP22Error::InsufficientBalance));
             }
             self.update()?;
@@ -262,6 +267,7 @@ mod farm {
             self.pool_id
         }
 
+        // wouldn't just "total_shares" be a better name, "total_supply" might suggest that farm has its own token?
         #[ink(message)]
         fn total_supply(&self) -> u128 {
             self.total_shares
@@ -319,6 +325,8 @@ mod farm {
             assert!(self.pool_id != token);
             let mut token_ref = token.into();
 
+            // To me it seems that both "safe" calls in this functions should fail when the error arises.
+            // Effect is actually the same, but returning that the call was succesfull might be misleading
             let balance: Balance = safe_balance_of(&token_ref, self.env().account_id());
             let balance =
                 if let Some(token_index) = self.reward_tokens.iter().position(|&t| t == token) {
@@ -346,6 +354,10 @@ mod farm {
                 if user_reward > 0 {
                     let mut psp22_ref: ink::contract_ref!(PSP22) = self.reward_tokens[idx].into();
                     self.farm_distributed_unclaimed_rewards[idx] -= user_reward;
+                    // Here we have changed farm_distributed_unchanged_rewards, so we shouldn't just ignore the result of the call
+                    // I see two alternatives:
+                    // - match on the result of the call and don't change storage if the call fails, however that would require us to some data back to "user_claimable_rewards"
+                    // - replace this call with "claim_reward" which would only transfer the reward for the given token
                     safe_transfer(&mut psp22_ref, account, user_reward);
                 }
             }
@@ -372,6 +384,7 @@ mod farm {
         fn deposit_all(&mut self) -> Result<(), FarmError> {
             let account = self.env().caller();
             let pool: contract_ref!(PSP22) = self.pool_id.into();
+            // Why wouldn't we want to fail here? When "balance_of" fails here, then this is an noop, but will be reported as success.
             let amount = safe_balance_of(&pool, account);
             self.deposit(account, amount)?;
             FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
@@ -390,6 +403,7 @@ mod farm {
                 self.shares.insert(account, &new_shares);
                 self.total_shares -= amount;
             } else {
+                // That suggests insufficient token balance for some on-chain account, when in fact it's insufficent shares (which are tokens, but with balance tracked in the farm contract).
                 return Err(PSP22Error::InsufficientBalance.into());
             }
 
@@ -412,6 +426,7 @@ mod farm {
         }
     }
 
+    // Would suggest adding some explanation why we want this.
     pub fn safe_transfer(psp22: &mut contract_ref!(PSP22), recipient: AccountId, amount: u128) {
         match psp22
             .call_mut()
@@ -453,6 +468,7 @@ mod farm {
         from_timestamp: u128,
         to_timestamp: u128,
     ) -> Result<U256, MathError> {
+        // wouldn't right side `from_timestamp >= to_timestamp` make slightly more sense?
         if total_shares == 0 || from_timestamp > to_timestamp {
             return Ok(0.into());
         }
@@ -478,6 +494,7 @@ mod farm {
             .checked_mul(U256::from(shares))
             .ok_or(MathError::Overflow)?
             .checked_div(U256::from(SCALING_FACTOR))
+            // this is not an overflow, but a division by zero, no? (which shouldn't ever happen)
             .ok_or(MathError::Overflow)?
             .try_into()
             .map_err(|_| MathError::CastOverflow)

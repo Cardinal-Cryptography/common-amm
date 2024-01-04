@@ -13,6 +13,7 @@ pub enum FarmError {
     CallerNotOwner,
     ArithmeticError(MathError),
     CallerNotFarmer,
+    // Feel like this error is very generic, and does not really help in identyfying the problem.
     InvalidFarmStartParams,
 }
 
@@ -23,6 +24,7 @@ pub struct FarmDetails {
     pub start: u64,
     pub end: u64,
     pub reward_tokens: Vec<AccountId>,
+    // It's not obvious what it is just from a name, we might want to have a comment on that.
     pub reward_rates: Vec<u128>,
 }
 
@@ -52,10 +54,12 @@ pub trait Farm {
     #[ink(message)]
     fn balance_of(&self, account: AccountId) -> u128;
 
+    // This is a bit confusing, because withdrawing "from" caller could imply that tokens are taken from his account.
     /// Withdraws `amount` of shares from caller.
     #[ink(message)]
     fn withdraw(&mut self, amount: u128) -> Result<(), FarmError>;
 
+    // Also, it's not clear from the comment what exactly happens here, as "account" usually means on-chain account in which funds are stored.
     /// Deposits `amount` of shares under caller's account.
     #[ink(message)]
     fn deposit(&mut self, amount: u128) -> Result<(), FarmError>;
@@ -68,9 +72,12 @@ pub trait Farm {
     #[ink(message)]
     fn reward_tokens(&self) -> Vec<AccountId>;
 
+    // Don't we want descriptions for these methods?
+    // They won't be used by the avarage user, so I guess it's not required, but stull would be nice to have (as somebody might want to create his own farm).
     #[ink(message)]
     fn owner_start_new_farm(
         &mut self,
+        // In implementation, these are `Timestamp`, maybe we should have the same type in both places?
         start: u64,
         end: u64,
         rewards: Vec<u128>,
