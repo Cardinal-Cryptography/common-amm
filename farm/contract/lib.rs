@@ -322,18 +322,17 @@ mod farm {
 
             // Owner should be able to withdraw every token except the pool token.
             ensure!(self.pool_id != token, FarmError::RewardTokenIsPoolToken);
-            let mut token_ref = token.into();
+            let mut token_ref: contract_ref!(PSP22) = token.into();
 
-            // To me it seems that both "safe" calls in this functions should fail when the error arises.
-            // Effect is actually the same, but returning that the call was succesfull might be misleading
-            let balance: Balance = safe_balance_of(&token_ref, self.env().account_id());
-            let balance =
-                if let Some(token_index) = self.reward_tokens.iter().position(|&t| t == token) {
-                    balance.saturating_sub(self.farm_distributed_unclaimed_rewards[token_index])
-                } else {
-                    balance
-                };
-            safe_transfer(&mut token_ref, self.owner, balance);
+            let total_balance = token_ref.balance_of(self.env().account_id());
+            let undistributed_balance = if let Some(token_index) =
+                self.reward_tokens.iter().position(|&t| t == token)
+            {
+                total_balance.saturating_sub(self.farm_distributed_unclaimed_rewards[token_index])
+            } else {
+                total_balance
+            };
+            token_ref.transfer(self.owner, undistributed_balance, vec![])?;
             Ok(())
         }
 
@@ -440,22 +439,6 @@ mod farm {
                 ink::env::debug_println!("psp22 error: {:?}", psp22_error);
             }
             Ok(Ok(Ok(_))) => {}
-        }
-    }
-
-    // We don't want to fail the whole transaction if PSP22::balance_of fails with a panic either.
-    // We choose to use `0` to denote the "panic" scenarios b/c it's a noop for the farm.
-    pub fn safe_balance_of(psp22: &contract_ref!(PSP22), account: AccountId) -> u128 {
-        match psp22.call().balance_of(account).try_invoke() {
-            Err(ink_env_err) => {
-                ink::env::debug_println!("ink env error: {:?}", ink_env_err);
-                0
-            }
-            Ok(Err(ink_lang_err)) => {
-                ink::env::debug_println!("ink lang error: {:?}", ink_lang_err);
-                0
-            }
-            Ok(Ok(res)) => res,
         }
     }
 
