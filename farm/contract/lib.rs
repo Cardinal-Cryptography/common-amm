@@ -6,12 +6,7 @@ mod farm {
     type UserId = AccountId;
     use amm_helpers::{ensure, math::casted_mul, types::WrappedU256};
     use farm_trait::{Farm, FarmDetails, FarmError};
-    use ink::{
-        codegen::{EmitEvent, TraitCallBuilder},
-        contract_ref,
-        reflect::ContractEventBase,
-        storage::Mapping,
-    };
+    use ink::{codegen::EmitEvent, contract_ref, reflect::ContractEventBase, storage::Mapping};
 
     use ink::prelude::{vec, vec::Vec};
     use primitive_types::U256;
@@ -39,7 +34,7 @@ mod farm {
     pub struct RewardsClaimed {
         #[ink(topic)]
         account: AccountId,
-        amounts: Vec<u128>,
+        rewards_claimed: Vec<(AccountId, u128)>,
     }
 
     use amm_helpers::math::MathError;
@@ -332,39 +327,53 @@ mod farm {
             } else {
                 total_balance
             };
-            token_ref.transfer(self.owner, undistributed_balance, vec![])?;
-            Ok(())
+            Ok(token_ref.transfer(self.owner, undistributed_balance, vec![])?)
         }
 
         // To learn how much rewards the user has, it's best to dry-run claim_rewards
         #[ink(message)]
-        fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmError> {
+        fn claim_rewards(&mut self, tokens: Vec<TokenId>) -> Result<Vec<u128>, FarmError> {
             self.update()?;
             let account = self.env().caller();
             self.update_account(account);
 
-            let user_rewards = self
+            let mut user_rewards = self
                 .user_claimable_rewards
-                .take(account)
+                .get(account)
                 .ok_or(FarmError::CallerNotFarmer)?;
 
-            for (idx, user_reward) in user_rewards.clone().into_iter().enumerate() {
-                if user_reward > 0 {
-                    let mut psp22_ref: ink::contract_ref!(PSP22) = self.reward_tokens[idx].into();
-                    self.farm_distributed_unclaimed_rewards[idx] -= user_reward;
-                    // Here we have changed farm_distributed_unchanged_rewards, so we shouldn't just ignore the result of the call
-                    // I see two alternatives:
-                    // - match on the result of the call and don't change storage if the call fails, however that would require us to some data back to "user_claimable_rewards"
-                    // - replace this call with "claim_reward" which would only transfer the reward for the given token
-                    safe_transfer(&mut psp22_ref, account, user_reward);
+            let mut rewards_claimed: Vec<(TokenId, u128)> = Vec::with_capacity(tokens.len());
+
+            for token in tokens {
+                if let Some(idx) = self
+                    .reward_tokens
+                    .iter()
+                    .position(|rtoken| rtoken == &token)
+                {
+                    let user_reward = user_rewards[idx];
+                    if user_reward > 0 {
+                        user_rewards[idx] = 0;
+                        let mut psp22_ref: ink::contract_ref!(PSP22) = token.into();
+                        self.farm_distributed_unclaimed_rewards[idx] -= user_reward;
+                        psp22_ref
+                            .transfer(account, user_reward, vec![])
+                            .map_err(|e| FarmError::TokenTransferFailed(token, e))?;
+                    }
+                    rewards_claimed.push((token, user_reward));
+                } else {
+                    return Err(FarmError::TokenNotReward(token));
                 }
+            }
+
+            if user_rewards.iter().all(|r| *r == 0) {
+                self.user_claimable_rewards.remove(account)
             }
 
             FarmContract::emit_event(
                 self.env(),
                 Event::RewardsClaimed(RewardsClaimed {
                     account,
-                    amounts: user_rewards.clone(),
+                    rewards_claimed,
                 }),
             );
             Ok(user_rewards)
@@ -419,26 +428,6 @@ mod farm {
                 reward_tokens: self.reward_tokens.clone(),
                 reward_rates: self.farm_reward_rates.clone(),
             }
-        }
-    }
-
-    // Would suggest adding some explanation why we want this.
-    pub fn safe_transfer(psp22: &mut contract_ref!(PSP22), recipient: AccountId, amount: u128) {
-        match psp22
-            .call_mut()
-            .transfer(recipient, amount, vec![])
-            .try_invoke()
-        {
-            Err(ink_env_err) => {
-                ink::env::debug_println!("ink env error: {:?}", ink_env_err);
-            }
-            Ok(Err(ink_lang_err)) => {
-                ink::env::debug_println!("ink lang error: {:?}", ink_lang_err);
-            }
-            Ok(Ok(Err(psp22_error))) => {
-                ink::env::debug_println!("psp22 error: {:?}", psp22_error);
-            }
-            Ok(Ok(Ok(_))) => {}
         }
     }
 

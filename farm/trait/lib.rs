@@ -21,6 +21,8 @@ pub enum FarmError {
     RewardsTokensMismatch,
     TooManyRewardTokens,
     RewardTokenIsPoolToken,
+    TokenNotReward(AccountId),
+    TokenTransferFailed(AccountId, PSP22Error),
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -96,7 +98,7 @@ pub trait Farm {
     fn owner_withdraw_token(&mut self, token: AccountId) -> Result<(), FarmError>;
 
     #[ink(message)]
-    fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmError>;
+    fn claim_rewards(&mut self, tokens: Vec<AccountId>) -> Result<Vec<u128>, FarmError>;
 
     #[ink(message)]
     fn view_farm_details(&self) -> FarmDetails;
