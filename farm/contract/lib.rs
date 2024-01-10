@@ -212,11 +212,6 @@ mod farm {
             let mut reward_rates = Vec::with_capacity(tokens_len);
 
             for (token_id, reward_amount) in self.reward_tokens.iter().zip(rewards.iter()) {
-                // Why can't we start a farm with 0 rewards for one of the tokens?
-                if *reward_amount == 0 {
-                    return Err(FarmError::InvalidFarmStartParams);
-                }
-
                 let mut psp22_ref: ink::contract_ref!(PSP22) = (*token_id).into();
 
                 psp22_ref.transfer_from(
@@ -228,16 +223,15 @@ mod farm {
 
                 let reward_rate = reward_amount
                     .checked_div(duration)
-                    .ok_or(FarmError::InvalidFarmStartParams)?;
-
-                // This also prevents giving zero rewards for any token.
-                // It would perhaps make more sense to just check if sum of all reward rates is positive
-                if reward_rate == 0 {
-                    return Err(FarmError::InvalidFarmStartParams);
-                }
+                    .ok_or(FarmError::ArithmeticError(MathError::DivByZero(3)))?;
 
                 reward_rates.push(reward_rate);
             }
+
+            if reward_rates.iter().all(|rr| *rr == 0) {
+                return Err(FarmError::AllRewardRatesZero);
+            }
+
             Ok(reward_rates)
         }
 
