@@ -316,9 +316,7 @@ mod farm {
 
         #[ink(message)]
         fn owner_withdraw_token(&mut self, token: TokenId) -> Result<(), FarmError> {
-            if self.env().caller() != self.owner {
-                return Err(FarmError::CallerNotOwner);
-            }
+            ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             self.update()?;
             ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
 
