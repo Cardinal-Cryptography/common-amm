@@ -4,7 +4,7 @@
 mod farm {
     type TokenId = AccountId;
     type UserId = AccountId;
-    use amm_helpers::{math::casted_mul, types::WrappedU256};
+    use amm_helpers::{ensure, math::casted_mul, types::WrappedU256};
     use farm_trait::{Farm, FarmDetails, FarmError};
     use ink::{
         codegen::{EmitEvent, TraitCallBuilder},
@@ -320,10 +320,10 @@ mod farm {
                 return Err(FarmError::CallerNotOwner);
             }
             self.update()?;
-            assert!(!self.is_active());
+            ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
 
             // Owner should be able to withdraw every token except the pool token.
-            assert!(self.pool_id != token);
+            ensure!(self.pool_id != token, FarmError::RewardTokenIsPoolToken);
             let mut token_ref = token.into();
 
             // To me it seems that both "safe" calls in this functions should fail when the error arises.
