@@ -16,7 +16,6 @@ mod farm {
     use ink::prelude::{vec, vec::Vec};
     use primitive_types::U256;
 
-    use psp22::PSP22Error;
     use psp22::PSP22;
 
     pub const SCALING_FACTOR: u128 = u128::MAX;
@@ -77,7 +76,7 @@ mod farm {
         /// cumulative_per_share at the last update for each user.
         pub user_cumulative_reward_last_update: Mapping<UserId, Vec<WrappedU256>>,
 
-        // Missing documentation
+        /// Reward rates per user of unclaimed, accumulated users' rewards.
         pub user_claimable_rewards: Mapping<UserId, Vec<u128>>,
     }
 
@@ -86,10 +85,10 @@ mod farm {
         pub fn new(pool_id: AccountId, reward_tokens: Vec<TokenId>) -> Result<Self, FarmError> {
             let n_reward_tokens = reward_tokens.len();
             if n_reward_tokens > MAX_REWARD_TOKENS as usize {
-                return Err(FarmError::InvalidFarmStartParams);
+                return Err(FarmError::TooManyRewardTokens);
             }
             if reward_tokens.contains(&pool_id) {
-                return Err(FarmError::InvalidFarmStartParams);
+                return Err(FarmError::RewardTokenIsPoolToken);
             }
             Ok(FarmContract {
                 pool_id,
@@ -101,8 +100,7 @@ mod farm {
                 end: 0,
                 timestamp_at_last_update: 0,
                 farm_distributed_unclaimed_rewards: vec![0; n_reward_tokens],
-                // I am a bit biased against using defaults, but it's correct, so non-important.
-                farm_cumulative_reward_per_share: vec![WrappedU256::default(); n_reward_tokens],
+                farm_cumulative_reward_per_share: vec![WrappedU256::ZERO; n_reward_tokens],
                 farm_reward_rates: vec![0; n_reward_tokens],
                 user_cumulative_reward_last_update: Mapping::default(),
                 user_claimable_rewards: Mapping::default(),
@@ -123,8 +121,7 @@ mod farm {
 
             let prev = core::cmp::max(self.timestamp_at_last_update, self.start);
             let now = core::cmp::min(current_timestamp, self.end);
-            // right side of this alternative will never happen, because of the check above
-            if prev >= now || self.timestamp_at_last_update == current_timestamp {
+            if prev >= now {
                 self.timestamp_at_last_update = current_timestamp;
                 return Ok(());
             }
@@ -132,8 +129,7 @@ mod farm {
             // At this point we know [prev, now] is the intersection of [self.start, self.end] and [self.timestamp_at_last_update, current_timestamp]
             // It is non-empty because of the checks above and self.start <= now <= self.end
 
-            // why enumerate instead of 0..self.reward_tokens.len()?
-            for (idx, _) in self.reward_tokens.iter().enumerate() {
+            for idx in 0..self.reward_tokens.len() {
                 let delta_reward_per_share = rewards_per_share_in_time_interval(
                     self.farm_reward_rates[idx],
                     self.total_shares,
@@ -201,14 +197,26 @@ mod farm {
             let now = Self::env().block_timestamp();
             let tokens_len = self.reward_tokens.len();
 
-            // Do we also want to check that start >= now?
-            if start <= self.timestamp_at_last_update || now >= end || rewards.len() != tokens_len {
-                return Err(FarmError::InvalidFarmStartParams);
+            if rewards.len() != tokens_len {
+                return Err(FarmError::RewardsTokensMismatch);
             }
 
-            // This substraction should be "checked"
-            // It's important that we substract "start" and not "now"
-            let duration = end as u128 - start as u128;
+            // NOTE: `timestamp_at_last_update == now` in `self.update()` called before this.
+
+            if start < now {
+                return Err(FarmError::FarmStartInThePast);
+            }
+
+            if end <= now {
+                return Err(FarmError::FarmEndInThePast);
+            }
+
+            let duration = if let Some(duration) = end.checked_sub(start) {
+                duration as u128
+            } else {
+                return Err(FarmError::FarmDuration);
+            };
+
             let mut reward_rates = Vec::with_capacity(tokens_len);
 
             for (token_id, reward_amount) in self.reward_tokens.iter().zip(rewards.iter()) {
@@ -237,8 +245,7 @@ mod farm {
 
         fn deposit(&mut self, account: AccountId, amount: u128) -> Result<(), FarmError> {
             if amount == 0 {
-                // that's a very confusing error
-                return Err(FarmError::PSP22Error(PSP22Error::InsufficientBalance));
+                return Err(FarmError::InsufficientShares);
             }
             self.update()?;
             self.update_account(account);
@@ -263,12 +270,12 @@ mod farm {
 
         // wouldn't just "total_shares" be a better name, "total_supply" might suggest that farm has its own token?
         #[ink(message)]
-        fn total_supply(&self) -> u128 {
+        fn total_shares(&self) -> u128 {
             self.total_shares
         }
 
         #[ink(message)]
-        fn balance_of(&self, owner: AccountId) -> u128 {
+        fn shares_of(&self, owner: AccountId) -> u128 {
             self.shares.get(owner).unwrap_or(0)
         }
 
@@ -378,8 +385,7 @@ mod farm {
         fn deposit_all(&mut self) -> Result<(), FarmError> {
             let account = self.env().caller();
             let pool: contract_ref!(PSP22) = self.pool_id.into();
-            // Why wouldn't we want to fail here? When "balance_of" fails here, then this is an noop, but will be reported as success.
-            let amount = safe_balance_of(&pool, account);
+            let amount = pool.balance_of(account);
             self.deposit(account, amount)?;
             FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
             Ok(())
@@ -397,8 +403,7 @@ mod farm {
                 self.shares.insert(account, &new_shares);
                 self.total_shares -= amount;
             } else {
-                // That suggests insufficient token balance for some on-chain account, when in fact it's insufficent shares (which are tokens, but with balance tracked in the farm contract).
-                return Err(PSP22Error::InsufficientBalance.into());
+                return Err(FarmError::InsufficientShares);
             }
 
             let mut pool: contract_ref!(PSP22) = self.pool_id.into();
@@ -462,8 +467,7 @@ mod farm {
         from_timestamp: u128,
         to_timestamp: u128,
     ) -> Result<U256, MathError> {
-        // wouldn't right side `from_timestamp >= to_timestamp` make slightly more sense?
-        if total_shares == 0 || from_timestamp > to_timestamp {
+        if total_shares == 0 || from_timestamp >= to_timestamp {
             return Ok(0.into());
         }
 
@@ -473,9 +477,9 @@ mod farm {
 
         casted_mul(reward_rate, time_delta)
             .checked_mul(U256::from(SCALING_FACTOR))
-            .ok_or(MathError::Overflow)?
+            .ok_or(MathError::Overflow(1))?
             .checked_div(U256::from(total_shares))
-            .ok_or(MathError::DivByZero)
+            .ok_or(MathError::DivByZero(1))
     }
 
     /// The formula is:
@@ -486,10 +490,9 @@ mod farm {
     ) -> Result<u128, MathError> {
         rewards_per_share
             .checked_mul(U256::from(shares))
-            .ok_or(MathError::Overflow)?
+            .ok_or(MathError::Overflow(2))?
             .checked_div(U256::from(SCALING_FACTOR))
-            // this is not an overflow, but a division by zero, no? (which shouldn't ever happen)
-            .ok_or(MathError::Overflow)?
+            .ok_or(MathError::DivByZero(2))?
             .try_into()
             .map_err(|_| MathError::CastOverflow)
     }

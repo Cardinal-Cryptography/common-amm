@@ -13,8 +13,14 @@ pub enum FarmError {
     CallerNotOwner,
     ArithmeticError(MathError),
     CallerNotFarmer,
-    // Feel like this error is very generic, and does not really help in identyfying the problem.
-    InvalidFarmStartParams,
+    AllRewardRatesZero,
+    FarmStartInThePast,
+    FarmEndInThePast,
+    FarmDuration,
+    InsufficientShares,
+    RewardsTokensMismatch,
+    TooManyRewardTokens,
+    RewardTokenIsPoolToken,
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -48,11 +54,11 @@ pub trait Farm {
 
     /// Returns total supply of LP tokens deposited for this farm.
     #[ink(message)]
-    fn total_supply(&self) -> u128;
+    fn total_shares(&self) -> u128;
 
     /// Returns share of LP tokens deposited by the `account` in this farm.
     #[ink(message)]
-    fn balance_of(&self, account: AccountId) -> u128;
+    fn shares_of(&self, account: AccountId) -> u128;
 
     // This is a bit confusing, because withdrawing "from" caller could imply that tokens are taken from his account.
     /// Withdraws `amount` of shares from caller.
