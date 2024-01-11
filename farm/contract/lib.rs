@@ -193,7 +193,7 @@ mod farm {
             let tokens_len = self.reward_tokens.len();
 
             if rewards.len() != tokens_len {
-                return Err(FarmError::RewardsTokensMismatch);
+                return Err(FarmError::RewardsVecLengthMismatch);
             }
 
             // NOTE: `timestamp_at_last_update == now` in `self.update()` called before this.
@@ -327,12 +327,13 @@ mod farm {
             } else {
                 total_balance
             };
-            Ok(token_ref.transfer(self.owner, undistributed_balance, vec![])?)
+            token_ref.transfer(self.owner, undistributed_balance, vec![])?;
+            Ok(())
         }
 
-        // To learn how much rewards the user has, it's best to dry-run claim_rewards
+        // To learn how much rewards the user has, it's best to dry-run claim_rewards.
         #[ink(message)]
-        fn claim_rewards(&mut self, tokens: Vec<TokenId>) -> Result<Vec<u128>, FarmError> {
+        fn claim_rewards(&mut self, tokens: Vec<u8>) -> Result<Vec<u128>, FarmError> {
             self.update()?;
             let account = self.env().caller();
             self.update_account(account);
@@ -344,29 +345,25 @@ mod farm {
 
             let mut rewards_claimed: Vec<(TokenId, u128)> = Vec::with_capacity(tokens.len());
 
-            for token in tokens {
-                if let Some(idx) = self
-                    .reward_tokens
-                    .iter()
-                    .position(|rtoken| rtoken == &token)
-                {
-                    let user_reward = user_rewards[idx];
-                    if user_reward > 0 {
-                        user_rewards[idx] = 0;
-                        let mut psp22_ref: ink::contract_ref!(PSP22) = token.into();
-                        self.farm_distributed_unclaimed_rewards[idx] -= user_reward;
-                        psp22_ref
-                            .transfer(account, user_reward, vec![])
-                            .map_err(|e| FarmError::TokenTransferFailed(token, e))?;
-                    }
+            for token_idx in tokens {
+                let idx = token_idx as usize;
+                let token = self.reward_tokens[idx];
+                let user_reward = user_rewards[idx];
+                if user_reward > 0 {
+                    user_rewards[idx] = 0;
+                    let mut psp22_ref: ink::contract_ref!(PSP22) = token.into();
+                    self.farm_distributed_unclaimed_rewards[idx] -= user_reward;
+                    psp22_ref
+                        .transfer(account, user_reward, vec![])
+                        .map_err(|e| FarmError::TokenTransferFailed(token, e))?;
                     rewards_claimed.push((token, user_reward));
-                } else {
-                    return Err(FarmError::TokenNotReward(token));
                 }
             }
 
             if user_rewards.iter().all(|r| *r == 0) {
-                self.user_claimable_rewards.remove(account)
+                self.user_claimable_rewards.remove(account);
+            } else {
+                self.user_claimable_rewards.insert(account, &user_rewards);
             }
 
             FarmContract::emit_event(
