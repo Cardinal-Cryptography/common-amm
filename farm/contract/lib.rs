@@ -263,7 +263,6 @@ mod farm {
             self.pool_id
         }
 
-        // wouldn't just "total_shares" be a better name, "total_supply" might suggest that farm has its own token?
         #[ink(message)]
         fn total_shares(&self) -> u128 {
             self.total_shares
@@ -286,13 +285,9 @@ mod farm {
             end: Timestamp,
             rewards: Vec<u128>,
         ) -> Result<(), FarmError> {
-            if self.env().caller() != self.owner {
-                return Err(FarmError::CallerNotOwner);
-            }
+            ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             self.update()?;
-            if self.is_active() {
-                return Err(FarmError::FarmAlreadyRunning);
-            }
+            ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
             self.farm_reward_rates = self.assert_start_params(start, end, rewards.clone())?;
             self.start = start;
             self.end = end;
@@ -301,9 +296,7 @@ mod farm {
 
         #[ink(message)]
         fn owner_stop_farm(&mut self) -> Result<(), FarmError> {
-            if self.env().caller() != self.owner {
-                return Err(FarmError::CallerNotOwner);
-            }
+            ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             self.update()?;
             self.end = self.env().block_timestamp();
             Ok(())
