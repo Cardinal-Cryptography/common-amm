@@ -263,7 +263,6 @@ mod farm {
             self.pool_id
         }
 
-        // wouldn't just "total_shares" be a better name, "total_supply" might suggest that farm has its own token?
         #[ink(message)]
         fn total_shares(&self) -> u128 {
             self.total_shares
@@ -286,13 +285,9 @@ mod farm {
             end: Timestamp,
             rewards: Vec<u128>,
         ) -> Result<(), FarmError> {
-            if self.env().caller() != self.owner {
-                return Err(FarmError::CallerNotOwner);
-            }
+            ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             self.update()?;
-            if self.is_active() {
-                return Err(FarmError::FarmAlreadyRunning);
-            }
+            ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
             self.farm_reward_rates = self.assert_start_params(start, end, rewards.clone())?;
             self.start = start;
             self.end = end;
@@ -301,9 +296,7 @@ mod farm {
 
         #[ink(message)]
         fn owner_stop_farm(&mut self) -> Result<(), FarmError> {
-            if self.env().caller() != self.owner {
-                return Err(FarmError::CallerNotOwner);
-            }
+            ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             self.update()?;
             self.end = self.env().block_timestamp();
             Ok(())
@@ -312,13 +305,12 @@ mod farm {
         #[ink(message)]
         fn owner_withdraw_token(&mut self, token: TokenId) -> Result<(), FarmError> {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
-            self.update()?;
             ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
-
             // Owner should be able to withdraw every token except the pool token.
             ensure!(self.pool_id != token, FarmError::RewardTokenIsPoolToken);
-            let mut token_ref: contract_ref!(PSP22) = token.into();
 
+            self.update()?;
+            let mut token_ref: contract_ref!(PSP22) = token.into();
             let total_balance = token_ref.balance_of(self.env().account_id());
             let undistributed_balance = if let Some(token_index) =
                 self.reward_tokens.iter().position(|&t| t == token)
@@ -462,5 +454,128 @@ mod farm {
             .ok_or(MathError::DivByZero(2))?
             .try_into()
             .map_err(|_| MathError::CastOverflow)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use farm_trait::{Farm, FarmError};
+        use ink::{env::DefaultEnvironment, primitives::AccountId};
+
+        #[ink::test]
+        fn new_farm_works() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            let farm =
+                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new works");
+
+            let farm_details = farm.view_farm_details();
+            assert_eq!(farm_details.pool_id, pool_id);
+            assert_eq!(farm_details.start, 0);
+            assert_eq!(farm_details.end, 0);
+            assert_eq!(farm_details.reward_tokens, reward_tokens);
+            assert_eq!(farm_details.reward_rates, vec![0, 0]);
+
+            assert_eq!(farm.is_active(), false);
+
+            assert_eq!(farm.total_shares(), 0);
+        }
+
+        #[ink::test]
+        fn new_farm_fails() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), pool_id.clone()];
+
+            assert_eq!(
+                super::FarmContract::new(pool_id, reward_tokens.clone())
+                    .err()
+                    .unwrap(),
+                FarmError::RewardTokenIsPoolToken
+            );
+
+            let too_many_tokens = (0..=super::MAX_REWARD_TOKENS)
+                .into_iter()
+                .map(|i| AccountId::from([i as u8; 32]))
+                .collect();
+            assert_eq!(
+                super::FarmContract::new(pool_id, too_many_tokens)
+                    .err()
+                    .unwrap(),
+                FarmError::TooManyRewardTokens
+            )
+        }
+
+        #[ink::test]
+        fn deposit_zero_fails() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            let mut farm =
+                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new works");
+
+            assert_eq!(
+                Farm::deposit(&mut farm, 0).err().unwrap(),
+                FarmError::InsufficientShares
+            );
+        }
+
+        #[ink::test]
+        fn withdraw_too_much_fails() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            let mut farm =
+                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new works");
+
+            assert_eq!(
+                Farm::withdraw(&mut farm, 100).err().unwrap(),
+                FarmError::InsufficientShares
+            );
+        }
+
+        #[ink::test]
+        fn fail_for_nonowner() {
+            use ink::env::test::*;
+
+            let acc = default_accounts::<DefaultEnvironment>();
+
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            set_caller::<DefaultEnvironment>(acc.alice);
+            let mut farm =
+                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new works");
+            set_caller::<DefaultEnvironment>(acc.bob);
+            assert_eq!(
+                Farm::owner_start_new_farm(&mut farm, 100, 110, vec![1, 2])
+                    .err()
+                    .unwrap(),
+                FarmError::CallerNotOwner
+            );
+            assert_eq!(
+                Farm::owner_stop_farm(&mut farm).err().unwrap(),
+                FarmError::CallerNotOwner
+            );
+            assert_eq!(
+                Farm::owner_withdraw_token(&mut farm, AccountId::from([1u8; 32]))
+                    .err()
+                    .unwrap(),
+                FarmError::CallerNotOwner
+            );
+        }
+
+        #[ink::test]
+        fn owner_cannot_withdraw_pool_token() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            let mut farm =
+                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new works");
+
+            assert_eq!(
+                farm.owner_withdraw_token(pool_id).err().unwrap(),
+                FarmError::RewardTokenIsPoolToken
+            );
+        }
     }
 }
