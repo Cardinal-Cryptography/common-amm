@@ -114,7 +114,6 @@ pub trait Farm {
     ///
     /// NOTE: To acquire token indices, one can query the `view_farm_details`
     ///       and use `reward_tokens` information for that.
-    ///
     ///       It may happen that one of the reward tokens is malicious and fails during the operation,
     ///       in such case it's advised to filter out that token from the `tokens` list.
     #[ink(message)]
