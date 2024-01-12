@@ -86,7 +86,7 @@ pub trait Farm {
 
     /// Sets the parameters of the farm (`start`, `end`, `rewards`).
     ///
-    /// NOTE: Implementation should make sure that it's callabled only by a permission account (owner of the farm).
+    /// NOTE: Implementation should make sure that it's callable only by an authorized account (owner of the farm).
     #[ink(message)]
     fn owner_start_new_farm(
         &mut self,
@@ -99,11 +99,11 @@ pub trait Farm {
     /// Generic method that allows for stopping (a running) farm.
     /// Details are implementation-dependent (Common AMM will set the farm's `end` timestamp to current blocktime).
     ///
-    /// NOTE: Implementation should make sure that it's callabled only by a permission account (owner of the farm).
+    /// NOTE: Implementation should make sure that it's callable only by an authorized account (owner of the farm).
     #[ink(message)]
     fn owner_stop_farm(&mut self) -> Result<(), FarmError>;
 
-    /// NOTE: Implementation should make sure that it's callabled only by a permission account (owner of the farm).
+    /// NOTE: Implementation should make sure that it's callable only by an authorized account (owner of the farm).
     #[ink(message)]
     fn owner_withdraw_token(&mut self, token: AccountId) -> Result<(), FarmError>;
 
