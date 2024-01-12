@@ -260,7 +260,6 @@ dependencies = [
  "primitive-types",
  "psp22 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "scale-info",
- "sp-arithmetic",
 ]
 
 [[package]]

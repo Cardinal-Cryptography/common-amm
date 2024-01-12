@@ -2,22 +2,15 @@
 
 #[ink::contract]
 mod farm {
-
     type TokenId = AccountId;
     type UserId = AccountId;
-    use amm_helpers::{math::casted_mul, types::WrappedU256};
+    use amm_helpers::{ensure, math::casted_mul, types::WrappedU256};
     use farm_trait::{Farm, FarmDetails, FarmError};
-    use ink::{
-        codegen::{EmitEvent, TraitCallBuilder},
-        contract_ref,
-        reflect::ContractEventBase,
-        storage::Mapping,
-    };
+    use ink::{codegen::EmitEvent, contract_ref, reflect::ContractEventBase, storage::Mapping};
 
     use ink::prelude::{vec, vec::Vec};
     use primitive_types::U256;
 
-    use psp22::PSP22Error;
     use psp22::PSP22;
 
     pub const SCALING_FACTOR: u128 = u128::MAX;
@@ -41,7 +34,7 @@ mod farm {
     pub struct RewardsClaimed {
         #[ink(topic)]
         account: AccountId,
-        amounts: Vec<u128>,
+        rewards_claimed: Vec<(AccountId, u128)>,
     }
 
     use amm_helpers::math::MathError;
@@ -78,6 +71,7 @@ mod farm {
         /// cumulative_per_share at the last update for each user.
         pub user_cumulative_reward_last_update: Mapping<UserId, Vec<WrappedU256>>,
 
+        /// Reward rates per user of unclaimed, accumulated users' rewards.
         pub user_claimable_rewards: Mapping<UserId, Vec<u128>>,
     }
 
@@ -86,10 +80,10 @@ mod farm {
         pub fn new(pool_id: AccountId, reward_tokens: Vec<TokenId>) -> Result<Self, FarmError> {
             let n_reward_tokens = reward_tokens.len();
             if n_reward_tokens > MAX_REWARD_TOKENS as usize {
-                return Err(FarmError::InvalidFarmStartParams);
+                return Err(FarmError::TooManyRewardTokens);
             }
             if reward_tokens.contains(&pool_id) {
-                return Err(FarmError::InvalidFarmStartParams);
+                return Err(FarmError::RewardTokenIsPoolToken);
             }
             Ok(FarmContract {
                 pool_id,
@@ -101,7 +95,7 @@ mod farm {
                 end: 0,
                 timestamp_at_last_update: 0,
                 farm_distributed_unclaimed_rewards: vec![0; n_reward_tokens],
-                farm_cumulative_reward_per_share: vec![WrappedU256::default(); n_reward_tokens],
+                farm_cumulative_reward_per_share: vec![WrappedU256::ZERO; n_reward_tokens],
                 farm_reward_rates: vec![0; n_reward_tokens],
                 user_cumulative_reward_last_update: Mapping::default(),
                 user_claimable_rewards: Mapping::default(),
@@ -122,7 +116,7 @@ mod farm {
 
             let prev = core::cmp::max(self.timestamp_at_last_update, self.start);
             let now = core::cmp::min(current_timestamp, self.end);
-            if prev >= now || self.timestamp_at_last_update == current_timestamp {
+            if prev >= now {
                 self.timestamp_at_last_update = current_timestamp;
                 return Ok(());
             }
@@ -130,7 +124,7 @@ mod farm {
             // At this point we know [prev, now] is the intersection of [self.start, self.end] and [self.timestamp_at_last_update, current_timestamp]
             // It is non-empty because of the checks above and self.start <= now <= self.end
 
-            for (idx, _) in self.reward_tokens.iter().enumerate() {
+            for idx in 0..self.reward_tokens.len() {
                 let delta_reward_per_share = rewards_per_share_in_time_interval(
                     self.farm_reward_rates[idx],
                     self.total_shares,
@@ -150,7 +144,6 @@ mod farm {
             }
 
             self.timestamp_at_last_update = current_timestamp;
-
             Ok(())
         }
 
@@ -197,24 +190,31 @@ mod farm {
             rewards: Vec<u128>,
         ) -> Result<Vec<u128>, FarmError> {
             let now = Self::env().block_timestamp();
+            let tokens_len = self.reward_tokens.len();
 
-            if start <= self.timestamp_at_last_update
-                || now >= end
-                || rewards.len() != self.reward_tokens.len()
-            {
-                return Err(FarmError::InvalidFarmStartParams);
+            if rewards.len() != tokens_len {
+                return Err(FarmError::RewardsVecLengthMismatch);
             }
 
-            let duration = end as u128 - now as u128;
+            // NOTE: `timestamp_at_last_update == now` in `self.update()` called before this.
 
-            let tokens_len = self.reward_tokens.len();
+            if start < now {
+                return Err(FarmError::FarmStartInThePast);
+            }
+
+            if end <= now {
+                return Err(FarmError::FarmEndInThePast);
+            }
+
+            let duration = if let Some(duration) = end.checked_sub(start) {
+                duration as u128
+            } else {
+                return Err(FarmError::FarmDuration);
+            };
+
             let mut reward_rates = Vec::with_capacity(tokens_len);
 
             for (token_id, reward_amount) in self.reward_tokens.iter().zip(rewards.iter()) {
-                if *reward_amount == 0 {
-                    return Err(FarmError::InvalidFarmStartParams);
-                }
-
                 let mut psp22_ref: ink::contract_ref!(PSP22) = (*token_id).into();
 
                 psp22_ref.transfer_from(
@@ -226,20 +226,21 @@ mod farm {
 
                 let reward_rate = reward_amount
                     .checked_div(duration)
-                    .ok_or(FarmError::InvalidFarmStartParams)?;
-
-                if reward_rate == 0 {
-                    return Err(FarmError::InvalidFarmStartParams);
-                }
+                    .ok_or(FarmError::ArithmeticError(MathError::DivByZero(3)))?;
 
                 reward_rates.push(reward_rate);
             }
+
+            if reward_rates.iter().all(|rr| *rr == 0) {
+                return Err(FarmError::AllRewardRatesZero);
+            }
+
             Ok(reward_rates)
         }
 
         fn deposit(&mut self, account: AccountId, amount: u128) -> Result<(), FarmError> {
             if amount == 0 {
-                return Err(FarmError::PSP22Error(PSP22Error::InsufficientBalance));
+                return Err(FarmError::InsufficientShares);
             }
             self.update()?;
             self.update_account(account);
@@ -262,13 +263,14 @@ mod farm {
             self.pool_id
         }
 
+        // wouldn't just "total_shares" be a better name, "total_supply" might suggest that farm has its own token?
         #[ink(message)]
-        fn total_supply(&self) -> u128 {
+        fn total_shares(&self) -> u128 {
             self.total_shares
         }
 
         #[ink(message)]
-        fn balance_of(&self, owner: AccountId) -> u128 {
+        fn shares_of(&self, owner: AccountId) -> u128 {
             self.shares.get(owner).unwrap_or(0)
         }
 
@@ -309,52 +311,66 @@ mod farm {
 
         #[ink(message)]
         fn owner_withdraw_token(&mut self, token: TokenId) -> Result<(), FarmError> {
-            if self.env().caller() != self.owner {
-                return Err(FarmError::CallerNotOwner);
-            }
+            ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             self.update()?;
-            assert!(!self.is_active());
+            ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
 
             // Owner should be able to withdraw every token except the pool token.
-            assert!(self.pool_id != token);
-            let mut token_ref = token.into();
+            ensure!(self.pool_id != token, FarmError::RewardTokenIsPoolToken);
+            let mut token_ref: contract_ref!(PSP22) = token.into();
 
-            let balance: Balance = safe_balance_of(&token_ref, self.env().account_id());
-            let balance =
-                if let Some(token_index) = self.reward_tokens.iter().position(|&t| t == token) {
-                    balance.saturating_sub(self.farm_distributed_unclaimed_rewards[token_index])
-                } else {
-                    balance
-                };
-            safe_transfer(&mut token_ref, self.owner, balance);
+            let total_balance = token_ref.balance_of(self.env().account_id());
+            let undistributed_balance = if let Some(token_index) =
+                self.reward_tokens.iter().position(|&t| t == token)
+            {
+                total_balance.saturating_sub(self.farm_distributed_unclaimed_rewards[token_index])
+            } else {
+                total_balance
+            };
+            token_ref.transfer(self.owner, undistributed_balance, vec![])?;
             Ok(())
         }
 
-        // To learn how much rewards the user has, it's best to dry-run claim_rewards
+        // To learn how much rewards the user has, it's best to dry-run claim_rewards.
         #[ink(message)]
-        fn claim_rewards(&mut self) -> Result<Vec<u128>, FarmError> {
+        fn claim_rewards(&mut self, tokens: Vec<u8>) -> Result<Vec<u128>, FarmError> {
             self.update()?;
             let account = self.env().caller();
             self.update_account(account);
 
-            let user_rewards = self
+            let mut user_rewards = self
                 .user_claimable_rewards
-                .take(account)
+                .get(account)
                 .ok_or(FarmError::CallerNotFarmer)?;
 
-            for (idx, user_reward) in user_rewards.clone().into_iter().enumerate() {
+            let mut rewards_claimed: Vec<(TokenId, u128)> = Vec::with_capacity(tokens.len());
+
+            for token_idx in tokens {
+                let idx = token_idx as usize;
+                let token = self.reward_tokens[idx];
+                let user_reward = user_rewards[idx];
                 if user_reward > 0 {
-                    let mut psp22_ref: ink::contract_ref!(PSP22) = self.reward_tokens[idx].into();
+                    user_rewards[idx] = 0;
+                    let mut psp22_ref: ink::contract_ref!(PSP22) = token.into();
                     self.farm_distributed_unclaimed_rewards[idx] -= user_reward;
-                    safe_transfer(&mut psp22_ref, account, user_reward);
+                    psp22_ref
+                        .transfer(account, user_reward, vec![])
+                        .map_err(|e| FarmError::TokenTransferFailed(token, e))?;
+                    rewards_claimed.push((token, user_reward));
                 }
+            }
+
+            if user_rewards.iter().all(|r| *r == 0) {
+                self.user_claimable_rewards.remove(account);
+            } else {
+                self.user_claimable_rewards.insert(account, &user_rewards);
             }
 
             FarmContract::emit_event(
                 self.env(),
                 Event::RewardsClaimed(RewardsClaimed {
                     account,
-                    amounts: user_rewards.clone(),
+                    rewards_claimed,
                 }),
             );
             Ok(user_rewards)
@@ -372,7 +388,7 @@ mod farm {
         fn deposit_all(&mut self) -> Result<(), FarmError> {
             let account = self.env().caller();
             let pool: contract_ref!(PSP22) = self.pool_id.into();
-            let amount = safe_balance_of(&pool, account);
+            let amount = pool.balance_of(account);
             self.deposit(account, amount)?;
             FarmContract::emit_event(self.env(), Event::Deposited(Deposited { account, amount }));
             Ok(())
@@ -390,7 +406,7 @@ mod farm {
                 self.shares.insert(account, &new_shares);
                 self.total_shares -= amount;
             } else {
-                return Err(PSP22Error::InsufficientBalance.into());
+                return Err(FarmError::InsufficientShares);
             }
 
             let mut pool: contract_ref!(PSP22) = self.pool_id.into();
@@ -412,48 +428,13 @@ mod farm {
         }
     }
 
-    pub fn safe_transfer(psp22: &mut contract_ref!(PSP22), recipient: AccountId, amount: u128) {
-        match psp22
-            .call_mut()
-            .transfer(recipient, amount, vec![])
-            .try_invoke()
-        {
-            Err(ink_env_err) => {
-                ink::env::debug_println!("ink env error: {:?}", ink_env_err);
-            }
-            Ok(Err(ink_lang_err)) => {
-                ink::env::debug_println!("ink lang error: {:?}", ink_lang_err);
-            }
-            Ok(Ok(Err(psp22_error))) => {
-                ink::env::debug_println!("psp22 error: {:?}", psp22_error);
-            }
-            Ok(Ok(Ok(_))) => {}
-        }
-    }
-
-    // We don't want to fail the whole transaction if PSP22::balance_of fails with a panic either.
-    // We choose to use `0` to denote the "panic" scenarios b/c it's a noop for the farm.
-    pub fn safe_balance_of(psp22: &contract_ref!(PSP22), account: AccountId) -> u128 {
-        match psp22.call().balance_of(account).try_invoke() {
-            Err(ink_env_err) => {
-                ink::env::debug_println!("ink env error: {:?}", ink_env_err);
-                0
-            }
-            Ok(Err(ink_lang_err)) => {
-                ink::env::debug_println!("ink lang error: {:?}", ink_lang_err);
-                0
-            }
-            Ok(Ok(res)) => res,
-        }
-    }
-
     pub fn rewards_per_share_in_time_interval(
         reward_rate: u128,
         total_shares: u128,
         from_timestamp: u128,
         to_timestamp: u128,
     ) -> Result<U256, MathError> {
-        if total_shares == 0 || from_timestamp > to_timestamp {
+        if total_shares == 0 || from_timestamp >= to_timestamp {
             return Ok(0.into());
         }
 
@@ -463,9 +444,9 @@ mod farm {
 
         casted_mul(reward_rate, time_delta)
             .checked_mul(U256::from(SCALING_FACTOR))
-            .ok_or(MathError::Overflow)?
+            .ok_or(MathError::Overflow(1))?
             .checked_div(U256::from(total_shares))
-            .ok_or(MathError::DivByZero)
+            .ok_or(MathError::DivByZero(1))
     }
 
     /// The formula is:
@@ -476,9 +457,9 @@ mod farm {
     ) -> Result<u128, MathError> {
         rewards_per_share
             .checked_mul(U256::from(shares))
-            .ok_or(MathError::Overflow)?
+            .ok_or(MathError::Overflow(2))?
             .checked_div(U256::from(SCALING_FACTOR))
-            .ok_or(MathError::Overflow)?
+            .ok_or(MathError::DivByZero(2))?
             .try_into()
             .map_err(|_| MathError::CastOverflow)
     }
