@@ -460,7 +460,7 @@ mod farm {
     #[cfg(test)]
     mod tests {
         use farm_trait::{Farm, FarmError};
-        use ink::primitives::AccountId;
+        use ink::{env::DefaultEnvironment, primitives::AccountId};
 
         #[ink::test]
         fn new_farm_works() {
@@ -531,6 +531,37 @@ mod farm {
             assert_eq!(
                 Farm::withdraw(&mut farm, 100).err().unwrap(),
                 FarmError::InsufficientShares
+            );
+        }
+
+        #[ink::test]
+        fn fail_for_nonowner() {
+            use ink::env::test::*;
+
+            let acc = default_accounts::<DefaultEnvironment>();
+
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            set_caller::<DefaultEnvironment>(acc.alice);
+            let mut farm =
+                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new work");
+            set_caller::<DefaultEnvironment>(acc.bob);
+            assert_eq!(
+                Farm::owner_start_new_farm(&mut farm, 100, 110, vec![1, 2])
+                    .err()
+                    .unwrap(),
+                FarmError::CallerNotOwner
+            );
+            assert_eq!(
+                Farm::owner_stop_farm(&mut farm).err().unwrap(),
+                FarmError::CallerNotOwner
+            );
+            assert_eq!(
+                Farm::owner_withdraw_token(&mut farm, AccountId::from([1u8; 32]))
+                    .err()
+                    .unwrap(),
+                FarmError::CallerNotOwner
             );
         }
     }
