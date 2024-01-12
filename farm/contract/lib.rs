@@ -467,7 +467,7 @@ mod farm {
             let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
 
             let farm =
-                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new work");
+                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new works");
 
             let farm_details = farm.view_farm_details();
             assert_eq!(farm_details.pool_id, pool_id);
@@ -493,7 +493,7 @@ mod farm {
                 FarmError::RewardTokenIsPoolToken
             );
 
-            let too_many_tokens = (0..=10)
+            let too_many_tokens = (0..=super::MAX_REWARD_TOKENS)
                 .into_iter()
                 .map(|i| AccountId::from([i as u8; 32]))
                 .collect();
@@ -511,7 +511,7 @@ mod farm {
             let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
 
             let mut farm =
-                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new work");
+                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new works");
 
             assert_eq!(
                 Farm::deposit(&mut farm, 0).err().unwrap(),
@@ -525,7 +525,7 @@ mod farm {
             let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
 
             let mut farm =
-                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new work");
+                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new works");
 
             assert_eq!(
                 Farm::withdraw(&mut farm, 100).err().unwrap(),
@@ -544,7 +544,7 @@ mod farm {
 
             set_caller::<DefaultEnvironment>(acc.alice);
             let mut farm =
-                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new work");
+                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new works");
             set_caller::<DefaultEnvironment>(acc.bob);
             assert_eq!(
                 Farm::owner_start_new_farm(&mut farm, 100, 110, vec![1, 2])
@@ -570,7 +570,7 @@ mod farm {
             let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
 
             let mut farm =
-                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new work");
+                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new works");
 
             assert_eq!(
                 farm.owner_withdraw_token(pool_id).err().unwrap(),
