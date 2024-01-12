@@ -463,4 +463,82 @@ mod farm {
             .try_into()
             .map_err(|_| MathError::CastOverflow)
     }
+
+    #[cfg(test)]
+    mod tests {
+        use farm_trait::{Farm, FarmError};
+        use ink::primitives::AccountId;
+
+        #[ink::test]
+        fn new_farm_works() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            let farm =
+                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new work");
+
+            let farm_details = farm.view_farm_details();
+            assert_eq!(farm_details.pool_id, pool_id);
+            assert_eq!(farm_details.start, 0);
+            assert_eq!(farm_details.end, 0);
+            assert_eq!(farm_details.reward_tokens, reward_tokens);
+            assert_eq!(farm_details.reward_rates, vec![0, 0]);
+
+            assert_eq!(farm.is_active(), false);
+
+            assert_eq!(farm.total_shares(), 0);
+        }
+
+        #[ink::test]
+        fn new_farm_fails() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), pool_id.clone()];
+
+            assert_eq!(
+                super::FarmContract::new(pool_id, reward_tokens.clone())
+                    .err()
+                    .unwrap(),
+                FarmError::RewardTokenIsPoolToken
+            );
+
+            let too_many_tokens = (0..=10)
+                .into_iter()
+                .map(|i| AccountId::from([i as u8; 32]))
+                .collect();
+            assert_eq!(
+                super::FarmContract::new(pool_id, too_many_tokens)
+                    .err()
+                    .unwrap(),
+                FarmError::TooManyRewardTokens
+            )
+        }
+
+        #[ink::test]
+        fn deposit_zero_fails() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            let mut farm =
+                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new work");
+
+            assert_eq!(
+                Farm::deposit(&mut farm, 0).err().unwrap(),
+                FarmError::InsufficientShares
+            );
+        }
+
+        #[ink::test]
+        fn withdraw_too_much_fails() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            let mut farm =
+                super::FarmContract::new(pool_id, reward_tokens.clone()).expect("farm::new work");
+
+            assert_eq!(
+                Farm::withdraw(&mut farm, 100).err().unwrap(),
+                FarmError::InsufficientShares
+            );
+        }
+    }
 }
