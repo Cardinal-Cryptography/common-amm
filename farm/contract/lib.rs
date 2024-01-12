@@ -305,13 +305,12 @@ mod farm {
         #[ink(message)]
         fn owner_withdraw_token(&mut self, token: TokenId) -> Result<(), FarmError> {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
-            self.update()?;
             ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
-
             // Owner should be able to withdraw every token except the pool token.
             ensure!(self.pool_id != token, FarmError::RewardTokenIsPoolToken);
-            let mut token_ref: contract_ref!(PSP22) = token.into();
 
+            self.update()?;
+            let mut token_ref: contract_ref!(PSP22) = token.into();
             let total_balance = token_ref.balance_of(self.env().account_id());
             let undistributed_balance = if let Some(token_index) =
                 self.reward_tokens.iter().position(|&t| t == token)
@@ -562,6 +561,36 @@ mod farm {
                     .err()
                     .unwrap(),
                 FarmError::CallerNotOwner
+            );
+        }
+
+        #[ink::test]
+        fn owner_cannot_withdraw_when_farm_running() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            let mut farm =
+                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new work");
+
+            assert_eq!(
+                farm.owner_withdraw_token(AccountId::from([1u8; 32]))
+                    .err()
+                    .unwrap(),
+                FarmError::FarmAlreadyRunning
+            );
+        }
+
+        #[ink::test]
+        fn owner_cannot_withdraw_pool_token() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
+
+            let mut farm =
+                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new work");
+
+            assert_eq!(
+                farm.owner_withdraw_token(pool_id).err().unwrap(),
+                FarmError::RewardTokenIsPoolToken
             );
         }
     }
