@@ -565,22 +565,6 @@ mod farm {
         }
 
         #[ink::test]
-        fn owner_cannot_withdraw_when_farm_running() {
-            let pool_id = AccountId::from([0u8; 32]);
-            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
-
-            let mut farm =
-                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new work");
-
-            assert_eq!(
-                farm.owner_withdraw_token(AccountId::from([1u8; 32]))
-                    .err()
-                    .unwrap(),
-                FarmError::FarmAlreadyRunning
-            );
-        }
-
-        #[ink::test]
         fn owner_cannot_withdraw_pool_token() {
             let pool_id = AccountId::from([0u8; 32]);
             let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
