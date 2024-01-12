@@ -90,7 +90,6 @@ pub trait Farm {
     #[ink(message)]
     fn owner_start_new_farm(
         &mut self,
-        // In implementation, these are `Timestamp`, maybe we should have the same type in both places?
         start: u64,
         end: u64,
         rewards: Vec<u128>,
