@@ -297,7 +297,7 @@ pub async fn swap_tokens() -> Result<()> {
     assert!(regular_balance_before == EXPECTED_INITIAL_REGULAR_BALANCE);
 
     let swap_tx_info = wealthy_connection
-        .exec(pair_contract.swap(FIRST_AMOUNT_OUT, SECOND_AMOUNT_OUT, regular_account))
+        .exec(pair_contract.swap(FIRST_AMOUNT_OUT, SECOND_AMOUNT_OUT, regular_account, None))
         .await?;
 
     let all_pair_contract_events = wealthy_connection.get_contract_events(swap_tx_info).await?;
@@ -359,7 +359,7 @@ pub async fn burn_liquidity_provider_token() -> Result<()> {
         .exec(first_token.transfer(pair, FIRST_AMOUNT_IN, vec![]))
         .await?;
     wealthy_connection
-        .exec(pair_contract.swap(FIRST_AMOUNT_OUT, SECOND_AMOUNT_OUT, regular_account))
+        .exec(pair_contract.swap(FIRST_AMOUNT_OUT, SECOND_AMOUNT_OUT, regular_account, None))
         .await?;
 
     let first_token_balance_before = wealthy_connection
