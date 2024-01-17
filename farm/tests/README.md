@@ -8,3 +8,12 @@ cargo install --git https://github.com/Cardinal-Cryptography/ink-wrapper --rev 2
 ```
 
 We do not guarantee it will work with other versions.
+
+## How to run
+
+The tests require some setting up to do:
+1. Build the contracts.
+2. Generate wrappers.
+3. Copy output of the (2) to the test directory.
+
+All of the above is taken care of by the `Makefile` in the parent directory. Simply run `make all`.

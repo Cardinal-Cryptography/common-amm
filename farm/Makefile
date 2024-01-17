@@ -42,3 +42,6 @@ setup-tests: generate-wrappers ## Builds contracts and generates wrappers.
 drink-tests: ## Runs tests for drink contract.
 	@echo "Running drink tests" ; \
 	cargo test --quiet --manifest-path ./tests/Cargo.toml -- --nocapture ; \
+
+.PHONY:
+all: setup-tests drink-tests ## Runs all tests.
