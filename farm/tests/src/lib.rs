@@ -115,26 +115,49 @@ mod tests {
         session.sandbox().set_timestamp(timestamp);
     }
 
+    /// Returns farm details.
+    fn get_farm_details(session: &mut Session<MinimalRuntime>, farm: &Farm) -> farm::FarmDetails {
+        session
+            .query(farm.view_farm_details())
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    /// Starts a farm with given start and end timestamps and rewards.
+    fn setup_farm_start(
+        session: &mut Session<MinimalRuntime>,
+        farm: &Farm,
+        start: u64,
+        end: u64,
+        rewards: Vec<u128>,
+        caller: drink::AccountId32,
+    ) -> Result<()> {
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(farm.owner_start_new_farm(start, end, rewards))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap();
+
+        Ok(())
+    }
+
+    const ICE: &str = "ICE";
+    const WOOD: &str = "WOOD";
+    const SAND: &str = "SAND";
+
     #[test]
     fn farm_start() {
         let mut session: Session<MinimalRuntime> = Session::new().expect("Init new Session");
 
-        let ice = {
-            let ice = "ICE".to_string();
-            setup_psp22(&mut session, ice.clone(), ice.clone(), BOB)
-        };
+        let ice = setup_psp22(&mut session, ICE.to_string(), ICE.to_string(), BOB);
 
-        let wood = {
-            let wood = "WOOD".to_string();
-            setup_psp22(&mut session, wood.clone(), wood.clone(), BOB)
-        };
+        let wood = { setup_psp22(&mut session, WOOD.to_string(), WOOD.to_string(), BOB) };
 
-        let sand = {
-            let sand = "SAND".to_string();
-            setup_psp22(&mut session, sand.clone(), sand.clone(), BOB)
-        };
-
-        let _farm_code_hash = session.upload_code(farm::upload()).unwrap();
+        let sand = { setup_psp22(&mut session, SAND.to_string(), SAND.to_string(), BOB) };
 
         let farm = setup_farm(
             &mut session,
@@ -143,11 +166,7 @@ mod tests {
             BOB,
         );
 
-        let farm_details: farm::FarmDetails = session
-            .query(farm.view_farm_details())
-            .unwrap()
-            .result
-            .unwrap();
+        let farm_details: farm::FarmDetails = get_farm_details(&mut session, &farm);
 
         let expected_details = farm::FarmDetails {
             pool_id: ice.into(),
@@ -189,15 +208,14 @@ mod tests {
         let farm_wood_balance_before = balance_of(&mut session, wood.into(), farm.into());
         let farm_sand_balance_before = balance_of(&mut session, sand.into(), farm.into());
 
-        let call_result = session
-            .execute(farm.owner_start_new_farm(
-                farm_start,
-                farm_end,
-                vec![rewards_amount, rewards_amount],
-            ))
-            .unwrap()
-            .result
-            .unwrap();
+        let call_result = setup_farm_start(
+            &mut session,
+            &farm,
+            farm_start,
+            farm_end,
+            vec![rewards_amount, rewards_amount],
+            BOB,
+        );
 
         assert!(call_result.is_ok());
 
@@ -209,11 +227,7 @@ mod tests {
             end: farm_end,
         };
 
-        let farm_details: farm::FarmDetails = session
-            .query(farm.view_farm_details())
-            .unwrap()
-            .result
-            .unwrap();
+        let farm_details: farm::FarmDetails = get_farm_details(&mut session, &farm);
 
         assert!(farm_details == expected_details);
 
