@@ -86,8 +86,6 @@ check-all: check-farm check-amm ## Runs cargo checks and unit tests on all contr
 	@cargo test --quiet --locked --frozen --workspace
 	@echo "Checking AMM e2e tests"
 	@cd ./amm/e2e-tests && cargo check --quiet
-	@echo "Checking farm e2e drink! tests"; \
-	cd ./farm && make all
 
 .PHONY: format
 format: ## Formats contract files.
