@@ -44,7 +44,7 @@ TEST_PATHS := $(shell find $(TEST_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
 .PHONY: build-farm
 build-farm: ## Builds farm contracts.
-	@pushd farm && make build-farm && popd
+	@cd farm && make build-farm && cd ..
 
 .PHONY: build-amm
 build-amm: ## Builds AMM contracts.
@@ -70,7 +70,7 @@ build-test-contracts: ## Builds contracts used in e2e-tests
 	
 .PHONY: check-farm
 check-farm: ## Runs cargo checks on farm contracts.
-	@pushd farm && make check-farm && popd
+	@cd farm && make check-farm && cd ..
 
 .PHONY: check-amm
 check-amm: ## Runs cargo (contract) check on AMM contracts.
