@@ -11,9 +11,7 @@ fn farm_start() {
     let mut session: Session<MinimalRuntime> = Session::new().expect("Init new Session");
 
     let ice = setup_psp22(&mut session, ICE.to_string(), ICE.to_string(), BOB);
-
     let wood = setup_psp22(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
-
     let sand = setup_psp22(&mut session, SAND.to_string(), SAND.to_string(), BOB);
 
     let farm = setup_farm(
@@ -35,10 +33,9 @@ fn farm_start() {
 
     assert!(farm_details == expected_details);
 
-    let now = get_timestamp(&mut session);
-    set_timestamp(&mut session, now);
-    let now_plus_100 = now + 100;
-    let farm_start = now_plus_100;
+    // Fix timestamp, otherwise it changes with every invocation.
+    set_timestamp(&mut session, get_timestamp(&mut session));
+    let farm_start = now + 100;
     let farm_end = farm_start + 100;
 
     let call_result = session
@@ -56,7 +53,6 @@ fn farm_start() {
     );
 
     let rewards_amount = 100;
-
     increase_allowance(&mut session, wood.into(), farm.into(), rewards_amount, BOB).unwrap();
     increase_allowance(&mut session, sand.into(), farm.into(), rewards_amount, BOB).unwrap();
 

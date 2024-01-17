@@ -92,6 +92,8 @@ pub fn increase_allowance(
     Ok(())
 }
 
+/// Returns balance of given token for given account.
+/// Fails if anything other than success.
 pub fn balance_of(
     session: &mut Session<MinimalRuntime>,
     token: AccountId,
@@ -113,6 +115,7 @@ pub fn set_timestamp(session: &mut Session<MinimalRuntime>, timestamp: u64) {
 }
 
 /// Returns farm details.
+/// Fails if anything other than success.
 pub fn get_farm_details(session: &mut Session<MinimalRuntime>, farm: &Farm) -> farm::FarmDetails {
     session
         .query(farm.view_farm_details())
