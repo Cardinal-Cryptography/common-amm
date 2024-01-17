@@ -12,9 +12,9 @@ fn farm_start() {
 
     let ice = setup_psp22(&mut session, ICE.to_string(), ICE.to_string(), BOB);
 
-    let wood = { setup_psp22(&mut session, WOOD.to_string(), WOOD.to_string(), BOB) };
+    let wood = setup_psp22(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
 
-    let sand = { setup_psp22(&mut session, SAND.to_string(), SAND.to_string(), BOB) };
+    let sand = setup_psp22(&mut session, SAND.to_string(), SAND.to_string(), BOB);
 
     let farm = setup_farm(
         &mut session,
