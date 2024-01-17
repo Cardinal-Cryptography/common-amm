@@ -12,7 +12,7 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
     "derive",
 ] }
 
-ink-wrapper-types = { git = "https://github.com/Cardinal-Cryptography/ink-wrapper", branch = "aleph-client-compat", default-features = false, features = [
+ink-wrapper-types = { git = "https://github.com/Cardinal-Cryptography/ink-wrapper", rev = "ddaea5b64205c8deb3f397ef6626dcfaad89322a", default-features = false, features = [
     "drink",
 ] }
 frame-system = "23.0.0"

@@ -2094,7 +2094,7 @@ checksum = "8e04e2fd2b8188ea827b32ef11de88377086d690286ab35747ef7f9bf3ccb590"
 [[package]]
 name = "ink-wrapper-types"
 version = "0.7.0"
-source = "git+https://github.com/Cardinal-Cryptography/ink-wrapper?branch=aleph-client-compat#28bce20d63ff174a437b89c7e9becc78cd4dbd52"
+source = "git+https://github.com/Cardinal-Cryptography/ink-wrapper?rev=ddaea5b64205c8deb3f397ef6626dcfaad89322a#ddaea5b64205c8deb3f397ef6626dcfaad89322a"
 dependencies = [
  "anyhow",
  "drink",

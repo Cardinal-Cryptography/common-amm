@@ -239,6 +239,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "farm-trait"
+version = "0.1.0"
+dependencies = [
+ "amm-helpers",
+ "ink",
+ "parity-scale-codec",
+ "psp22 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "scale-info",
+]
+
+[[package]]
+name = "farm_contract"
+version = "0.1.0"
+dependencies = [
+ "amm-helpers",
+ "farm-trait",
+ "ink",
+ "parity-scale-codec",
+ "primitive-types",
+ "psp22 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "scale-info",
+]
+
+[[package]]
 name = "fixed-hash"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
