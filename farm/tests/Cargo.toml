@@ -12,6 +12,7 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
     "derive",
 ] }
 
+# Do not touch, might break easily.
 ink-wrapper-types = { git = "https://github.com/Cardinal-Cryptography/ink-wrapper", rev = "ddaea5b64205c8deb3f397ef6626dcfaad89322a", default-features = false, features = [
     "drink",
 ] }
