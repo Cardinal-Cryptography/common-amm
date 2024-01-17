@@ -44,10 +44,7 @@ TEST_PATHS := $(shell find $(TEST_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
 .PHONY: build-farm
 build-farm: ## Builds farm contracts.
-	@for d in $(FARM_CONTRACTS); do \
-		echo "Building $$d contract" ; \
-		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
-	done
+	@pushd farm && make build-farm && popd
 
 .PHONY: build-amm
 build-amm: ## Builds AMM contracts.
@@ -73,12 +70,7 @@ build-test-contracts: ## Builds contracts used in e2e-tests
 	
 .PHONY: check-farm
 check-farm: ## Runs cargo checks on farm contracts.
-	@for d in $(FARM_CONTRACTS); do \
-		echo "Checking $$d" ; \
-		cargo check --quiet --all-targets --all-features --manifest-path $$d/Cargo.toml ; \
-		cargo clippy --quiet --all-features --manifest-path $$d/Cargo.toml -- --no-deps -D warnings ; \
-		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
-	done
+	@pushd farm && make check-farm && popd
 
 .PHONY: check-amm
 check-amm: ## Runs cargo (contract) check on AMM contracts.
