@@ -34,7 +34,8 @@ fn farm_start() {
     assert!(farm_details == expected_details);
 
     // Fix timestamp, otherwise it changes with every invocation.
-    set_timestamp(&mut session, get_timestamp(&mut session));
+    let now =  get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
     let farm_start = now + 100;
     let farm_end = farm_start + 100;
 
