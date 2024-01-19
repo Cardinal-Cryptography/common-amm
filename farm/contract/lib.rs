@@ -34,7 +34,7 @@ mod farm {
     pub struct RewardsClaimed {
         #[ink(topic)]
         account: AccountId,
-        rewards_claimed: Vec<(AccountId, u128)>,
+        rewards_claimed: Vec<u128>,
     }
 
     use amm_helpers::math::MathError;
@@ -335,7 +335,7 @@ mod farm {
                 .get(account)
                 .ok_or(FarmError::CallerNotFarmer)?;
 
-            let mut rewards_claimed: Vec<(TokenId, u128)> = Vec::with_capacity(tokens.len());
+            let mut rewards_claimed: Vec<u128> = vec![0u128; self.reward_tokens.len()];
 
             for token_idx in tokens {
                 let idx = token_idx as usize;
@@ -345,10 +345,10 @@ mod farm {
                     user_rewards[idx] = 0;
                     let mut psp22_ref: ink::contract_ref!(PSP22) = token.into();
                     self.farm_distributed_unclaimed_rewards[idx] -= user_reward;
+                    rewards_claimed[idx] = user_reward;
                     psp22_ref
                         .transfer(account, user_reward, vec![])
                         .map_err(|e| FarmError::TokenTransferFailed(token, e))?;
-                    rewards_claimed.push((token, user_reward));
                 }
             }
 
@@ -362,10 +362,10 @@ mod farm {
                 self.env(),
                 Event::RewardsClaimed(RewardsClaimed {
                     account,
-                    rewards_claimed,
+                    rewards_claimed: rewards_claimed.clone(),
                 }),
             );
-            Ok(user_rewards)
+            Ok(rewards_claimed)
         }
 
         #[ink(message)]
