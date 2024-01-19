@@ -34,52 +34,28 @@ build-node-arm64:
 build-node-x86_64:
 	@docker buildx build --pull --platform linux/amd64 -t aleph-onenode-chain-x86_64 --load docker
 
-AMM_CONTRACTS = ./amm/contracts
-AMM_CONTRACTS_PATHS := $(shell find $(AMM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
-
-FARM_CONTRACTS := ./farm/contract
-
-TEST_CONTRACTS = ./test-contracts
-TEST_PATHS := $(shell find $(TEST_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
-
 .PHONY: build-farm
 build-farm: ## Builds farm contracts.
 	@cd farm && make build-farm && cd ..
 
 .PHONY: build-amm
 build-amm: ## Builds AMM contracts.
-	@for d in $(AMM_CONTRACTS_PATHS); do \
-	 	echo "Building $$d contract" ; \
-	 	cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
-	done
+	@cd amm && make build-amm && cd ..
 
 .PHONY: build-all
 build-all: build-farm build-amm build-test-contracts ## Builds all contracts.
 
 .PHONY: build-test-contracts
 build-test-contracts: ## Builds contracts used in e2e-tests
-	@for d in $(TEST_PATHS); do \
-		echo "Building $$d contract" ; \
-		if [ "$$d" = "$(TEST_CONTRACTS)/psp22" ]; then \
-			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release --features "contract"; \
-		else \
-			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release; \
-		fi \
-	done
+	@cd amm && make build-test-contracts && cd ..
 
-	
 .PHONY: check-farm
 check-farm: ## Runs cargo checks on farm contracts.
 	@cd farm && make check-farm && cd ..
 
 .PHONY: check-amm
 check-amm: ## Runs cargo (contract) check on AMM contracts.
-	@for d in $(AMM_CONTRACTS_PATHS); do \
-		echo "Checking $$d" ; \
-		cargo check --quiet --all-targets --all-features --manifest-path $$d/Cargo.toml ; \
-		cargo clippy --quiet --all-features --manifest-path $$d/Cargo.toml -- --no-deps -D warnings ; \
-		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
-	done
+	@cd amm && make check-amm && cd ..
 
 .PHONY: check-all
 check-all: check-farm check-amm ## Runs cargo checks and unit tests on all contracts.
