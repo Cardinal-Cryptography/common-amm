@@ -1,7 +1,7 @@
 use crate::*;
 
-use farm::{Farm as _, Instance as Farm};
-use psp22::{Instance as PSP22, PSP22 as _};
+use farm::{self, Farm, FarmDetails, FarmT};
+use psp22::{self, PSP22, PSP22T};
 
 use anyhow::Result;
 use drink::{runtime::MinimalRuntime, session::Session, AccountId32};
@@ -116,7 +116,7 @@ pub fn set_timestamp(session: &mut Session<MinimalRuntime>, timestamp: u64) {
 
 /// Returns farm details.
 /// Fails if anything other than success.
-pub fn get_farm_details(session: &mut Session<MinimalRuntime>, farm: &Farm) -> farm::FarmDetails {
+pub fn get_farm_details(session: &mut Session<MinimalRuntime>, farm: &Farm) -> FarmDetails {
     session
         .query(farm.view_farm_details())
         .unwrap()

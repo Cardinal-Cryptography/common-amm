@@ -1,7 +1,7 @@
 use crate::*;
-use utils::*;
 
-use farm::Farm as _;
+use farm::{FarmDetails, FarmError, FarmT, PSP22Error};
+use utils::*;
 
 use drink::{runtime::MinimalRuntime, session::Session};
 use ink_wrapper_types::Connection;
@@ -21,9 +21,9 @@ fn farm_start() {
         BOB,
     );
 
-    let farm_details: farm::FarmDetails = get_farm_details(&mut session, &farm);
+    let farm_details: FarmDetails = get_farm_details(&mut session, &farm);
 
-    let expected_details = farm::FarmDetails {
+    let expected_details = FarmDetails {
         pool_id: ice.into(),
         reward_tokens: vec![wood.into(), sand.into()],
         reward_rates: vec![0, 0],
@@ -34,7 +34,7 @@ fn farm_start() {
     assert!(farm_details == expected_details);
 
     // Fix timestamp, otherwise it changes with every invocation.
-    let now =  get_timestamp(&mut session);
+    let now = get_timestamp(&mut session);
     set_timestamp(&mut session, now);
     let farm_start = now + 100;
     let farm_end = farm_start + 100;
@@ -45,8 +45,7 @@ fn farm_start() {
         .result
         .unwrap();
 
-    let insufficient_allowance =
-        farm::FarmError::PSP22Error(farm::PSP22Error::InsufficientAllowance());
+    let insufficient_allowance = FarmError::PSP22Error(PSP22Error::InsufficientAllowance());
 
     assert!(
         call_result == Err(insufficient_allowance),
@@ -73,7 +72,7 @@ fn farm_start() {
 
     assert!(call_result.is_ok());
 
-    let expected_details = farm::FarmDetails {
+    let expected_details = FarmDetails {
         pool_id: ice.into(),
         reward_tokens: vec![wood.into(), sand.into()],
         reward_rates: vec![1, 1],
@@ -81,7 +80,7 @@ fn farm_start() {
         end: farm_end,
     };
 
-    let farm_details: farm::FarmDetails = get_farm_details(&mut session, &farm);
+    let farm_details = get_farm_details(&mut session, &farm);
 
     assert!(farm_details == expected_details);
 

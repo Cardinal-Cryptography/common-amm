@@ -20,8 +20,8 @@ check-farm: ## Runs cargo checks on farm contracts.
 generate-farm-wrapper: check-farm build-farm ## Generates Rust wrappers for interacting with farm contract.
 	@echo "Wrapping farm contract" ; \
 	ink-wrapper --metadata ../target/ink/farm_contract/farm_contract.json \
-				--wasm-path ../../../target/ink/farm_contract/farm_contract.wasm \
-		| rustfmt --edition 2021 > ./tests/src/farm.rs ; \
+				--wasm-path ../../../../target/ink/farm_contract/farm_contract.wasm \
+		| rustfmt --edition 2021 > ./tests/src/farm/farm_contract.rs ; \
 
 .PHONY: generate-psp22-wrapper
 generate-psp22-wrapper: ## Generates Rust wrappers for interacting with PSP22 contracts.
@@ -29,8 +29,8 @@ generate-psp22-wrapper: ## Generates Rust wrappers for interacting with PSP22 co
 	cargo contract build --quiet --manifest-path ../test-contracts/psp22/Cargo.toml --release --features "contract" ;
 	@echo "Wrapping PSP22 contract" ; \
 	ink-wrapper --metadata ../target/ink/psp22/psp22.json \
-				--wasm-path ../../../target/ink/psp22/psp22.wasm \
-		| rustfmt --edition 2021 > ./tests/src/psp22.rs ; \
+				--wasm-path ../../../../target/ink/psp22/psp22.wasm \
+		| rustfmt --edition 2021 > ./tests/src/psp22/psp22_contract.rs ; \
 
 .PHONY: generate-wrappers
 generate-wrappers: generate-psp22-wrapper generate-farm-wrapper ## Generates Rust wrappers for interacting with contracts.
