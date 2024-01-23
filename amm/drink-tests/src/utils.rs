@@ -1,6 +1,6 @@
 use crate::*;
 
-use psp22::{Instance as PSP22, PSP22 as _};
+use crate::psp22::{Instance as PSP22, PSP22 as _};
 
 use anyhow::Result;
 use drink::{runtime::MinimalRuntime, session::Session, AccountId32};
@@ -18,6 +18,7 @@ pub const SAND: &str = "SAND";
 
 pub const ALICE: drink::AccountId32 = AccountId32::new([2u8; 32]);
 pub const BOB: drink::AccountId32 = AccountId32::new([1u8; 32]);
+pub const CHARLIE: drink::AccountId32 = AccountId32::new([3u8; 32]);
 
 pub fn alice() -> ink_primitives::AccountId {
     AsRef::<[u8; 32]>::as_ref(&ALICE).clone().into()
@@ -25,6 +26,10 @@ pub fn alice() -> ink_primitives::AccountId {
 
 pub fn bob() -> ink_primitives::AccountId {
     AsRef::<[u8; 32]>::as_ref(&BOB).clone().into()
+}
+
+pub fn charlie() -> ink_primitives::AccountId {
+    AsRef::<[u8; 32]>::as_ref(&CHARLIE).clone().into()
 }
 
 pub fn upload_all(session: &mut Session<MinimalRuntime>) {

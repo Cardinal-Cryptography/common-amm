@@ -348,7 +348,8 @@ pub mod pair {
             self.update(balance_0, balance_1, reserves.0, reserves.1)?;
 
             if fee_on {
-                self.pair.k_last = Some(casted_mul(reserves.0, reserves.1).into());
+                self.pair.k_last =
+                    Some(casted_mul(self.pair.reserve_0, self.pair.reserve_1).into());
             }
 
             self.env().emit_event(Mint {
