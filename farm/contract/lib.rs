@@ -339,12 +339,19 @@ mod farm {
         fn claim_rewards(&mut self, tokens: Vec<u8>) -> Result<Vec<u128>, FarmError> {
             self.update()?;
             let account = self.env().caller();
+
+            if self.shares.get(account).is_none() {
+                return Err(FarmError::CallerNotFarmer);
+            }
+
             self.update_account(account);
 
-            let mut user_rewards = self
-                .user_claimable_rewards
-                .get(account)
-                .ok_or(FarmError::CallerNotFarmer)?;
+            let mut user_rewards =
+                if let Some(user_rewards) = self.user_claimable_rewards.get(account) {
+                    user_rewards
+                } else {
+                    return Ok(vec![0u128; self.reward_tokens.len()]);
+                };
 
             let mut rewards_claimed: Vec<u128> = vec![0u128; self.reward_tokens.len()];
 
