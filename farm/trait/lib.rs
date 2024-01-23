@@ -22,6 +22,7 @@ pub enum FarmError {
     TooManyRewardTokens,
     RewardTokenIsPoolToken,
     TokenTransferFailed(AccountId, PSP22Error),
+    DuplicateRewardTokens,
 }
 
 /// Summary of the farm's details.
