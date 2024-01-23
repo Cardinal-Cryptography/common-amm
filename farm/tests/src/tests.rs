@@ -4,12 +4,10 @@ use farm::{self, FarmDetails, FarmError, PSP22Error};
 use psp22;
 use utils::*;
 
-use drink::{runtime::MinimalRuntime, session::Session};
+use drink::session::Session;
 
-#[test]
-fn farm_start() {
-    let mut session: Session<MinimalRuntime> = Session::new().expect("Init new Session");
-
+#[drink::test]
+fn farm_start(mut session: Session) {
     let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), BOB);
     let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
     let sand = psp22::setup(&mut session, SAND.to_string(), SAND.to_string(), BOB);
