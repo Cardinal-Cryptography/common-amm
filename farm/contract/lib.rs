@@ -315,10 +315,15 @@ mod farm {
             let undistributed_balance = if let Some(token_index) =
                 self.reward_tokens.iter().position(|&t| t == token)
             {
+                // After withdrawing all of the rewards, the reward rate should be zero.
+                self.farm_reward_rates[token_index] = 0;
                 total_balance.saturating_sub(self.farm_distributed_unclaimed_rewards[token_index])
             } else {
                 total_balance
             };
+            if self.farm_reward_rates.iter().all(|rr| *rr == 0) {
+                return Err(FarmError::AllRewardRatesZero);
+            }
             token_ref.transfer(self.owner, undistributed_balance, vec![])?;
             Ok(())
         }
