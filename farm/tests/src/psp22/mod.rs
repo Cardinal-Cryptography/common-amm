@@ -2,7 +2,8 @@ mod psp22_contract;
 
 pub use psp22_contract::{upload, Instance as PSP22, PSP22Error, PSP22 as PSP22T};
 
-use anyhow::Result;
+use crate::utils::handle_ink_error;
+
 use drink::{runtime::MinimalRuntime, session::Session};
 use ink_primitives::AccountId;
 use ink_wrapper_types::{util::ToAccountId, Connection};
@@ -41,17 +42,15 @@ pub fn increase_allowance(
     spender: AccountId,
     amount: u128,
     caller: drink::AccountId32,
-) -> Result<()> {
+) {
     let _ = session.set_actor(caller);
 
-    session
-        .execute(PSP22::increase_allowance(&token.into(), spender, amount))
-        .unwrap()
-        .result
-        .unwrap()
-        .unwrap();
-
-    Ok(())
+    handle_ink_error(
+        session
+            .execute(PSP22::increase_allowance(&token.into(), spender, amount))
+            .unwrap(),
+    )
+    .expect("Increase allowance failed");
 }
 
 /// Returns balance of given token for given account.
@@ -61,9 +60,9 @@ pub fn balance_of(
     token: AccountId,
     account: AccountId,
 ) -> u128 {
-    session
-        .query(PSP22::balance_of(&token.into(), account))
-        .unwrap()
-        .result
-        .unwrap()
+    handle_ink_error(
+        session
+            .query(PSP22::balance_of(&token.into(), account))
+            .unwrap(),
+    )
 }

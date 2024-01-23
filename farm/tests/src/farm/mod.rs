@@ -4,6 +4,8 @@ pub use farm_contract::{
     upload, Farm as FarmT, FarmDetails, FarmError, Instance as Farm, PSP22Error,
 };
 
+use crate::utils::handle_ink_error;
+
 use anyhow::Result;
 use drink::{runtime::MinimalRuntime, session::Session};
 use ink_primitives::AccountId;
@@ -34,11 +36,7 @@ pub fn setup(
 /// Returns farm details.
 /// Fails if anything other than success.
 pub fn get_farm_details(session: &mut Session<MinimalRuntime>, farm: &Farm) -> FarmDetails {
-    session
-        .query(farm.view_farm_details())
-        .unwrap()
-        .result
-        .unwrap()
+    handle_ink_error(session.query(farm.view_farm_details()).unwrap())
 }
 
 /// Starts a farm with given start and end timestamps and rewards.
@@ -52,9 +50,53 @@ pub fn start(
 ) -> Result<(), FarmError> {
     let _ = session.set_actor(caller);
 
-    session
-        .execute(farm.owner_start_new_farm(start, end, rewards))
-        .unwrap()
-        .result
-        .unwrap()
+    handle_ink_error(
+        session
+            .execute(farm.owner_start_new_farm(start, end, rewards))
+            .unwrap(),
+    )
+}
+
+pub fn deposit_to_farm(
+    session: &mut Session<MinimalRuntime>,
+    farm: &Farm,
+    amount: u128,
+    caller: drink::AccountId32,
+) -> Result<(), FarmError> {
+    let _ = session.set_actor(caller);
+
+    handle_ink_error(session.execute(farm.deposit(amount)).unwrap())
+}
+
+pub fn owner_withdraw(
+    session: &mut Session<MinimalRuntime>,
+    farm: &Farm,
+    token: AccountId,
+    caller: drink::AccountId32,
+) -> Result<(), FarmError> {
+    let _ = session.set_actor(caller);
+
+    handle_ink_error(session.execute(farm.owner_withdraw_token(token)).unwrap())
+}
+
+pub fn query_unclaimed_rewards(
+    session: &mut Session<MinimalRuntime>,
+    farm: &Farm,
+    reward_ids: Vec<u8>,
+    caller: drink::AccountId32,
+) -> Result<Vec<u128>, FarmError> {
+    let _ = session.set_actor(caller);
+
+    handle_ink_error(session.query(farm.claim_rewards(reward_ids)).unwrap())
+}
+
+pub fn claim_rewards(
+    session: &mut Session<MinimalRuntime>,
+    farm: &Farm,
+    reward_ids: Vec<u8>,
+    caller: drink::AccountId32,
+) -> Result<Vec<u128>, FarmError> {
+    let _ = session.set_actor(caller);
+
+    handle_ink_error(session.execute(farm.claim_rewards(reward_ids)).unwrap())
 }
