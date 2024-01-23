@@ -381,6 +381,9 @@ mod farm {
 
             for token_idx in tokens {
                 let idx = token_idx as usize;
+                if idx > self.reward_tokens.len() {
+                    return Err(FarmError::RewardIndexOutOfBounds);
+                }
                 let token = self.reward_tokens[idx];
                 let user_reward = user_rewards[idx];
                 if user_reward > 0 {

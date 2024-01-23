@@ -671,3 +671,67 @@ fn start_stop_emits_event(mut session: Session) {
         })
     );
 }
+
+#[drink::test]
+fn claim_rewards_index_bounds(mut session: Session) {
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), BOB);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
+
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], FARM_OWNER);
+    inc_timestamp(&mut session);
+
+    // Start the first farm
+    let farm_duration = 100;
+    let farm_start = now + 10;
+    let farm_end = farm_start + farm_duration;
+    let rewards_amount = 100000000000000;
+    psp22::increase_allowance(
+        &mut session,
+        wood.into(),
+        farm.into(),
+        rewards_amount,
+        FARM_OWNER,
+    );
+    farm::start(
+        &mut session,
+        &farm,
+        farm_start,
+        farm_end,
+        vec![rewards_amount],
+        FARM_OWNER,
+    )
+    .unwrap();
+
+    // Seed the farmer with some tokens to execute txns.
+    session
+        .sandbox()
+        .mint_into(FARMER, 1_000_000_000u128)
+        .unwrap();
+
+    // deposits lp token
+    let deposit_amount = 1000000;
+    inc_timestamp(&mut session);
+
+    // Deposit LP tokens as Alice, not Bob.
+    psp22::transfer(&mut session, ice.into(), alice(), deposit_amount, BOB).unwrap();
+    psp22::increase_allowance(
+        &mut session,
+        ice.into(),
+        farm.into(),
+        deposit_amount,
+        FARMER,
+    );
+    farm::deposit_to_farm(&mut session, &farm, deposit_amount, FARMER).unwrap();
+    set_timestamp(&mut session, farm_end + 10);
+    assert_eq!(
+        Err(farm::FarmError::RewardIndexOutOfBounds()),
+        farm::claim_rewards(&mut session, &farm, vec![3], FARMER)
+    );
+    assert_eq!(
+        Ok(vec![rewards_amount]),
+        farm::claim_rewards(&mut session, &farm, vec![0], FARMER)
+    )
+}
