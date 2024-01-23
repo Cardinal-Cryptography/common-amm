@@ -37,6 +37,18 @@ mod farm {
         rewards_claimed: Vec<u128>,
     }
 
+    #[ink(event)]
+    pub struct FarmStopped {
+        end: u64,
+    }
+
+    #[ink(event)]
+    pub struct FarmStarted {
+        start: u64,
+        end: u64,
+        reward_rates: Vec<u128>,
+    }
+
     use amm_helpers::math::MathError;
 
     pub type Event = <FarmContract as ContractEventBase>::Type;
@@ -297,6 +309,14 @@ mod farm {
             self.farm_reward_rates = self.assert_start_params(start, end, rewards.clone())?;
             self.start = start;
             self.end = end;
+            FarmContract::emit_event(
+                self.env(),
+                Event::FarmStarted(FarmStarted {
+                    start,
+                    end,
+                    reward_rates: self.farm_reward_rates.clone(),
+                }),
+            );
             Ok(())
         }
 
@@ -305,6 +325,10 @@ mod farm {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             self.update()?;
             self.end = self.env().block_timestamp();
+            FarmContract::emit_event(
+                self.env(),
+                Event::FarmStopped(FarmStopped { end: self.end }),
+            );
             Ok(())
         }
 

@@ -1,6 +1,6 @@
 mod psp22_contract;
 
-pub use psp22_contract::{upload, Instance as PSP22, PSP22Error, PSP22 as PSP22T};
+pub use psp22_contract::{event, upload, Instance as PSP22, PSP22Error, PSP22 as PSP22T};
 
 use crate::utils::handle_ink_error;
 
