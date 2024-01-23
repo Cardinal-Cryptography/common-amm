@@ -12,6 +12,9 @@ addresses.json
 amm/e2e-tests/src/*_contract.rs
 amm/e2e-tests/src/wrapped_azero.rs
 amm/e2e-tests/src/psp22.rs
+amm/drink-tests/src/*_contract.rs
+amm/drink-tests/src/wrapped_azero.rs
+amm/drink-tests/src/psp22.rs
 farm/tests/src/psp22.rs
 farm/tests/src/farm.rs
 

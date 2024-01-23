@@ -1,0 +1,27 @@
+[package]
+name = "amm-tests-drink"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+drink = "0.8"
+
+scale = { package = "parity-scale-codec", version = "3", default-features = false, features = [
+    "derive",
+] }
+
+# Do not touch, might break easily.
+ink-wrapper-types = { git = "https://github.com/Cardinal-Cryptography/ink-wrapper", rev = "ddaea5b64205c8deb3f397ef6626dcfaad89322a", default-features = false, features = [
+    "drink",
+] }
+frame-system = "23.0.0"
+ink_metadata = "4.3.0"
+ink_primitives = "4.2.1"
+
+anyhow = "1.0.69"
+sp-core = "16.0.0"
+
+[dev-dependencies]
+assert2 = "0.3.10"
