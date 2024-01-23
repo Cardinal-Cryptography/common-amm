@@ -6,16 +6,14 @@ use crate::utils::*;
 
 use drink::frame_support::sp_runtime::traits::IntegerSquareRoot;
 use drink::frame_support::sp_runtime::traits::Scale;
-use drink::{runtime::MinimalRuntime, session::Session};
+use drink::session::Session;
 use ink_wrapper_types::Connection;
 
 use factory_contract::Factory as _;
 use router_contract::Router as _;
 
-#[test]
-fn add_liquidity() {
-    let mut session: Session<MinimalRuntime> = Session::new().expect("Init new Session");
-
+#[drink::test]
+fn add_liquidity(mut session: Session) {
     upload_all(&mut session);
 
     let fee_to_setter = bob();
