@@ -35,6 +35,22 @@ pub fn setup(
         .into()
 }
 
+pub fn transfer(
+    session: &mut Session<MinimalRuntime>,
+    token: AccountId,
+    to: AccountId,
+    amount: u128,
+    caller: drink::AccountId32,
+) -> Result<(), PSP22Error> {
+    let _ = session.set_actor(caller);
+
+    handle_ink_error(
+        session
+            .execute(PSP22::transfer(&token.into(), to, amount, vec![]))
+            .unwrap(),
+    )
+}
+
 /// Increases allowance of given token to given spender by given amount.
 pub fn increase_allowance(
     session: &mut Session<MinimalRuntime>,
