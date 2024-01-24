@@ -1,7 +1,5 @@
 use crate::*;
 
-use crate::psp22::{Instance as PSP22, PSP22 as _};
-
 use anyhow::Result;
 use drink::{runtime::MinimalRuntime, session::Session, AccountId32};
 use ink_primitives::AccountId;
@@ -34,7 +32,7 @@ pub fn charlie() -> ink_primitives::AccountId {
 
 pub fn upload_all(session: &mut Session<MinimalRuntime>) {
     session
-        .upload_code(psp22::upload())
+        .upload_code(psp22_contract::upload())
         .expect("Upload psp22 code");
     session
         .upload_code(factory_contract::upload())
@@ -50,104 +48,130 @@ pub fn upload_all(session: &mut Session<MinimalRuntime>) {
         .expect("Upload wrapped_azero code");
 }
 
-pub fn setup_wAzero(session: &mut Session<MinimalRuntime>) -> wrapped_azero::Instance {
-    let instance = wrapped_azero::Instance::new();
+pub mod wazero {
+    use super::*;
 
-    session
-        .instantiate(instance)
-        .unwrap()
-        .result
-        .to_account_id()
-        .into()
+    pub fn setup(session: &mut Session<MinimalRuntime>) -> wrapped_azero::Instance {
+        let instance = wrapped_azero::Instance::new();
+
+        session
+            .instantiate(instance)
+            .unwrap()
+            .result
+            .to_account_id()
+            .into()
+    }
 }
 
-pub fn setup_factory(
-    session: &mut Session<MinimalRuntime>,
-    fee_to_setter: AccountId,
-) -> factory_contract::Instance {
-    let instance = factory_contract::Instance::new(fee_to_setter, pair_contract::CODE_HASH.into());
+pub mod factory {
+    use super::*;
 
-    session
-        .instantiate(instance)
-        .unwrap()
-        .result
-        .to_account_id()
-        .into()
+    pub fn setup(
+        session: &mut Session<MinimalRuntime>,
+        fee_to_setter: AccountId,
+    ) -> factory_contract::Instance {
+        let instance =
+            factory_contract::Instance::new(fee_to_setter, pair_contract::CODE_HASH.into());
+
+        session
+            .instantiate(instance)
+            .unwrap()
+            .result
+            .to_account_id()
+            .into()
+    }
 }
 
-pub fn setup_router(
-    session: &mut Session<MinimalRuntime>,
-    factory: AccountId,
-    wazero: AccountId,
-) -> router_contract::Instance {
-    let instance = router_contract::Instance::new(factory, wazero);
+pub mod router {
+    use super::*;
 
-    session
-        .instantiate(instance)
-        .unwrap()
-        .result
-        .to_account_id()
-        .into()
+    pub fn setup(
+        session: &mut Session<MinimalRuntime>,
+        factory: AccountId,
+        wazero: AccountId,
+    ) -> router_contract::Instance {
+        let instance = router_contract::Instance::new(factory, wazero);
+
+        session
+            .instantiate(instance)
+            .unwrap()
+            .result
+            .to_account_id()
+            .into()
+    }
 }
 
-/// Uploads and creates a PSP22 instance with 1B*10^18 issuance and given names.
-/// Returns its AccountId casted to PSP22 interface.
-pub fn setup_psp22(
-    session: &mut Session<MinimalRuntime>,
-    name: String,
-    caller: drink::AccountId32,
-) -> PSP22 {
-    let _code_hash = session.upload_code(psp22::upload()).unwrap();
+pub mod psp22 {
+    use super::*;
+    use psp22_contract::{Instance as PSP22, PSP22 as _};
 
-    let _ = session.set_actor(caller);
+    /// Uploads and creates a PSP22 instance with 1B*10^18 issuance and given names.
+    /// Returns its AccountId casted to PSP22 interface.
+    pub fn setup(
+        session: &mut Session<MinimalRuntime>,
+        name: String,
+        caller: drink::AccountId32,
+    ) -> psp22_contract::Instance {
+        let _code_hash = session.upload_code(psp22_contract::upload()).unwrap();
 
-    let instance = PSP22::new(
-        1_000_000_000u128 * 10u128.pow(18),
-        Some(name.clone()),
-        Some(name),
-        18,
-    );
+        let _ = session.set_actor(caller);
 
-    session
-        .instantiate(instance)
-        .unwrap()
-        .result
-        .to_account_id()
-        .into()
-}
+        let instance = PSP22::new(
+            1_000_000_000u128 * 10u128.pow(18),
+            Some(name.clone()),
+            Some(name),
+            18,
+        );
 
-/// Increases allowance of given token to given spender by given amount.
-pub fn increase_allowance(
-    session: &mut Session<MinimalRuntime>,
-    token: AccountId,
-    spender: AccountId,
-    amount: u128,
-    caller: drink::AccountId32,
-) -> Result<()> {
-    let _ = session.set_actor(caller);
+        session
+            .instantiate(instance)
+            .unwrap()
+            .result
+            .to_account_id()
+            .into()
+    }
 
-    session
-        .execute(PSP22::increase_allowance(&token.into(), spender, amount))
-        .unwrap()
-        .result
-        .unwrap()
-        .unwrap();
+    /// Increases allowance of given token to given spender by given amount.
+    pub fn increase_allowance(
+        session: &mut Session<MinimalRuntime>,
+        token: AccountId,
+        spender: AccountId,
+        amount: u128,
+        caller: drink::AccountId32,
+    ) -> Result<()> {
+        let _ = session.set_actor(caller);
 
-    Ok(())
-}
+        session
+            .execute(PSP22::increase_allowance(&token.into(), spender, amount))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap();
 
-/// Returns balance of given token for given account.
-/// Fails if anything other than success.
-pub fn balance_of(
-    session: &mut Session<MinimalRuntime>,
-    token: AccountId,
-    account: AccountId,
-) -> u128 {
-    session
-        .query(PSP22::balance_of(&token.into(), account))
-        .unwrap()
-        .result
-        .unwrap()
+        Ok(())
+    }
+
+    /// Returns balance of given token for given account.
+    /// Fails if anything other than success.
+    pub fn balance_of(
+        session: &mut Session<MinimalRuntime>,
+        token: AccountId,
+        account: AccountId,
+    ) -> u128 {
+        session
+            .query(PSP22::balance_of(&token.into(), account))
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn total_supply(session: &mut Session<MinimalRuntime>, token: AccountId) -> u128 {
+        session
+            .query(PSP22::total_supply(&token.into()))
+            .unwrap()
+            .result
+            .unwrap()
+    }
 }
 
 pub fn get_timestamp(session: &mut Session<MinimalRuntime>) -> u64 {

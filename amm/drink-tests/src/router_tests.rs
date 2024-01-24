@@ -18,13 +18,13 @@ fn add_liquidity(mut session: Session) {
 
     let fee_to_setter = bob();
 
-    let factory = setup_factory(&mut session, fee_to_setter);
-    let ice = setup_psp22(&mut session, ICE.to_string(), BOB);
-    let wazero = setup_wAzero(&mut session);
-    let router = setup_router(&mut session, factory.into(), wazero.into());
+    let factory = factory::setup(&mut session, fee_to_setter);
+    let ice = psp22::setup(&mut session, ICE.to_string(), BOB);
+    let wazero = wazero::setup(&mut session);
+    let router = router::setup(&mut session, factory.into(), wazero.into());
 
     let token_amount = 10_000;
-    increase_allowance(&mut session, ice.into(), router.into(), token_amount, BOB).unwrap();
+    psp22::increase_allowance(&mut session, ice.into(), router.into(), token_amount, BOB).unwrap();
 
     let all_pairs_length_before = session
         .query(factory.all_pairs_length())

@@ -16,11 +16,11 @@ fn add_liquidity_collects_too_much_fee(mut session: Session) {
     let fee_to_setter = bob();
 
     // initial amount of ICE is 2_000_000_000 * 10 ** 18
-    let factory = setup_factory(&mut session, fee_to_setter);
-    let ice = setup_psp22(&mut session, ICE.to_string(), BOB);
-    let wood = setup_psp22(&mut session, WOOD.to_string(), BOB);
-    let wazero = setup_wAzero(&mut session);
-    let router = setup_router(&mut session, factory.into(), wazero.into());
+    let factory = factory::setup(&mut session, fee_to_setter);
+    let ice = psp22::setup(&mut session, ICE.to_string(), BOB);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), BOB);
+    let wazero = wazero::setup(&mut session);
+    let router = router::setup(&mut session, factory.into(), wazero.into());
     // feed charlie some native tokens
     session
         .sandbox()
@@ -36,8 +36,8 @@ fn add_liquidity_collects_too_much_fee(mut session: Session) {
         .unwrap();
 
     let token_amount = 1_000 * 10u128.pow(18);
-    increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB).unwrap();
-    increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB).unwrap();
+    psp22::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB).unwrap();
+    psp22::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB).unwrap();
 
     let now = get_timestamp(&mut session);
     set_timestamp(&mut session, now);
@@ -87,7 +87,7 @@ fn add_liquidity_collects_too_much_fee(mut session: Session) {
 
     // since no swaps occured charlie (`fee_to`) should not have any liquidity
     // however we can see that he has 1/6th of the second liquidity
-    let charlie_lp = balance_of(&mut session, ice_wood_pair.into(), charlie());
+    let charlie_lp = psp22::balance_of(&mut session, ice_wood_pair.into(), charlie());
 
     assert_eq!(0, charlie_lp);
 }
