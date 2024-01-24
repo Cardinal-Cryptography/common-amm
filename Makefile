@@ -104,3 +104,16 @@ build-and-wrap-all-dockerized: ## Builds all contracts and generates code for co
 
 .PHONY: e2e-tests-with-setup-and-teardown
 e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized build-node start-node e2e-tests stop-node ## Runs the E2E test suite.
+
+.PHONY: all-drink-dockerized
+all-drink-dockerized: ## Runs the drink test in a container.
+	@docker run --rm \
+		--name ink-dev \
+		-v "$(shell pwd)":/code \
+		$(INK_DEV_IMAGE) \
+		make all-drink
+
+.PHONY: all-drink
+all-drink: ## Runs the drink test.
+	@cd amm && make all-drink && cd ..
+	@cd farm && make all-drink && cd ..
