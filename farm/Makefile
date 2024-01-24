@@ -44,4 +44,4 @@ drink-tests: ## Runs tests for drink contract.
 	cargo test --quiet --manifest-path ./tests/Cargo.toml -- --nocapture ; \
 
 .PHONY:
-all: setup-tests drink-tests ## Runs all tests.
+all-drink: setup-tests drink-tests ## Runs all tests.
