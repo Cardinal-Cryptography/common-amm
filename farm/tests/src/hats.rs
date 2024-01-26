@@ -729,3 +729,42 @@ fn claim_rewards_index_bounds(mut session: Session) {
         farm::claim_rewards(&mut session, &farm, vec![0], FARMER)
     )
 }
+
+#[drink::test]
+fn calc_round_down(mut session: Session) {
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), BOB);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
+
+    // set up the farm with ICE as the pool token and WOOD as a reward token
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], BOB);
+
+    let deposit_amount = 1000;
+    psp22::increase_allowance(&mut session, ice.into(), farm.into(), deposit_amount, BOB);
+    farm::deposit_to_farm(&mut session, &farm, deposit_amount, BOB).unwrap();
+
+    // setting up start, end and the rewards amount
+    let duration = 100;
+    let farm_start = now;
+    let farm_end = farm_start + duration;
+    // 1.5 rewards per time unit
+    let rewards_amount = 150;
+
+    psp22::increase_allowance(&mut session, wood.into(), farm.into(), rewards_amount, BOB);
+    farm::start(
+        &mut session,
+        &farm,
+        farm_start,
+        farm_end,
+        vec![rewards_amount],
+        BOB,
+    )
+    .unwrap();
+
+    set_timestamp(&mut session, farm_end);
+
+    let wood_rewards = farm::claim_rewards(&mut session, &farm, [0].to_vec(), BOB).unwrap();
+    assert_eq!(wood_rewards, vec![rewards_amount]);
+}
