@@ -3,7 +3,7 @@ use crate::*;
 use anyhow::Result;
 use drink::{runtime::MinimalRuntime, session::Session, AccountId32};
 use ink_primitives::AccountId;
-use ink_wrapper_types::{util::ToAccountId, Connection};
+use ink_wrapper_types::{Connection, ToAccountId};
 
 pub const INITIAL_TRANSFER: u128 = 1_000_000_000_000;
 

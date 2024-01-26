@@ -1,11 +1,5 @@
-use crate::*;
-
-use farm;
-use psp22;
-use utils::*;
-
-use drink::session::Session;
-use drink::AccountId32;
+use crate::{farm, psp22, utils::*};
+use drink::{session::Session, AccountId32};
 
 const FARM_OWNER: AccountId32 = BOB;
 const FARMER: AccountId32 = ALICE;

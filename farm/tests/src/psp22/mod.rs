@@ -4,9 +4,9 @@ pub use psp22_contract::{event, upload, Instance as PSP22, PSP22Error, PSP22 as 
 
 use crate::utils::handle_ink_error;
 
-use drink::{runtime::MinimalRuntime, session::Session};
+use drink::{runtime::MinimalRuntime, session::Session, AccountId32};
 use ink_primitives::AccountId;
-use ink_wrapper_types::{util::ToAccountId, Connection};
+use ink_wrapper_types::{Connection, ToAccountId};
 
 /// Uploads and creates a PSP22 instance with 1B*10^18 issuance and given names.
 /// Returns its AccountId casted to PSP22 interface.
@@ -14,7 +14,7 @@ pub fn setup(
     session: &mut Session<MinimalRuntime>,
     name: String,
     symbol: String,
-    caller: drink::AccountId32,
+    caller: AccountId32,
 ) -> PSP22 {
     let _code_hash = session.upload_code(upload()).unwrap();
 
@@ -40,7 +40,7 @@ pub fn transfer(
     token: AccountId,
     to: AccountId,
     amount: u128,
-    caller: drink::AccountId32,
+    caller: AccountId32,
 ) -> Result<(), PSP22Error> {
     let _ = session.set_actor(caller);
 
@@ -57,7 +57,7 @@ pub fn increase_allowance(
     token: AccountId,
     spender: AccountId,
     amount: u128,
-    caller: drink::AccountId32,
+    caller: AccountId32,
 ) {
     let _ = session.set_actor(caller);
 

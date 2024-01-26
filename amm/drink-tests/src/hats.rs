@@ -4,8 +4,7 @@ use crate::router_contract;
 use crate::utils::*;
 
 use drink::{self, session::Session};
-use ink_wrapper_types::util::ToAccountId;
-use ink_wrapper_types::Connection;
+use ink_wrapper_types::{Connection, ToAccountId};
 
 use factory_contract::Factory as _;
 use router_contract::Router as _;
@@ -157,7 +156,6 @@ fn test_fees(mut session: Session) {
 
     let bob_lp_balance: u128 = psp22::balance_of(&mut session, ice_wood_pair.into(), bob());
     assert_eq!(liquidity_minted, bob_lp_balance);
-    println!("Bob's LP balance: {}", bob_lp_balance);
 
     let swap_amount = 10_000;
     // 0.3% is would be 30 tokens exactly but due to rounding we can lose up to 1 dust.
