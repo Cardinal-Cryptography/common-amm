@@ -46,7 +46,7 @@ mod farm {
     pub struct FarmStarted {
         start: u64,
         end: u64,
-        reward_rates: Vec<u128>,
+        reward_rates: Vec<U256>,
     }
 
     use amm_helpers::math::MathError;
@@ -78,7 +78,7 @@ mod farm {
         /// Cumulative rewards distributed per share since `start` and until `timestamp_at_last_update`.
         pub farm_cumulative_reward_per_share: Vec<WrappedU256>,
         /// Rewards rate - how many rewards per smallest unit of time are distributed.
-        pub farm_reward_rates: Vec<u128>,
+        pub farm_reward_rates: Vec<WrappedU256>,
 
         /// cumulative_per_share at the last update for each user.
         pub user_cumulative_reward_last_update: Mapping<UserId, Vec<WrappedU256>>,
@@ -114,7 +114,7 @@ mod farm {
                 timestamp_at_last_update: 0,
                 farm_distributed_unclaimed_rewards: vec![0; n_reward_tokens],
                 farm_cumulative_reward_per_share: vec![WrappedU256::ZERO; n_reward_tokens],
-                farm_reward_rates: vec![0; n_reward_tokens],
+                farm_reward_rates: vec![WrappedU256::ZERO; n_reward_tokens],
                 user_cumulative_reward_last_update: Mapping::default(),
                 user_claimable_rewards: Mapping::default(),
             })
@@ -144,7 +144,7 @@ mod farm {
 
             for idx in 0..self.reward_tokens.len() {
                 let delta_reward_per_share = rewards_per_share_in_time_interval(
-                    self.farm_reward_rates[idx],
+                    self.farm_reward_rates[idx].0,
                     self.total_shares,
                     prev as u128,
                     now as u128,
@@ -206,7 +206,7 @@ mod farm {
             start: Timestamp,
             end: Timestamp,
             rewards: Vec<u128>,
-        ) -> Result<Vec<u128>, FarmError> {
+        ) -> Result<Vec<WrappedU256>, FarmError> {
             let now = Self::env().block_timestamp();
             let tokens_len = self.reward_tokens.len();
 
@@ -242,14 +242,14 @@ mod farm {
                     vec![],
                 )?;
 
-                let reward_rate = reward_amount
-                    .checked_div(duration)
+                let reward_rate = casted_mul(*reward_amount, SCALING_FACTOR)
+                    .checked_div(U256::from(duration))
                     .ok_or(FarmError::ArithmeticError(MathError::DivByZero(3)))?;
 
-                reward_rates.push(reward_rate);
+                reward_rates.push(WrappedU256::from(reward_rate));
             }
 
-            if reward_rates.iter().all(|rr| *rr == 0) {
+            if reward_rates.iter().all(|rr| *rr == WrappedU256::ZERO) {
                 return Err(FarmError::AllRewardRatesZero);
             }
 
@@ -314,7 +314,12 @@ mod farm {
                 Event::FarmStarted(FarmStarted {
                     start,
                     end,
-                    reward_rates: self.farm_reward_rates.clone(),
+                    reward_rates: self
+                        .farm_reward_rates
+                        .clone()
+                        .into_iter()
+                        .map(|r| r.0)
+                        .collect(),
                 }),
             );
             Ok(())
@@ -346,13 +351,18 @@ mod farm {
                 self.reward_tokens.iter().position(|&t| t == token)
             {
                 // After withdrawing all of the rewards, the reward rate should be zero.
-                self.farm_reward_rates[token_index] = 0;
+                self.farm_reward_rates[token_index] = WrappedU256::ZERO;
                 total_balance.saturating_sub(self.farm_distributed_unclaimed_rewards[token_index])
             } else {
                 total_balance
             };
-            if self.farm_reward_rates.iter().all(|rr| *rr == 0) {
-                return Err(FarmError::AllRewardRatesZero);
+            if self
+                .farm_reward_rates
+                .iter()
+                .all(|rr| *rr == WrappedU256::ZERO)
+            {
+                self.start = self.env().block_timestamp();
+                self.end = self.env().block_timestamp();
             }
             token_ref.transfer(self.owner, undistributed_balance, vec![])?;
             Ok(())
@@ -460,13 +470,13 @@ mod farm {
                 start: self.start,
                 end: self.end,
                 reward_tokens: self.reward_tokens.clone(),
-                reward_rates: self.farm_reward_rates.clone(),
+                reward_rates: vec![0; self.reward_tokens.len()],
             }
         }
     }
 
     pub fn rewards_per_share_in_time_interval(
-        reward_rate: u128,
+        reward_rate: U256,
         total_shares: u128,
         from_timestamp: u128,
         to_timestamp: u128,
@@ -479,8 +489,8 @@ mod farm {
             .checked_sub(from_timestamp)
             .ok_or(MathError::Underflow)?;
 
-        casted_mul(reward_rate, time_delta)
-            .checked_mul(U256::from(SCALING_FACTOR))
+        reward_rate
+            .checked_mul(U256::from(time_delta))
             .ok_or(MathError::Overflow(1))?
             .checked_div(U256::from(total_shares))
             .ok_or(MathError::DivByZero(1))

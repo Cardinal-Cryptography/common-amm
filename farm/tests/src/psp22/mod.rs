@@ -21,10 +21,10 @@ pub fn setup(
     let _ = session.set_actor(caller);
 
     let instance = PSP22::new(
-        1_000_000_000u128 * 10u128.pow(18),
+        22_000_000_000u128 * 10u128.pow(18),
         Some(name),
         Some(symbol),
-        18,
+        6,
     );
 
     session
