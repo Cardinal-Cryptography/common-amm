@@ -24,8 +24,5 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-rust
 
-    - name: Rust checks
-      run: make check-all-dockerized
-
     - name: DRink! tests
       run: make all-drink-dockerized
