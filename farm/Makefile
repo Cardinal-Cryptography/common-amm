@@ -37,7 +37,7 @@ generate-psp22-wrapper: ## Generates Rust wrappers for interacting with PSP22 co
 generate-wrappers: generate-psp22-wrapper generate-farm-wrapper ## Generates Rust wrappers for interacting with contracts.
 
 .PHONY: setup-tests
-setup-tests: build-farm generate-wrappers ## Builds contracts and generates wrappers.
+setup-tests: generate-wrappers build-farm ## Builds contracts and generates wrappers.
 
 .PHONY: drink-tests
 drink-tests: ## Runs tests for drink contract.

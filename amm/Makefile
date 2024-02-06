@@ -56,7 +56,7 @@ wrap-all: ## Generates Rust wrappers for interacting with AMM contracts.
 		| rustfmt --edition 2021 > ./drink-tests/src/psp22_contract.rs ; \
 
 .PHONY: setup-tests
-setup-tests: check-amm build-amm build-test-contracts wrap-all ## Builds contracts and generates wrappers.
+setup-tests: build-test-contracts wrap-all build-amm  ## Builds contracts and generates wrappers.
 
 .PHONY: drink-tests
 drink-tests: ## Runs tests for drink contract.
