@@ -65,6 +65,7 @@ pub mod wazero {
 
 pub mod factory {
     use super::*;
+    use factory_contract::Factory as _;
 
     pub fn setup(
         session: &mut Session<MinimalRuntime>,
@@ -80,10 +81,27 @@ pub mod factory {
             .to_account_id()
             .into()
     }
+
+    pub fn get_pair(
+        session: &mut Session<MinimalRuntime>,
+        factory: AccountId,
+        token0: AccountId,
+        token1: AccountId,
+    ) -> pair_contract::Instance {
+        session
+            .query(factory_contract::Instance::from(factory).get_pair(token0, token1))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap()
+            .to_account_id()
+            .into()
+    }
 }
 
 pub mod router {
     use super::*;
+    use router_contract::Router as _;
 
     pub fn setup(
         session: &mut Session<MinimalRuntime>,
@@ -98,6 +116,64 @@ pub mod router {
             .result
             .to_account_id()
             .into()
+    }
+
+    pub fn add_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        first_token: AccountId,
+        second_token: AccountId,
+        desired_token_amount: u128,
+        min_token_amount: u128,
+        caller: AccountId,
+    ) -> (u128, u128, u128) {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+
+        session
+            .execute(router_contract::Instance::from(router).add_liquidity(
+                first_token,
+                second_token,
+                desired_token_amount,
+                desired_token_amount,
+                min_token_amount,
+                min_token_amount,
+                caller,
+                deadline,
+            ))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap()
+    }
+
+    pub fn remove_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        first_token: AccountId,
+        second_token: AccountId,
+        liquidity: u128,
+        min_token0: u128,
+        min_token1: u128,
+        caller: AccountId,
+    ) -> (u128, u128) {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+
+        session
+            .execute(router_contract::Instance::from(router).remove_liquidity(
+                first_token,
+                second_token,
+                liquidity,
+                min_token0,
+                min_token1,
+                caller,
+                deadline,
+            ))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap()
     }
 }
 
