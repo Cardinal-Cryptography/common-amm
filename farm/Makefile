@@ -15,10 +15,9 @@ check-farm: ## Runs cargo checks on farm contracts.
 	cargo check --quiet --all-targets --all-features --manifest-path contract/Cargo.toml ; \
 	cargo clippy --quiet --all-features --manifest-path contract/Cargo.toml -- --no-deps -D warnings ; \
 	cargo contract check --quiet --manifest-path contract/Cargo.toml ; \
-	cargo check --tests --manifest-path tests/Cargo.toml ; \
 
 .PHONY: generate-farm-wrapper
-generate-farm-wrapper: check-farm build-farm ## Generates Rust wrappers for interacting with farm contract.
+generate-farm-wrapper: build-farm ## Generates Rust wrappers for interacting with farm contract.
 	@echo "Wrapping farm contract" ; \
 	ink-wrapper --metadata ../target/ink/farm_contract/farm_contract.json \
 				--wasm-path ../../../../target/ink/farm_contract/farm_contract.wasm \
@@ -37,7 +36,7 @@ generate-psp22-wrapper: ## Generates Rust wrappers for interacting with PSP22 co
 generate-wrappers: generate-psp22-wrapper generate-farm-wrapper ## Generates Rust wrappers for interacting with contracts.
 
 .PHONY: setup-tests
-setup-tests: generate-wrappers build-farm ## Builds contracts and generates wrappers.
+setup-tests: build-farm generate-wrappers ## Builds contracts and generates wrappers.
 
 .PHONY: drink-tests
 drink-tests: ## Runs tests for drink contract.
