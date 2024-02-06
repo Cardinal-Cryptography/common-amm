@@ -1,11 +1,11 @@
 use crate::*;
 
-use psp22::{Instance as PSP22, PSP22 as _};
+use psp22_contract::{Instance as PSP22, PSP22 as _};
 
 use anyhow::Result;
 use drink::{runtime::MinimalRuntime, session::Session, AccountId32};
 use ink_primitives::AccountId;
-use ink_wrapper_types::{util::ToAccountId, Connection};
+use ink_wrapper_types::{Connection, ToAccountId};
 
 pub const INITIAL_TRANSFER: u128 = 1_000_000_000_000;
 
@@ -29,7 +29,7 @@ pub fn bob() -> ink_primitives::AccountId {
 
 pub fn upload_all(session: &mut Session<MinimalRuntime>) {
     session
-        .upload_code(psp22::upload())
+        .upload_code(psp22_contract::upload())
         .expect("Upload psp22 code");
     session
         .upload_code(factory_contract::upload())
@@ -92,7 +92,7 @@ pub fn setup_psp22(
     name: String,
     caller: drink::AccountId32,
 ) -> PSP22 {
-    let _code_hash = session.upload_code(psp22::upload()).unwrap();
+    let _code_hash = session.upload_code(psp22_contract::upload()).unwrap();
 
     let _ = session.set_actor(caller);
 

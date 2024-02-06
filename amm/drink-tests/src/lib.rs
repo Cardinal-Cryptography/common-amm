@@ -1,6 +1,6 @@
 mod factory_contract;
 mod pair_contract;
-mod psp22;
+mod psp22_contract;
 mod router_contract;
 mod wrapped_azero;
 
