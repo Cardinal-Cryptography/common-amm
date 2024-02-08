@@ -85,6 +85,12 @@ mod farm {
             if reward_tokens.contains(&pool_id) {
                 return Err(FarmError::RewardTokenIsPoolToken);
             }
+            let mut _reward_tokens: Mapping<TokenId, ()> = Mapping::new();
+            for reward_token in &reward_tokens {
+                if _reward_tokens.insert(reward_token, &()).is_some() {
+                    return Err(FarmError::DuplicateRewardTokens);
+                }
+            }
             Ok(FarmContract {
                 pool_id,
                 owner: Self::env().caller(),
@@ -575,6 +581,17 @@ mod farm {
             assert_eq!(
                 farm.owner_withdraw_token(pool_id).err().unwrap(),
                 FarmError::RewardTokenIsPoolToken
+            );
+        }
+
+        #[ink::test]
+        fn duplicate_reward_tokens_not_allowed() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([1u8; 32])];
+
+            assert_eq!(
+                super::FarmContract::new(pool_id, reward_tokens).unwrap_err(),
+                FarmError::DuplicateRewardTokens,
             );
         }
     }
