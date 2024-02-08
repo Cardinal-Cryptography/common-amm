@@ -84,7 +84,7 @@ e2e-tests: ## Runs all the e2e tests in sequence.
 .PHONY: build-and-wrap-all
 build-and-wrap-all: build-all build-test-contracts wrap-all ## Builds all contracts and generates code for contract interaction.
 
-INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.7.0
+INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:2.1.0
 
 .PHONY: check-all-dockerized
 check-all-dockerized: ## Runs cargo checks and unit tests on all contracts in a container.
@@ -104,3 +104,17 @@ build-and-wrap-all-dockerized: ## Builds all contracts and generates code for co
 
 .PHONY: e2e-tests-with-setup-and-teardown
 e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized build-node start-node e2e-tests stop-node ## Runs the E2E test suite.
+
+.PHONY: all-drink-dockerized
+all-drink-dockerized: ## Runs the drink test in a container.
+	@docker run --rm \
+		--name ink-dev \
+		-v "$(shell pwd)":/code \
+		$(INK_DEV_IMAGE) \
+		make all-drink
+
+.PHONY: all-drink
+all-drink: ## Runs the drink test.
+	@cd amm && make all-drink && cd ..
+	@cd farm && make all-drink && cd ..
+	@make check-all

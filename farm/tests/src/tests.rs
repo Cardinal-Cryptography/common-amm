@@ -55,8 +55,8 @@ fn farm_start(mut session: Session) {
         "Caller hasn't increased allowance to spend reward tokens for the farm"
     );
 
-    psp22::increase_allowance(&mut session, wood.into(), farm.into(), rewards_amount, BOB).unwrap();
-    psp22::increase_allowance(&mut session, sand.into(), farm.into(), rewards_amount, BOB).unwrap();
+    psp22::increase_allowance(&mut session, wood.into(), farm.into(), rewards_amount, BOB);
+    psp22::increase_allowance(&mut session, sand.into(), farm.into(), rewards_amount, BOB);
 
     let bob_wood_balance_before = psp22::balance_of(&mut session, wood.into(), bob());
     let bob_sand_balance_before = psp22::balance_of(&mut session, sand.into(), bob());

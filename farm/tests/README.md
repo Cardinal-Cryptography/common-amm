@@ -16,4 +16,4 @@ The tests require some setting up to do:
 2. Generate wrappers.
 3. Copy output of the (2) to the test directory.
 
-All of the above is taken care of by the `Makefile` in the parent directory. Simply run `make all`.
+All of the above is taken care of by the `Makefile` in the parent directory. Simply run `make all-drink`.

@@ -83,7 +83,7 @@ This will:
 
 ##### 💫 Run drink!-based integration tests
 
-To run drink!-based integration test suite, currently implemented only for `Farm` contract, go to `./farm` directory and run `make all` - this will set up the tests and run them.
+To run drink!-based integration test suite, currently implemented only for `Farm` contract, go to `./farm` directory and run `make all-drink` - this will set up the tests and run them.
 
 For more information about the framework see [here](./farm/tests/README.md).
 
