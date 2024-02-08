@@ -8,7 +8,7 @@ use drink::{runtime::MinimalRuntime, session::Session, AccountId32};
 use ink_primitives::AccountId;
 use ink_wrapper_types::{Connection, ToAccountId};
 
-/// Uploads and creates a PSP22 instance with 1B*10^18 issuance and given names.
+/// Uploads and creates a PSP22 instance with u128::MAX issuance and given names.
 /// Returns its AccountId casted to PSP22 interface.
 pub fn setup(
     session: &mut Session<MinimalRuntime>,

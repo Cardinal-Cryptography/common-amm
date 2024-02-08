@@ -3,7 +3,7 @@ use crate::*;
 use anyhow::Result;
 use drink::{runtime::MinimalRuntime, session::Session, AccountId32};
 use ink_primitives::AccountId;
-use ink_wrapper_types::{Connection, ToAccountId};
+use ink_wrapper_types::{Connection, ContractResult, InkLangError, ToAccountId};
 
 pub const INITIAL_TRANSFER: u128 = 1_000_000_000_000;
 
@@ -138,17 +138,14 @@ pub mod psp22 {
         spender: AccountId,
         amount: u128,
         caller: drink::AccountId32,
-    ) -> Result<()> {
+    ) -> Result<(), psp22_contract::PSP22Error> {
         let _ = session.set_actor(caller);
 
-        session
-            .execute(PSP22::increase_allowance(&token.into(), spender, amount))
-            .unwrap()
-            .result
-            .unwrap()
-            .unwrap();
-
-        Ok(())
+        handle_ink_error(
+            session
+                .execute(PSP22::increase_allowance(&token.into(), spender, amount))
+                .unwrap(),
+        )
     }
 
     /// Returns balance of given token for given account.
@@ -158,19 +155,15 @@ pub mod psp22 {
         token: AccountId,
         account: AccountId,
     ) -> u128 {
-        session
-            .query(PSP22::balance_of(&token.into(), account))
-            .unwrap()
-            .result
-            .unwrap()
+        handle_ink_error(
+            session
+                .query(PSP22::balance_of(&token.into(), account))
+                .unwrap(),
+        )
     }
 
     pub fn total_supply(session: &mut Session<MinimalRuntime>, token: AccountId) -> u128 {
-        session
-            .query(PSP22::total_supply(&token.into()))
-            .unwrap()
-            .result
-            .unwrap()
+        handle_ink_error(session.query(PSP22::total_supply(&token.into())).unwrap())
     }
 }
 
@@ -180,4 +173,11 @@ pub fn get_timestamp(session: &mut Session<MinimalRuntime>) -> u64 {
 
 pub fn set_timestamp(session: &mut Session<MinimalRuntime>, timestamp: u64) {
     session.sandbox().set_timestamp(timestamp);
+}
+
+pub fn handle_ink_error<R>(res: ContractResult<Result<R, InkLangError>>) -> R {
+    match res.result {
+        Err(ink_lang_err) => panic!("InkLangError: {:?}", ink_lang_err),
+        Ok(r) => r,
+    }
 }
