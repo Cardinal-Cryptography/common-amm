@@ -352,3 +352,73 @@ fn claim_rewards_long_after_farm_ends(mut session: Session) {
         "Expected rewards don't change once the farm ends",
     );
 }
+
+#[drink::test]
+fn deposit_after_farm_ends_does_not_earn_rewards(mut session: Session) {
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), BOB);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
+
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], FARM_OWNER);
+    inc_timestamp(&mut session);
+
+    // Start the first farm
+    let farm_duration = 100;
+    let farm_start = now + 10;
+    let farm_end = farm_start + farm_duration;
+    let rewards_amount = 100000000000000;
+    psp22::increase_allowance(
+        &mut session,
+        wood.into(),
+        farm.into(),
+        rewards_amount,
+        FARM_OWNER,
+    );
+    farm::start(
+        &mut session,
+        &farm,
+        farm_start,
+        farm_end,
+        vec![rewards_amount],
+        FARM_OWNER,
+    )
+    .unwrap();
+
+    // Seed the farmer with some tokens to execute txns.
+    session
+        .sandbox()
+        .mint_into(FARMER, 1_000_000_000u128)
+        .unwrap();
+
+    // Deposit LP tokens as Alice, not Bob.
+    let deposit_amount = 1000000;
+    psp22::transfer(&mut session, ice.into(), alice(), deposit_amount, BOB).unwrap();
+    psp22::increase_allowance(
+        &mut session,
+        ice.into(),
+        farm.into(),
+        deposit_amount,
+        FARMER,
+    );
+    set_timestamp(&mut session, farm_start + farm_duration / 2);
+    farm::deposit_to_farm(&mut session, &farm, deposit_amount, FARMER).unwrap();
+
+    set_timestamp(&mut session, farm_end + 10);
+    assert_eq!(
+        Ok(vec![rewards_amount / 2]),
+        farm::claim_rewards(&mut session, &farm, vec![0], FARMER),
+        "Farmer joined the farm in the middle of its lifetime, so he should get half of the rewards"
+    );
+
+    // Bob joins as farmer after farm ends.
+    psp22::increase_allowance(&mut session, ice.into(), farm.into(), deposit_amount, BOB);
+    farm::deposit_to_farm(&mut session, &farm, deposit_amount, BOB).unwrap();
+    set_timestamp(&mut session, farm_end + 20);
+    // But since farm is inactive, he has no rewards.
+    assert_eq!(
+        Ok(vec![0]),
+        farm::query_unclaimed_rewards(&mut session, &farm, vec![0], BOB)
+    );
+}
