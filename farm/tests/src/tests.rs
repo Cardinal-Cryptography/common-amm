@@ -483,3 +483,158 @@ fn start_stop_emits_event(mut session: Session) {
         })
     );
 }
+
+#[drink::test]
+fn calc_round_down(mut session: Session) {
+    // This test verifies that we don't round down rewards incorrectly.
+
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), BOB);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
+    // set up the farm with ICE as the pool token and WOOD as a reward token
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], BOB);
+
+    let deposit_amount = 100;
+    psp22::increase_allowance(&mut session, ice.into(), farm.into(), deposit_amount, BOB);
+    farm::deposit_to_farm(&mut session, &farm, deposit_amount, BOB).unwrap();
+
+    // setting up start, end and the rewards amount
+    let duration = 100;
+    let farm_start = now;
+    let farm_end = farm_start + duration;
+    // 1.5 rewards per time unit
+    let rewards_amount = 150;
+
+    psp22::increase_allowance(&mut session, wood.into(), farm.into(), rewards_amount, BOB);
+    farm::start(
+        &mut session,
+        &farm,
+        farm_start,
+        farm_end,
+        vec![rewards_amount],
+        BOB,
+    )
+    .unwrap();
+
+    set_timestamp(&mut session, farm_end);
+
+    let wood_rewards = farm::claim_rewards(&mut session, &farm, [0].to_vec(), BOB).unwrap();
+    let dust = 1;
+    assert_eq!(
+        wood_rewards,
+        vec![rewards_amount - 1],
+        "should distribute the whole rewards amount"
+    );
+}
+
+#[drink::test]
+fn farm_rewards_distribution(mut session: Session) {
+    // Fix timestamp
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), FARM_OWNER);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), FARM_OWNER);
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], FARM_OWNER);
+
+    // deposits lp token
+    let deposit_amount = 1000000;
+    psp22::increase_allowance(
+        &mut session,
+        ice.into(),
+        farm.into(),
+        deposit_amount,
+        FARM_OWNER,
+    );
+    let call_result = farm::deposit_to_farm(&mut session, &farm, deposit_amount, FARM_OWNER);
+    assert!(call_result.is_ok());
+
+    // setting up start, end and the rewards amount
+    let farm_start = now;
+    let farm_end = farm_start + 259200000; // 1 MONTH (30 days * 24 hours * 60 min * 60 sec * 1000 millisecond)
+    let rewards_amount = 10_000_000000; // USDC 10_000
+
+    // increasing allowance for the reward token
+    psp22::increase_allowance(
+        &mut session,
+        wood.into(),
+        farm.into(),
+        rewards_amount,
+        FARM_OWNER,
+    );
+
+    // starting the new farm
+    farm::start(
+        &mut session,
+        &farm,
+        farm_start,
+        farm_end,
+        vec![rewards_amount],
+        FARM_OWNER,
+    )
+    .unwrap();
+
+    // set timestamp to farm end so users earn rewards
+    set_timestamp(&mut session, farm_end);
+
+    let bob_wood_balance_before = psp22::balance_of(&mut session, wood.into(), bob());
+
+    // We need to stop farm before we're allowed to withdraw tokens.
+    farm::owner_stop_farm(&mut session, &farm, FARM_OWNER).unwrap();
+    let withdrawn = farm::owner_withdraw(&mut session, &farm, wood.into(), FARM_OWNER).unwrap();
+    // Farm was farmed for its whole duration so all rewards should have been distributed to farmer.
+    assert_eq!(
+        withdrawn, 1,
+        "all rewards should have been distributed to farmer"
+    );
+
+    let bob_wood_balance_after = psp22::balance_of(&mut session, wood.into(), bob());
+    assert_eq!(bob_wood_balance_after - bob_wood_balance_before, withdrawn)
+}
+
+#[drink::test]
+fn max_rewards(mut session: Session) {
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), BOB);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], BOB);
+
+    // deposits lp token
+    let deposit_amount = u128::MAX;
+    psp22::increase_allowance(&mut session, ice.into(), farm.into(), deposit_amount, BOB);
+    farm::deposit_to_farm(&mut session, &farm, deposit_amount, BOB).unwrap();
+
+    let farm_start = now;
+    let duration = 100;
+    let farm_end = farm_start + duration;
+    let rewards_amount = u128::MAX;
+
+    // increasing allowance for the reward token
+    psp22::increase_allowance(&mut session, wood.into(), farm.into(), rewards_amount, BOB);
+
+    // starting the new farm
+    farm::start(
+        &mut session,
+        &farm,
+        farm_start,
+        farm_end,
+        vec![rewards_amount],
+        BOB,
+    )
+    .unwrap();
+
+    // set timestamp to farm end so users earn some reward in this farm but AND contract has balance
+    set_timestamp(&mut session, farm_end + 1);
+
+    // We're not intersted in exact numbers here, more in the fact
+    // that the contract can handle such big numbers - u128::MAX for rewards, u128::MAX for deposit.
+
+    let rewards = farm::claim_rewards(&mut session, &farm, vec![0], BOB).unwrap();
+    // Stop & withdraw
+    farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
+    farm::owner_withdraw(&mut session, &farm, wood.into(), BOB).unwrap();
+}
