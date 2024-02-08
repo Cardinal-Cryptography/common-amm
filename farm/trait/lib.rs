@@ -9,7 +9,8 @@ use psp22::PSP22Error;
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum FarmError {
     PSP22Error(PSP22Error),
-    FarmAlreadyRunning,
+    FarmIsRunning,
+    FarmAlreadyStopped,
     CallerNotOwner,
     ArithmeticError(MathError),
     CallerNotFarmer,

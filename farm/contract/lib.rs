@@ -73,6 +73,12 @@ mod farm {
 
         /// Reward rates per user of unclaimed, accumulated users' rewards.
         pub user_claimable_rewards: Mapping<UserId, Vec<u128>>,
+
+        /// Flag indicating whether farm is active.
+        /// Farm is active when:
+        /// * farm is running
+        /// * farm is planned for the future
+        pub is_active: bool,
     }
 
     impl FarmContract {
@@ -105,12 +111,8 @@ mod farm {
                 farm_reward_rates: vec![0; n_reward_tokens],
                 user_cumulative_reward_last_update: Mapping::default(),
                 user_claimable_rewards: Mapping::default(),
+                is_active: false,
             })
-        }
-
-        fn is_active(&self) -> bool {
-            let current_timestamp = self.env().block_timestamp();
-            current_timestamp >= self.start && current_timestamp < self.end
         }
 
         // Guarantee: after calling update() it holds that self.timestamp_at_last_update = self.env().block_timestamp()
@@ -293,25 +295,28 @@ mod farm {
         ) -> Result<(), FarmError> {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             self.update()?;
-            ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
+            ensure!(!self.is_active, FarmError::FarmIsRunning);
             self.farm_reward_rates = self.assert_start_params(start, end, rewards.clone())?;
             self.start = start;
             self.end = end;
+            self.is_active = true;
             Ok(())
         }
 
         #[ink(message)]
         fn owner_stop_farm(&mut self) -> Result<(), FarmError> {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
+            ensure!(self.is_active, FarmError::FarmAlreadyStopped);
             self.update()?;
             self.end = self.env().block_timestamp();
+            self.is_active = false;
             Ok(())
         }
 
         #[ink(message)]
         fn owner_withdraw_token(&mut self, token: TokenId) -> Result<(), FarmError> {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
-            ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
+            ensure!(!self.is_active, FarmError::FarmIsRunning);
             // Owner should be able to withdraw every token except the pool token.
             ensure!(self.pool_id != token, FarmError::RewardTokenIsPoolToken);
 
@@ -482,7 +487,7 @@ mod farm {
             assert_eq!(farm_details.reward_tokens, reward_tokens);
             assert_eq!(farm_details.reward_rates, vec![0, 0]);
 
-            assert_eq!(farm.is_active(), false);
+            assert_eq!(farm.is_active, false);
 
             assert_eq!(farm.total_shares(), 0);
         }

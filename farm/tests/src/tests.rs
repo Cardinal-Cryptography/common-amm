@@ -107,3 +107,135 @@ fn farm_start(mut session: Session) {
         "Farm start must transfer rewards to the farm"
     );
 }
+
+const FARM_OWNER: drink::AccountId32 = BOB;
+const FARMER: drink::AccountId32 = ALICE;
+
+#[drink::test]
+fn owner_withdraws_reward_token_before_farm_start(mut session: Session) {
+    // Hats submission 0x1198b6c533d75e9d605e8bf0433c390a22e251d622bb963233c4313255b42759
+
+    // Set up the necessary tokens.
+    // ICE - LP token
+    // WOOD and SAND - reward tokens
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), FARM_OWNER);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), FARM_OWNER);
+
+    let farm = farm::setup(
+        &mut session,
+        ice.into(),
+        vec![wood.into()],
+        FARM_OWNER,
+    );
+
+    // Fix timestamp, otherwise it uses underlying one.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let farm_duration = 100;
+    let farm_start = now + 10;
+    let farm_end = farm_start + farm_duration;
+    let rewards_amount = 100000000000000;
+    psp22::increase_allowance(
+        &mut session,
+        wood.into(),
+        farm.into(),
+        rewards_amount,
+        FARM_OWNER,
+    );
+    farm::start(
+        &mut session,
+        &farm,
+        farm_start,
+        farm_end,
+        vec![rewards_amount],
+        FARM_OWNER,
+    )
+    .unwrap();
+
+    // deposits lp token
+    let deposit_amount = 1000000;
+    inc_timestamp(&mut session);
+    // Deposit LP tokens as Alice, not Bob.
+    // Seed the farmer with some tokens to execute txns.
+    session
+        .sandbox()
+        .mint_into(FARMER, 1_000_000_000u128)
+        .unwrap();
+    // Deposit LP tokens as Alice, not Bob.
+    psp22::transfer(
+        &mut session,
+        ice.into(),
+        alice(),
+        deposit_amount,
+        FARM_OWNER,
+    )
+    .unwrap();
+    psp22::increase_allowance(
+        &mut session,
+        ice.into(),
+        farm.into(),
+        deposit_amount,
+        FARMER,
+    );
+    farm::deposit_to_farm(&mut session, &farm, deposit_amount, FARMER).unwrap();
+    inc_timestamp(&mut session);
+    // Withdraw tokens rewards from the contract, before the farm starts.
+    let withdraw_from_active = farm::owner_withdraw(&mut session, &farm, wood.into(), FARM_OWNER);
+    assert!(withdraw_from_active == Err(FarmError::FarmIsRunning()));
+}
+
+#[drink::test]
+fn second_stop_is_noop(mut session: Session) {
+    // Set up the necessary tokens.
+    // ICE - LP token
+    // WOOD reward token
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), FARM_OWNER);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), FARM_OWNER);
+
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], FARM_OWNER);
+
+    // Fix timestamp, otherwise it uses underlying one.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let farm_duration = 100;
+    let farm_start = now + 10;
+    let farm_end = farm_start + farm_duration;
+    let rewards_amount = 100000000000000;
+    psp22::increase_allowance(
+        &mut session,
+        wood.into(),
+        farm.into(),
+        rewards_amount,
+        FARM_OWNER,
+    );
+    farm::start(
+        &mut session,
+        &farm,
+        farm_start,
+        farm_end,
+        vec![rewards_amount],
+        FARM_OWNER,
+    )
+    .unwrap();
+
+    set_timestamp(&mut session, farm_start + 10);
+    let first_farm_end = farm::get_farm_details(&mut session, &farm).end;
+    assert!(
+        first_farm_end == farm_end,
+        "Farm end should be set to the original end"
+    );
+    farm::owner_stop_farm(&mut session, &farm, FARM_OWNER).unwrap();
+    let second_farm_end = farm::get_farm_details(&mut session, &farm).end;
+    assert!(
+        second_farm_end == farm_start + 10,
+        "Farm end should be set to the current time in owner_stop_farm"
+    );
+
+    set_timestamp(&mut session, farm_start + 20);
+    assert!(
+        farm::owner_stop_farm(&mut session, &farm, FARM_OWNER)
+            == Err(FarmError::FarmAlreadyStopped())
+    );
+}
