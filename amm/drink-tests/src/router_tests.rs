@@ -10,7 +10,7 @@ use router_contract::Router as _;
 use drink::frame_support::sp_runtime::traits::IntegerSquareRoot;
 use drink::frame_support::sp_runtime::traits::Scale;
 use drink::{self, session::Session};
-use ink_wrapper_types::{Connection, ToAccountId};
+use ink_wrapper_types::Connection;
 
 #[drink::test]
 fn add_liquidity(mut session: Session) {
@@ -118,7 +118,6 @@ fn add_liquidity_collects_too_much_fee(mut session: Session) {
 
     let now = get_timestamp(&mut session);
     set_timestamp(&mut session, now);
-    let deadline = now + 10;
 
     // bob mints the liquidity for the first time
     let _ = router::add_liquidity(

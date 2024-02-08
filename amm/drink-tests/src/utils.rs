@@ -5,22 +5,11 @@ use drink::{runtime::MinimalRuntime, session::Session, AccountId32};
 use ink_primitives::AccountId;
 use ink_wrapper_types::{Connection, ContractResult, InkLangError, ToAccountId};
 
-pub const INITIAL_TRANSFER: u128 = 1_000_000_000_000;
-
-pub const PSP22_TOTAL_SUPPLY: u128 = 10_000_000;
-pub const PSP22_DECIMALS: u8 = 18;
-
 pub const ICE: &str = "ICE";
 pub const WOOD: &str = "WOOD";
-pub const SAND: &str = "SAND";
 
-pub const ALICE: drink::AccountId32 = AccountId32::new([2u8; 32]);
 pub const BOB: drink::AccountId32 = AccountId32::new([1u8; 32]);
 pub const CHARLIE: drink::AccountId32 = AccountId32::new([3u8; 32]);
-
-pub fn alice() -> ink_primitives::AccountId {
-    AsRef::<[u8; 32]>::as_ref(&ALICE).clone().into()
-}
 
 pub fn bob() -> ink_primitives::AccountId {
     AsRef::<[u8; 32]>::as_ref(&BOB).clone().into()

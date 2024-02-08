@@ -32,9 +32,16 @@ pub mod pair {
         math::casted_mul,
         types::WrappedU256,
     };
-    use ink::{contract_ref, prelude::vec::Vec};
+    use ink::{
+        contract_ref,
+        prelude::{
+            string::{String, ToString},
+            vec::Vec,
+        },
+    };
+
     use primitive_types::U256;
-    use psp22::{PSP22Data, PSP22Error, PSP22Event, PSP22};
+    use psp22::{PSP22Data, PSP22Error, PSP22Event, PSP22Metadata, PSP22};
     use traits::{Factory, MathError, Pair, PairError, SwapCallee};
 
     #[ink(event)]
@@ -556,6 +563,23 @@ pub mod pair {
         #[ink(message)]
         fn get_token_1(&self) -> AccountId {
             self.pair.token_1
+        }
+    }
+
+    impl PSP22Metadata for PairContract {
+        #[ink(message)]
+        fn token_name(&self) -> Option<String> {
+            Some("Uniswap V2".to_string())
+        }
+
+        #[ink(message)]
+        fn token_symbol(&self) -> Option<String> {
+            Some("UNI-V2".to_string())
+        }
+
+        #[ink(message)]
+        fn token_decimals(&self) -> u8 {
+            18
         }
     }
 
