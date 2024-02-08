@@ -13,7 +13,6 @@ pub enum FarmError {
     FarmAlreadyStopped,
     CallerNotOwner,
     ArithmeticError(MathError),
-    CallerNotFarmer,
     AllRewardRatesZero,
     FarmStartInThePast,
     FarmEndInThePast,

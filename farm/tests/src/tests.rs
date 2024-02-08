@@ -121,12 +121,7 @@ fn owner_withdraws_reward_token_before_farm_start(mut session: Session) {
     let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), FARM_OWNER);
     let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), FARM_OWNER);
 
-    let farm = farm::setup(
-        &mut session,
-        ice.into(),
-        vec![wood.into()],
-        FARM_OWNER,
-    );
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], FARM_OWNER);
 
     // Fix timestamp, otherwise it uses underlying one.
     let now = get_timestamp(&mut session);
@@ -237,5 +232,123 @@ fn second_stop_is_noop(mut session: Session) {
     assert!(
         farm::owner_stop_farm(&mut session, &farm, FARM_OWNER)
             == Err(FarmError::FarmAlreadyStopped())
+    );
+}
+
+#[drink::test]
+fn non_farmer_claim_zero_rewards(mut session: Session) {
+    // Fix the timestamp, otherwise it uses the underlying UNIX clock.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), BOB);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
+
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], FARM_OWNER);
+
+    // Start the first farm
+    let farm_duration = 100;
+    let farm_start = now + 10;
+    let farm_end = farm_start + farm_duration;
+
+    let rewards_amount = 100000000000000;
+    psp22::increase_allowance(
+        &mut session,
+        wood.into(),
+        farm.into(),
+        rewards_amount,
+        FARM_OWNER,
+    );
+
+    assert_eq!(
+        farm::start(
+            &mut session,
+            &farm,
+            farm_start,
+            farm_end,
+            vec![rewards_amount],
+            FARM_OWNER,
+        ),
+        Ok(())
+    );
+
+    set_timestamp(&mut session, farm_end);
+
+    assert_eq!(
+        Ok(vec![0]),
+        farm::query_unclaimed_rewards(&mut session, &farm, vec![0], FARM_OWNER),
+        "For non-farmer we return 0 rewards",
+    )
+}
+
+#[drink::test]
+fn claim_rewards_long_after_farm_ends(mut session: Session) {
+    // Fix the timestamp, otherwise it uses the underlying UNIX clock.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), BOB);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
+
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], FARM_OWNER);
+
+    // Seed the farmer with some tokens to execute txns.
+    session
+        .sandbox()
+        .mint_into(FARMER, 1_000_000_000u128)
+        .unwrap();
+
+    // deposits lp token
+    let deposit_amount = 1000000;
+
+    // Deposit LP tokens as Alice, not Bob.
+    psp22::transfer(&mut session, ice.into(), alice(), deposit_amount, BOB).unwrap();
+    psp22::increase_allowance(
+        &mut session,
+        ice.into(),
+        farm.into(),
+        deposit_amount,
+        FARMER,
+    );
+    farm::deposit_to_farm(&mut session, &farm, deposit_amount, FARMER).unwrap();
+
+    // Start the first farm
+    let farm_duration = 100;
+    let farm_start = now + 10;
+    let farm_end = farm_start + farm_duration;
+
+    let rewards_amount = 100000000000000;
+    psp22::increase_allowance(
+        &mut session,
+        wood.into(),
+        farm.into(),
+        rewards_amount,
+        FARM_OWNER,
+    );
+
+    assert_eq!(
+        farm::start(
+            &mut session,
+            &farm,
+            farm_start,
+            farm_end,
+            vec![rewards_amount],
+            FARM_OWNER,
+        ),
+        Ok(())
+    );
+
+    set_timestamp(&mut session, farm_end);
+
+    let expected_wood_rewards = rewards_amount;
+    assert_eq!(
+        Ok(vec![expected_wood_rewards]),
+        farm::query_unclaimed_rewards(&mut session, &farm, vec![0], FARMER)
+    );
+    set_timestamp(&mut session, farm_end + farm_duration);
+    assert_eq!(
+        Ok(vec![expected_wood_rewards]),
+        farm::query_unclaimed_rewards(&mut session, &farm, vec![0], FARMER),
+        "Expected rewards don't change once the farm ends",
     );
 }

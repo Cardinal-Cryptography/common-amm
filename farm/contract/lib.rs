@@ -341,10 +341,10 @@ mod farm {
             let account = self.env().caller();
             self.update_account(account);
 
-            let mut user_rewards = self
-                .user_claimable_rewards
-                .get(account)
-                .ok_or(FarmError::CallerNotFarmer)?;
+            let mut user_rewards = match self.user_claimable_rewards.get(account) {
+                Some(user_rewards) => user_rewards,
+                None => return Ok(vec![0u128; self.reward_tokens.len()]),
+            };
 
             let mut rewards_claimed: Vec<u128> = vec![0u128; self.reward_tokens.len()];
 
