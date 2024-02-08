@@ -103,6 +103,7 @@ build-and-wrap-all-dockerized: ## Builds all contracts and generates code for co
     	make build-and-wrap-all
 
 .PHONY: e2e-tests-with-setup-and-teardown
+e2e-tests-with-setup-and-teardown: export INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.7.0
 e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized build-node start-node e2e-tests stop-node ## Runs the E2E test suite.
 
 .PHONY: all-drink-dockerized
