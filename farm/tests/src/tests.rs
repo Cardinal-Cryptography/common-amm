@@ -422,3 +422,64 @@ fn deposit_after_farm_ends_does_not_earn_rewards(mut session: Session) {
         farm::query_unclaimed_rewards(&mut session, &farm, vec![0], BOB)
     );
 }
+
+#[drink::test]
+fn start_stop_emits_event(mut session: Session) {
+    use farm::FarmT;
+    use ink_wrapper_types::{Connection, ContractEvents};
+
+    let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), BOB);
+    let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
+
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], FARM_OWNER);
+
+    // Start the first farm
+    let farm_duration = 100;
+    let farm_start = now + 10;
+    let farm_end = farm_start + farm_duration;
+    let rewards_amount = 100000000000000;
+    psp22::increase_allowance(
+        &mut session,
+        wood.into(),
+        farm.into(),
+        rewards_amount,
+        FARM_OWNER,
+    );
+    let start_result = session
+        .execute(farm.owner_start_new_farm(farm_start, farm_end, vec![rewards_amount]))
+        .unwrap();
+
+    assert!(
+        start_result.events.len() > 0,
+        "expected events emitted from Farm::start"
+    );
+    let start_events = ContractEvents::from_iter(&start_result.events, farm);
+    assert_eq!(
+        start_events[0],
+        Ok(farm::event::Event::FarmStarted {
+            start: farm_start,
+            end: farm_end,
+            reward_rates: vec![rewards_amount / farm_duration as u128],
+        })
+    );
+
+    // Stop the farm
+    inc_timestamp(&mut session);
+    let stop_timestamp = get_timestamp(&mut session);
+    let stop_result = session.execute(farm.owner_stop_farm()).unwrap();
+
+    assert!(
+        stop_result.events.len() > 0,
+        "expected events emitted from Farm::stop"
+    );
+    let stop_events = ContractEvents::from_iter(&stop_result.events, farm);
+    assert_eq!(
+        stop_events[0],
+        Ok(farm::event::Event::FarmStopped {
+            end: stop_timestamp,
+        })
+    );
+}
