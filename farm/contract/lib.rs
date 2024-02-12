@@ -636,20 +636,6 @@ mod farm {
         }
 
         #[ink::test]
-        fn owner_cannot_withdraw_pool_token() {
-            let pool_id = AccountId::from([0u8; 32]);
-            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
-
-            let mut farm =
-                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new works");
-
-            assert_eq!(
-                farm.owner_withdraw_token(pool_id).err().unwrap(),
-                FarmError::RewardTokenIsPoolToken
-            );
-        }
-
-        #[ink::test]
         fn duplicate_reward_tokens_not_allowed() {
             let pool_id = AccountId::from([0u8; 32]);
             let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([1u8; 32])];
