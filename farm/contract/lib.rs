@@ -128,13 +128,14 @@ mod farm {
         // Guarantee: after calling update() it holds that self.timestamp_at_last_update = self.env().block_timestamp()
         fn update(&mut self) -> Result<(), FarmError> {
             let current_timestamp = self.env().block_timestamp();
+            // Update reward rates just once per block.
             if self.timestamp_at_last_update >= current_timestamp {
                 return Ok(());
             };
 
             let prev = core::cmp::max(self.timestamp_at_last_update, self.start);
             let now = core::cmp::min(current_timestamp, self.end);
-            if prev >= now {
+            if prev >= now || !self.is_active {
                 self.timestamp_at_last_update = current_timestamp;
                 return Ok(());
             }
