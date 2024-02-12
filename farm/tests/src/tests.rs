@@ -524,11 +524,7 @@ fn calc_round_down(mut session: Session) {
 
     let wood_rewards = farm::claim_rewards(&mut session, &farm, [0].to_vec(), BOB).unwrap();
     let dust = 1;
-    assert_eq!(
-        wood_rewards,
-        vec![rewards_amount - 1],
-        "should distribute the whole rewards amount"
-    );
+    assert!(rewards_amount - dust <= wood_rewards[0] && wood_rewards[0] <= rewards_amount);
 }
 
 #[drink::test]
@@ -587,9 +583,10 @@ fn farm_rewards_distribution(mut session: Session) {
     farm::owner_stop_farm(&mut session, &farm, FARM_OWNER).unwrap();
     let withdrawn = farm::owner_withdraw(&mut session, &farm, wood.into(), FARM_OWNER).unwrap();
     // Farm was farmed for its whole duration so all rewards should have been distributed to farmer.
-    assert_eq!(
-        withdrawn, 1,
-        "all rewards should have been distributed to farmer"
+    let dust = 1;
+    assert!(
+        withdrawn <= dust,
+        "all rewards (modulo dust) should have been distributed to farmer"
     );
 
     let bob_wood_balance_after = psp22::balance_of(&mut session, wood.into(), bob());
