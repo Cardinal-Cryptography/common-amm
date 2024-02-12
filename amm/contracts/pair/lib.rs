@@ -569,12 +569,12 @@ pub mod pair {
     impl PSP22Metadata for PairContract {
         #[ink(message)]
         fn token_name(&self) -> Option<String> {
-            Some("Uniswap V2".to_string())
+            Some("CommonAMM-V2".to_string())
         }
 
         #[ink(message)]
         fn token_symbol(&self) -> Option<String> {
-            Some("UNI-V2".to_string())
+            Some("CMNAMM-V2".to_string())
         }
 
         #[ink(message)]
