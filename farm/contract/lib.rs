@@ -272,16 +272,17 @@ mod farm {
             Ok(())
         }
 
-        fn reward_rates_to_u128(&self) -> Vec<u128> {
-            self.farm_reward_rates
-                .iter()
-                .map(|rr| {
+        fn reward_rates_to_u128(&self) -> Result<Vec<u128>, FarmError> {
+            let mut rates = Vec::with_capacity(self.farm_reward_rates.len());
+            for rr in self.farm_reward_rates {
+                rates.push(
                     rr.0.checked_div(U256::from(SCALING_FACTOR))
-                        .unwrap()
+                        .ok_or(MathError::DivByZero(4))?
                         .try_into()
-                        .unwrap()
-                })
-                .collect()
+                        .map_err(|_| MathError::Overflow(3))?,
+                );
+            }
+            Ok(rates)
         }
 
         fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
@@ -329,7 +330,7 @@ mod farm {
                 Event::FarmStarted(FarmStarted {
                     start,
                     end,
-                    reward_rates: self.reward_rates_to_u128(),
+                    reward_rates: self.reward_rates_to_u128()?,
                 }),
             );
             Ok(())
@@ -462,7 +463,7 @@ mod farm {
                 start: self.start,
                 end: self.end,
                 reward_tokens: self.reward_tokens.clone(),
-                reward_rates: self.reward_rates_to_u128(),
+                reward_rates: self.reward_rates_to_u128().unwrap(),
             }
         }
     }
