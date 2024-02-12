@@ -37,6 +37,18 @@ mod farm {
         rewards_claimed: Vec<u128>,
     }
 
+    #[ink(event)]
+    pub struct FarmStopped {
+        end: u64,
+    }
+
+    #[ink(event)]
+    pub struct FarmStarted {
+        start: u64,
+        end: u64,
+        reward_rates: Vec<u128>,
+    }
+
     use amm_helpers::math::MathError;
 
     pub type Event = <FarmContract as ContractEventBase>::Type;
@@ -66,13 +78,19 @@ mod farm {
         /// Cumulative rewards distributed per share since `start` and until `timestamp_at_last_update`.
         pub farm_cumulative_reward_per_share: Vec<WrappedU256>,
         /// Rewards rate - how many rewards per smallest unit of time are distributed.
-        pub farm_reward_rates: Vec<u128>,
+        pub farm_reward_rates: Vec<WrappedU256>,
 
         /// cumulative_per_share at the last update for each user.
         pub user_cumulative_reward_last_update: Mapping<UserId, Vec<WrappedU256>>,
 
         /// Reward rates per user of unclaimed, accumulated users' rewards.
         pub user_claimable_rewards: Mapping<UserId, Vec<u128>>,
+
+        /// Flag indicating whether farm is active.
+        /// Farm is active when:
+        /// * farm is running
+        /// * farm is planned for the future
+        pub is_active: bool,
     }
 
     impl FarmContract {
@@ -85,6 +103,10 @@ mod farm {
             if reward_tokens.contains(&pool_id) {
                 return Err(FarmError::RewardTokenIsPoolToken);
             }
+            if !no_duplicates(&reward_tokens) {
+                return Err(FarmError::DuplicateRewardTokens);
+            }
+
             Ok(FarmContract {
                 pool_id,
                 owner: Self::env().caller(),
@@ -96,27 +118,24 @@ mod farm {
                 timestamp_at_last_update: 0,
                 farm_distributed_unclaimed_rewards: vec![0; n_reward_tokens],
                 farm_cumulative_reward_per_share: vec![WrappedU256::ZERO; n_reward_tokens],
-                farm_reward_rates: vec![0; n_reward_tokens],
+                farm_reward_rates: vec![WrappedU256::ZERO; n_reward_tokens],
                 user_cumulative_reward_last_update: Mapping::default(),
                 user_claimable_rewards: Mapping::default(),
+                is_active: false,
             })
-        }
-
-        fn is_active(&self) -> bool {
-            let current_timestamp = self.env().block_timestamp();
-            current_timestamp >= self.start && current_timestamp < self.end
         }
 
         // Guarantee: after calling update() it holds that self.timestamp_at_last_update = self.env().block_timestamp()
         fn update(&mut self) -> Result<(), FarmError> {
             let current_timestamp = self.env().block_timestamp();
+            // Update reward rates just once per block.
             if self.timestamp_at_last_update >= current_timestamp {
                 return Ok(());
             };
 
             let prev = core::cmp::max(self.timestamp_at_last_update, self.start);
             let now = core::cmp::min(current_timestamp, self.end);
-            if prev >= now {
+            if prev >= now || !self.is_active {
                 self.timestamp_at_last_update = current_timestamp;
                 return Ok(());
             }
@@ -126,7 +145,7 @@ mod farm {
 
             for idx in 0..self.reward_tokens.len() {
                 let delta_reward_per_share = rewards_per_share_in_time_interval(
-                    self.farm_reward_rates[idx],
+                    self.farm_reward_rates[idx].0,
                     self.total_shares,
                     prev as u128,
                     now as u128,
@@ -188,7 +207,7 @@ mod farm {
             start: Timestamp,
             end: Timestamp,
             rewards: Vec<u128>,
-        ) -> Result<Vec<u128>, FarmError> {
+        ) -> Result<Vec<WrappedU256>, FarmError> {
             let now = Self::env().block_timestamp();
             let tokens_len = self.reward_tokens.len();
 
@@ -224,14 +243,14 @@ mod farm {
                     vec![],
                 )?;
 
-                let reward_rate = reward_amount
-                    .checked_div(duration)
+                let reward_rate = casted_mul(*reward_amount, SCALING_FACTOR)
+                    .checked_div(U256::from(duration))
                     .ok_or(FarmError::ArithmeticError(MathError::DivByZero(3)))?;
 
-                reward_rates.push(reward_rate);
+                reward_rates.push(WrappedU256::from(reward_rate));
             }
 
-            if reward_rates.iter().all(|rr| *rr == 0) {
+            if reward_rates.iter().all(|rr| *rr == WrappedU256::ZERO) {
                 return Err(FarmError::AllRewardRatesZero);
             }
 
@@ -250,6 +269,19 @@ mod farm {
             self.shares.insert(account, &(shares + amount));
             self.total_shares += amount;
             Ok(())
+        }
+
+        fn reward_rates_to_u128(&self) -> Result<Vec<u128>, FarmError> {
+            let mut rates = Vec::with_capacity(self.farm_reward_rates.len());
+            for rr in &self.farm_reward_rates {
+                rates.push(
+                    rr.0.checked_div(U256::from(SCALING_FACTOR))
+                        .ok_or(MathError::DivByZero(4))?
+                        .try_into()
+                        .map_err(|_| MathError::Overflow(3))?,
+                );
+            }
+            Ok(rates)
         }
 
         fn emit_event<EE: EmitEvent<Self>>(emitter: EE, event: Event) {
@@ -287,25 +319,50 @@ mod farm {
         ) -> Result<(), FarmError> {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             self.update()?;
-            ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
+            ensure!(!self.is_active, FarmError::FarmIsRunning);
             self.farm_reward_rates = self.assert_start_params(start, end, rewards.clone())?;
             self.start = start;
             self.end = end;
+            self.is_active = true;
+            FarmContract::emit_event(
+                self.env(),
+                Event::FarmStarted(FarmStarted {
+                    start,
+                    end,
+                    reward_rates: self.reward_rates_to_u128()?,
+                }),
+            );
             Ok(())
         }
 
         #[ink(message)]
         fn owner_stop_farm(&mut self) -> Result<(), FarmError> {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
+            ensure!(self.is_active, FarmError::FarmAlreadyStopped);
             self.update()?;
-            self.end = self.env().block_timestamp();
+            let current_timestamp = self.env().block_timestamp();
+            // If owner deactivates the farm before it even starts,
+            // We set the end timestamp to self.start to make it clear there's no farm.
+            if current_timestamp < self.start {
+                self.end = self.start
+            } else if current_timestamp < self.end {
+                // End farm prematurely.
+                self.end = self.env().block_timestamp();
+            } else if current_timestamp >= self.end {
+                // No-op after farm's end.
+            }
+            self.is_active = false;
+            FarmContract::emit_event(
+                self.env(),
+                Event::FarmStopped(FarmStopped { end: self.end }),
+            );
             Ok(())
         }
 
         #[ink(message)]
-        fn owner_withdraw_token(&mut self, token: TokenId) -> Result<(), FarmError> {
+        fn owner_withdraw_token(&mut self, token: TokenId) -> Result<u128, FarmError> {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
-            ensure!(!self.is_active(), FarmError::FarmAlreadyRunning);
+            ensure!(!self.is_active, FarmError::FarmIsRunning);
             // Owner should be able to withdraw every token except the pool token.
             ensure!(self.pool_id != token, FarmError::RewardTokenIsPoolToken);
 
@@ -320,7 +377,7 @@ mod farm {
                 total_balance
             };
             token_ref.transfer(self.owner, undistributed_balance, vec![])?;
-            Ok(())
+            Ok(undistributed_balance)
         }
 
         // To learn how much rewards the user has, it's best to dry-run claim_rewards.
@@ -330,10 +387,10 @@ mod farm {
             let account = self.env().caller();
             self.update_account(account);
 
-            let mut user_rewards = self
-                .user_claimable_rewards
-                .get(account)
-                .ok_or(FarmError::CallerNotFarmer)?;
+            let mut user_rewards = match self.user_claimable_rewards.get(account) {
+                Some(user_rewards) => user_rewards,
+                None => return Ok(vec![0u128; self.reward_tokens.len()]),
+            };
 
             let mut rewards_claimed: Vec<u128> = vec![0u128; self.reward_tokens.len()];
 
@@ -412,16 +469,17 @@ mod farm {
         fn view_farm_details(&self) -> FarmDetails {
             FarmDetails {
                 pool_id: self.pool_id,
+                is_active: self.is_active,
                 start: self.start,
                 end: self.end,
                 reward_tokens: self.reward_tokens.clone(),
-                reward_rates: self.farm_reward_rates.clone(),
+                reward_rates: self.reward_rates_to_u128().unwrap(),
             }
         }
     }
 
     pub fn rewards_per_share_in_time_interval(
-        reward_rate: u128,
+        reward_rate: U256,
         total_shares: u128,
         from_timestamp: u128,
         to_timestamp: u128,
@@ -434,8 +492,8 @@ mod farm {
             .checked_sub(from_timestamp)
             .ok_or(MathError::Underflow)?;
 
-        casted_mul(reward_rate, time_delta)
-            .checked_mul(U256::from(SCALING_FACTOR))
+        reward_rate
+            .checked_mul(U256::from(time_delta))
             .ok_or(MathError::Overflow(1))?
             .checked_div(U256::from(total_shares))
             .ok_or(MathError::DivByZero(1))
@@ -454,6 +512,19 @@ mod farm {
             .ok_or(MathError::DivByZero(2))?
             .try_into()
             .map_err(|_| MathError::CastOverflow)
+    }
+
+    pub fn no_duplicates<A: Eq + PartialEq>(v: &Vec<A>) -> bool {
+        for (idx, el) in v.iter().enumerate() {
+            // Add 1 since the first `idx=0` and we would
+            // start iterating from the beginning (rather than the next element).
+            for other in v.iter().skip(idx + 1) {
+                if el == other {
+                    return false;
+                }
+            }
+        }
+        true
     }
 
     #[cfg(test)]
@@ -476,7 +547,7 @@ mod farm {
             assert_eq!(farm_details.reward_tokens, reward_tokens);
             assert_eq!(farm_details.reward_rates, vec![0, 0]);
 
-            assert_eq!(farm.is_active(), false);
+            assert_eq!(farm.is_active, false);
 
             assert_eq!(farm.total_shares(), 0);
         }
@@ -576,6 +647,31 @@ mod farm {
                 farm.owner_withdraw_token(pool_id).err().unwrap(),
                 FarmError::RewardTokenIsPoolToken
             );
+        }
+
+        #[ink::test]
+        fn duplicate_reward_tokens_not_allowed() {
+            let pool_id = AccountId::from([0u8; 32]);
+            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([1u8; 32])];
+
+            assert_eq!(
+                super::FarmContract::new(pool_id, reward_tokens).unwrap_err(),
+                FarmError::DuplicateRewardTokens,
+            );
+        }
+
+        #[test]
+        fn test_no_duplicates() {
+            use crate::farm::no_duplicates;
+
+            assert!(no_duplicates::<u32>(&vec![]));
+            assert!(no_duplicates(&vec![1]));
+            assert!(no_duplicates(&vec![1, 2, 3, 4]));
+
+            assert!(!no_duplicates(&vec![2, 2]));
+            assert!(!no_duplicates(&vec![1, 2, 2]));
+            assert!(!no_duplicates(&vec![1, 2, 3, 2]));
+            assert!(!no_duplicates(&vec![1, 2, 3, 4, 1]));
         }
     }
 }

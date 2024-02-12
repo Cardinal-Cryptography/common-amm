@@ -9,10 +9,10 @@ use psp22::PSP22Error;
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum FarmError {
     PSP22Error(PSP22Error),
-    FarmAlreadyRunning,
+    FarmIsRunning,
+    FarmAlreadyStopped,
     CallerNotOwner,
     ArithmeticError(MathError),
-    CallerNotFarmer,
     AllRewardRatesZero,
     FarmStartInThePast,
     FarmEndInThePast,
@@ -22,6 +22,7 @@ pub enum FarmError {
     TooManyRewardTokens,
     RewardTokenIsPoolToken,
     TokenTransferFailed(AccountId, PSP22Error),
+    DuplicateRewardTokens,
 }
 
 /// Summary of the farm's details.
@@ -32,6 +33,8 @@ pub enum FarmError {
 pub struct FarmDetails {
     /// Address of a DEX pair for which this farm is created.
     pub pool_id: AccountId,
+    /// Flag indicating whether the farm is active (currently running or planned for the future).
+    pub is_active: bool,
     /// Start timestamp of the latest farm instance.
     pub start: u64,
     /// End timestamp of the latest farm instance.
@@ -104,7 +107,7 @@ pub trait Farm {
 
     /// NOTE: Implementation should make sure that it's callable only by an authorized account (owner of the farm).
     #[ink(message)]
-    fn owner_withdraw_token(&mut self, token: AccountId) -> Result<(), FarmError>;
+    fn owner_withdraw_token(&mut self, token: AccountId) -> Result<u128, FarmError>;
 
     /// Requests farming rewards that have been accumulated to the caller of this method.
     ///

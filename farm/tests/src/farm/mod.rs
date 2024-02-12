@@ -84,7 +84,7 @@ pub fn owner_withdraw(
     farm: &Farm,
     token: AccountId,
     caller: AccountId32,
-) -> Result<(), FarmError> {
+) -> Result<u128, FarmError> {
     let _ = session.set_actor(caller);
 
     handle_ink_error(session.execute(farm.owner_withdraw_token(token)).unwrap())
