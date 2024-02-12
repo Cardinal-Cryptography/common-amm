@@ -4,6 +4,7 @@ use farm::{self, FarmDetails, FarmError, PSP22Error};
 use psp22;
 use utils::*;
 
+use drink::runtime::MinimalRuntime;
 use drink::session::Session;
 
 #[drink::test]
@@ -469,7 +470,7 @@ fn start_stop_emits_event(mut session: Session) {
     );
 
     // Stop the farm
-    inc_timestamp(&mut session);
+    set_timestamp(&mut session, farm_start + farm_duration / 2);
     let stop_timestamp = get_timestamp(&mut session);
     let stop_result = session.execute(farm.owner_stop_farm()).unwrap();
 
@@ -636,4 +637,87 @@ fn max_rewards(mut session: Session) {
     // Stop & withdraw
     farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
     farm::owner_withdraw(&mut session, &farm, wood.into(), BOB).unwrap();
+}
+
+fn setup_farm(
+    session: &mut Session<MinimalRuntime>,
+    farm_start: u64,
+    farm_end: u64,
+) -> crate::farm::Farm {
+    let ice = psp22::setup(session, ICE.to_string(), ICE.to_string(), BOB);
+    let wood = psp22::setup(session, WOOD.to_string(), WOOD.to_string(), BOB);
+    let farm = farm::setup(session, ice.into(), vec![wood.into()], BOB);
+
+    // deposits lp token
+    let deposit_amount = 1000000;
+    psp22::increase_allowance(session, ice.into(), farm.into(), deposit_amount, BOB);
+    farm::deposit_to_farm(session, &farm, deposit_amount, BOB).unwrap();
+
+    let rewards_amount = u128::MAX;
+    psp22::increase_allowance(session, wood.into(), farm.into(), rewards_amount, BOB);
+
+    // starting the new farm
+    farm::start(
+        session,
+        &farm,
+        farm_start,
+        farm_end,
+        vec![rewards_amount],
+        BOB,
+    )
+    .unwrap();
+
+    farm
+}
+
+#[drink::test]
+fn owner_stop_farm_before_start(mut session: Session<MinimalRuntime>) {
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    // Stop before it even starts.
+    let farm = setup_farm(&mut session, now + 10, now + 100);
+    farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
+    let details = farm::get_farm_details(&mut session, &farm);
+    assert_eq!(details.is_active, false);
+    assert_eq!(
+        details.end,
+        now + 10,
+        "When stopped before start, end == start"
+    );
+}
+
+#[drink::test]
+fn owner_stop_farm_while_running(mut session: Session<MinimalRuntime>) {
+    // Stop while it runs.
+    let now = get_timestamp(&mut session);
+    let farm_start = now + 10;
+    let farm_duration = 100;
+
+    let farm = setup_farm(&mut session, farm_start, farm_start + farm_duration);
+    set_timestamp(&mut session, farm_start + 10);
+    let now = get_timestamp(&mut session);
+    farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
+    let details = farm::get_farm_details(&mut session, &farm);
+    assert_eq!(details.is_active, false);
+    assert_eq!(details.end, now, "When stopped while running, end == now");
+}
+
+#[drink::test]
+fn owner_stop_farm_after_end(mut session: Session<MinimalRuntime>) {
+    // Stop while it runs.
+    let now = get_timestamp(&mut session);
+    let farm_start = now + 10;
+    let farm_duration = 100;
+    let farm_end = farm_start + farm_duration;
+
+    let farm = setup_farm(&mut session, farm_start, farm_end);
+    set_timestamp(&mut session, farm_end + 10);
+    farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
+    let details = farm::get_farm_details(&mut session, &farm);
+    assert_eq!(details.is_active, false);
+    assert_eq!(
+        details.end, farm_end,
+        "When stopped after finished, end == planned end"
+    );
 }

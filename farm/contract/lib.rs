@@ -345,13 +345,12 @@ mod farm {
             // We set the end timestamp to self.start to make it clear there's no farm.
             if current_timestamp < self.start {
                 self.end = self.start
-            }
-            // End farm prematurely.
-            if current_timestamp < self.end {
+            } else if current_timestamp < self.end {
+                // End farm prematurely.
                 self.end = self.env().block_timestamp();
+            } else if current_timestamp >= self.end {
+                // No-op after farm's end.
             }
-            // No-op after farm's end.
-            if current_timestamp >= self.end {}
             self.is_active = false;
             FarmContract::emit_event(
                 self.env(),
