@@ -103,12 +103,10 @@ mod farm {
             if reward_tokens.contains(&pool_id) {
                 return Err(FarmError::RewardTokenIsPoolToken);
             }
-            let mut _reward_tokens: Mapping<TokenId, ()> = Mapping::new();
-            for reward_token in &reward_tokens {
-                if _reward_tokens.insert(reward_token, &()).is_some() {
-                    return Err(FarmError::DuplicateRewardTokens);
-                }
+            if !no_duplicates(&reward_tokens) {
+                return Err(FarmError::DuplicateRewardTokens);
             }
+
             Ok(FarmContract {
                 pool_id,
                 owner: Self::env().caller(),
@@ -274,7 +272,7 @@ mod farm {
 
         fn reward_rates_to_u128(&self) -> Result<Vec<u128>, FarmError> {
             let mut rates = Vec::with_capacity(self.farm_reward_rates.len());
-            for rr in self.farm_reward_rates {
+            for rr in &self.farm_reward_rates {
                 rates.push(
                     rr.0.checked_div(U256::from(SCALING_FACTOR))
                         .ok_or(MathError::DivByZero(4))?
@@ -504,6 +502,19 @@ mod farm {
             .map_err(|_| MathError::CastOverflow)
     }
 
+    pub fn no_duplicates<A: Eq + PartialEq>(v: &Vec<A>) -> bool {
+        for (idx, el) in v.iter().enumerate() {
+            // Add 1 since the first `idx=0` and we would
+            // start iterating from the beginning (rather than the next element).
+            for other in v.iter().skip(idx + 1) {
+                if el == other {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
     #[cfg(test)]
     mod tests {
         use farm_trait::{Farm, FarmError};
@@ -635,6 +646,20 @@ mod farm {
                 super::FarmContract::new(pool_id, reward_tokens).unwrap_err(),
                 FarmError::DuplicateRewardTokens,
             );
+        }
+
+        #[test]
+        fn test_no_duplicates() {
+            use crate::farm::no_duplicates;
+
+            assert!(no_duplicates::<u32>(&vec![]));
+            assert!(no_duplicates(&vec![1]));
+            assert!(no_duplicates(&vec![1, 2, 3, 4]));
+
+            assert!(!no_duplicates(&vec![2, 2]));
+            assert!(!no_duplicates(&vec![1, 2, 2]));
+            assert!(!no_duplicates(&vec![1, 2, 3, 2]));
+            assert!(!no_duplicates(&vec![1, 2, 3, 4, 1]));
         }
     }
 }
