@@ -579,7 +579,7 @@ pub mod pair {
 
         #[ink(message)]
         fn token_decimals(&self) -> u8 {
-            18
+            12
         }
     }
 
