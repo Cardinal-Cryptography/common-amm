@@ -340,7 +340,18 @@ mod farm {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             ensure!(self.is_active, FarmError::FarmAlreadyStopped);
             self.update()?;
-            self.end = self.env().block_timestamp();
+            let current_timestamp = self.env().block_timestamp();
+            // If owner deactivates the farm before it even starts,
+            // We set the end timestamp to self.start to make it clear there's no farm.
+            if current_timestamp < self.start {
+                self.end = self.start
+            }
+            // End farm prematurely.
+            if current_timestamp < self.end {
+                self.end = self.env().block_timestamp();
+            }
+            // No-op after farm's end.
+            if current_timestamp >= self.end {}
             self.is_active = false;
             FarmContract::emit_event(
                 self.env(),
