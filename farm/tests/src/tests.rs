@@ -23,6 +23,7 @@ fn farm_start(mut session: Session) {
 
     let expected_details = FarmDetails {
         pool_id: ice.into(),
+        is_active: false,
         reward_tokens: vec![wood.into(), sand.into()],
         reward_rates: vec![0, 0],
         start: 0,
@@ -76,6 +77,7 @@ fn farm_start(mut session: Session) {
 
     let expected_details = FarmDetails {
         pool_id: ice.into(),
+        is_active: true,
         reward_tokens: vec![wood.into(), sand.into()],
         reward_rates: vec![1, 1],
         start: farm_start,

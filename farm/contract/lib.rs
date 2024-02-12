@@ -458,6 +458,7 @@ mod farm {
         fn view_farm_details(&self) -> FarmDetails {
             FarmDetails {
                 pool_id: self.pool_id,
+                is_active: self.is_active,
                 start: self.start,
                 end: self.end,
                 reward_tokens: self.reward_tokens.clone(),

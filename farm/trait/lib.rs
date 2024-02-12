@@ -33,6 +33,8 @@ pub enum FarmError {
 pub struct FarmDetails {
     /// Address of a DEX pair for which this farm is created.
     pub pool_id: AccountId,
+    /// Flag indicating whether the farm is active (currently running or planned for the future).
+    pub is_active: bool,
     /// Start timestamp of the latest farm instance.
     pub start: u64,
     /// End timestamp of the latest farm instance.
