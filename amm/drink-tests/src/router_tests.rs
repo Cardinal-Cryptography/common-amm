@@ -185,7 +185,8 @@ fn test_fees(mut session: Session) {
         .unwrap()
         .unwrap();
 
-    let token_amount = 1_000_000 * 10u128.pow(18);
+    let exp = 10u128.pow(18);
+    let token_amount = 1_000_000 * exp;
     psp22::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB).unwrap();
     psp22::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB).unwrap();
 
@@ -207,7 +208,7 @@ fn test_fees(mut session: Session) {
     let bob_lp_balance: u128 = psp22::balance_of(&mut session, ice_wood_pair.into(), bob());
     assert_eq!(liquidity_minted, bob_lp_balance);
 
-    let swap_amount = 10_000 * 10u128.pow(18);
+    let swap_amount = 10_000 * exp;
     // 0.3% is would be 30 tokens exactly but due to rounding we can lose up to 1 dust.
     let swap_res = session
         .execute(router.swap_exact_tokens_for_tokens(
@@ -222,7 +223,6 @@ fn test_fees(mut session: Session) {
         .unwrap()
         .unwrap();
 
-    assert_eq!(swap_res[0], swap_amount);
     // We cannot assert that as it depends on the pool's liquidity and swap amount. The price will move from the spot price.
     // assert!(swap_res[1] >= min_amount_out);
 
@@ -254,10 +254,6 @@ fn test_fees(mut session: Session) {
 
     // Fees now sent to `fee_to` address (CHARLIE).
     let charlie_lp_balance = psp22::balance_of(&mut session, ice_wood_pair.into(), charlie());
-    // Trading fee is 0.3%.
-    let trading_fee = 0.3 / 100.0;
-    // Protocol fees are 1/6 of the trading fees.
-    let expected = (swap_amount as f64 * trading_fee) / 6.0;
     // Charlie withdraws his fees
     psp22::increase_allowance(
         &mut session,
@@ -279,8 +275,23 @@ fn test_fees(mut session: Session) {
     );
     // We cannot assert exactly how much fees Charlie will get, due to roundings etc,
     // but it should be close to the expected value
-    let protocol_fees = protocol_fees_ice + protocol_fees_wood;
-    let percentile = expected * 9999.0 / 10000.0;
-    assert!(protocol_fees >= expected as u128 - percentile as u128);
-    assert!(protocol_fees <= expected as u128);
+    let received_protocol_fees = protocol_fees_ice + protocol_fees_wood;
+
+    // Trading fee is 0.3%.
+    let trading_fee = 0.3 / 100.0;
+
+    // Protocol fees are 1/6 of the trading fees.
+    // Protocol fees are a sum of:
+    // * % from the input trading amount
+    // * the slippage value of the trade
+    //
+    // This makes it dynamic and hard to predict. So we're setting lower & upper bounds.
+
+    // Lower bound for the received protocol fees is the exact 0.3%/6 of the output amount.
+    let expected_protocol_fees = (swap_res[1] as f64 * trading_fee) / 6.0;
+    // Upper bound for the received protocol fees is the % from the input amount.
+    let expected_with_imp_loss = (swap_res[0] as f64 * trading_fee) / 6.0;
+
+    assert!(received_protocol_fees >= expected_protocol_fees as u128);
+    assert!(received_protocol_fees <= expected_with_imp_loss as u128);
 }
