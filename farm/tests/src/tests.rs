@@ -639,11 +639,14 @@ fn max_rewards(mut session: Session) {
     farm::owner_withdraw(&mut session, &farm, wood.into(), BOB).unwrap();
 }
 
+/// Creates a farm where ICE is the LP token and WOOD is the reward token.
+///
+/// Returns (Farm, ICE, WOOD)
 fn setup_farm(
     session: &mut Session<MinimalRuntime>,
     farm_start: u64,
     farm_end: u64,
-) -> crate::farm::Farm {
+) -> (crate::farm::Farm, crate::psp22::PSP22, crate::psp22::PSP22) {
     let ice = psp22::setup(session, ICE.to_string(), ICE.to_string(), BOB);
     let wood = psp22::setup(session, WOOD.to_string(), WOOD.to_string(), BOB);
     let farm = farm::setup(session, ice.into(), vec![wood.into()], BOB);
@@ -667,7 +670,7 @@ fn setup_farm(
     )
     .unwrap();
 
-    farm
+    (farm, ice, wood)
 }
 
 #[drink::test]
@@ -676,7 +679,7 @@ fn owner_stop_farm_before_start(mut session: Session<MinimalRuntime>) {
     set_timestamp(&mut session, now);
 
     // Stop before it even starts.
-    let farm = setup_farm(&mut session, now + 10, now + 100);
+    let (farm, _, _) = setup_farm(&mut session, now + 10, now + 100);
     farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
     let details = farm::get_farm_details(&mut session, &farm);
     assert_eq!(details.is_active, false);
@@ -689,12 +692,11 @@ fn owner_stop_farm_before_start(mut session: Session<MinimalRuntime>) {
 
 #[drink::test]
 fn owner_stop_farm_while_running(mut session: Session<MinimalRuntime>) {
-    // Stop while it runs.
     let now = get_timestamp(&mut session);
     let farm_start = now + 10;
     let farm_duration = 100;
 
-    let farm = setup_farm(&mut session, farm_start, farm_start + farm_duration);
+    let (farm, _, _) = setup_farm(&mut session, farm_start, farm_start + farm_duration);
     set_timestamp(&mut session, farm_start + 10);
     let now = get_timestamp(&mut session);
     farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
@@ -705,13 +707,13 @@ fn owner_stop_farm_while_running(mut session: Session<MinimalRuntime>) {
 
 #[drink::test]
 fn owner_stop_farm_after_end(mut session: Session<MinimalRuntime>) {
-    // Stop while it runs.
     let now = get_timestamp(&mut session);
     let farm_start = now + 10;
     let farm_duration = 100;
     let farm_end = farm_start + farm_duration;
 
-    let farm = setup_farm(&mut session, farm_start, farm_end);
+    let (farm, _, _) = setup_farm(&mut session, farm_start, farm_start + farm_duration);
+
     set_timestamp(&mut session, farm_end + 10);
     farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
     let details = farm::get_farm_details(&mut session, &farm);
@@ -720,4 +722,37 @@ fn owner_stop_farm_after_end(mut session: Session<MinimalRuntime>) {
         details.end, farm_end,
         "When stopped after finished, end == planned end"
     );
+}
+
+#[drink::test]
+fn owner_withdraw_pool_token(mut session: Session<MinimalRuntime>) {
+    let now = get_timestamp(&mut session);
+    let farm_start = now + 10;
+    let farm_duration = 100;
+
+    let (farm, ice, _) = setup_farm(&mut session, farm_start, farm_start + farm_duration);
+
+    // Transfer LP token to the farm, by mistake.
+    let lp_token_amount = 1000;
+    // Some LP tokens have been trasferred by farmers, when joining the farm.
+    let ice_farm_balance_before = psp22::balance_of(&mut session, ice.into(), farm.into());
+    psp22::transfer(&mut session, ice.into(), farm.into(), lp_token_amount, BOB).unwrap();
+    let ice_farm_balance = psp22::balance_of(&mut session, ice.into(), farm.into());
+    assert_eq!(ice_farm_balance - ice_farm_balance_before, lp_token_amount);
+
+    // Withdraw LP token from the farm.
+    // We need to wait for the farm to end first.
+    set_timestamp(&mut session, farm_start + farm_duration + 10);
+    // Stop it explicitly first.
+    farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
+
+    let owner_lp_before = psp22::balance_of(&mut session, ice.into(), bob());
+    let res = farm::owner_withdraw(&mut session, &farm, ice.into(), BOB);
+    assert_eq!(res, Ok(lp_token_amount));
+
+    let ice_farm_balance = psp22::balance_of(&mut session, ice.into(), farm.into());
+    assert_eq!(ice_farm_balance, ice_farm_balance_before);
+
+    let owner_lp_after = psp22::balance_of(&mut session, ice.into(), bob());
+    assert_eq!(owner_lp_before + lp_token_amount, owner_lp_after);
 }

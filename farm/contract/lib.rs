@@ -363,19 +363,19 @@ mod farm {
         fn owner_withdraw_token(&mut self, token: TokenId) -> Result<u128, FarmError> {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
             ensure!(!self.is_active, FarmError::FarmIsRunning);
-            // Owner should be able to withdraw every token except the pool token.
-            ensure!(self.pool_id != token, FarmError::RewardTokenIsPoolToken);
-
             self.update()?;
             let mut token_ref: contract_ref!(PSP22) = token.into();
             let total_balance = token_ref.balance_of(self.env().account_id());
-            let undistributed_balance = if let Some(token_index) =
+            let mut undistributed_balance = if let Some(token_index) =
                 self.reward_tokens.iter().position(|&t| t == token)
             {
                 total_balance.saturating_sub(self.farm_distributed_unclaimed_rewards[token_index])
             } else {
                 total_balance
             };
+            if token == self.pool_id {
+                undistributed_balance -= self.total_shares;
+            }
             token_ref.transfer(self.owner, undistributed_balance, vec![])?;
             Ok(undistributed_balance)
         }
@@ -632,20 +632,6 @@ mod farm {
                     .err()
                     .unwrap(),
                 FarmError::CallerNotOwner
-            );
-        }
-
-        #[ink::test]
-        fn owner_cannot_withdraw_pool_token() {
-            let pool_id = AccountId::from([0u8; 32]);
-            let reward_tokens = vec![AccountId::from([1u8; 32]), AccountId::from([2u8; 32])];
-
-            let mut farm =
-                super::FarmContract::new(pool_id, reward_tokens).expect("farm::new works");
-
-            assert_eq!(
-                farm.owner_withdraw_token(pool_id).err().unwrap(),
-                FarmError::RewardTokenIsPoolToken
             );
         }
 
