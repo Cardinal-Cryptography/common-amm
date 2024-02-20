@@ -9,12 +9,12 @@ script_path="${BASH_SOURCE[0]}"
 script_dir=$(dirname "${script_path}")
 
 function cp_files() {
-    cp ${script_dir}/../target/ink/"$1"/"$1".json ${script_dir}/../artifacts/ && \
-    cp ${script_dir}/../target/ink/"$1"/"$1".contract ${script_dir}/../artifacts/ && \
+    cp "$script_dir"/../target/ink/"$1"/"$1".json "$script_dir"/../artifacts/ && \
+    cp "$script_dir"/../target/ink/"$1"/"$1".contract "$script_dir"/../artifacts/ && \
     echo "Copied $1 artifacts" || echo "Failed to copy $1 artifacts"
 }
 
-mkdir -p ${script_dir}/../artifacts
+mkdir -p "$script_dir"/../artifacts
 
 cp_files "factory_contract"
 cp_files "pair_contract"

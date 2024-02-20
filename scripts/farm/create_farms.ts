@@ -107,7 +107,7 @@ const WEEK_MILLIS = 7 * DAY_MILLIS;
 function randomizeFarmSpec(pool: string, rewardTokens: PSP22Metadata[]): FarmSpec {
     const currentTimestampMillis = new Date().getTime();
     const start = randomTimestampBetween(currentTimestampMillis, currentTimestampMillis + WEEK_MILLIS);
-    const end = randomTimestampBetween(start, currentTimestampMillis + 4 * WEEK_MILLIS);
+    const end = randomTimestampBetween(start, start + 4 * WEEK_MILLIS);
     const duration = end - start;
 
     if (duration < 0) {
