@@ -1,0 +1,117 @@
+#!/bin/env python
+
+from argparse import ArgumentParser
+from getpass import getpass
+from os.path import isfile
+from time import time
+
+from substrateinterface import Keypair, SubstrateInterface, ContractCode, ContractInstance, ContractMetadata
+
+
+def argument_parser():
+    """Create command line arguments parser."""
+    parser = ArgumentParser(prog='commonfarms-cli', description='Command line tool for management of Common Farms')
+    parser.add_argument('--chain', metavar='URL', default='local', help='WebSocker URL of the chain (possible shortcuts: mainnet, testnet, local)')
+    parser.add_argument('--phrase', metavar='SEED', help='seed phrase of the farm admin account (if not supplied, an interactive prompt will ask for it)')
+    parser.add_argument('--metadata', metavar='PATH', default='farm_contract.json', help='path to farm contract metadata file')
+    commands = parser.add_subparsers(dest='command', required=True, metavar='COMMAND')
+
+    create = commands.add_parser('create', help='create a new farm for given trading pool')
+    create.add_argument('--pool', required=True, metavar='ACCOUNT_ID', help='contract address of the trading pool')
+    create.add_argument('--rewards', required=True, nargs='+', metavar='ACCOUNT_ID', help='contract addresses of PSP22 tokens distributed as rewards')
+
+    start = commands.add_parser('start', help='schedule a start of an existing farm')
+    start.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
+    start.add_argument('--start', required=True, metavar='TIMESTAMP', type=int, help='start time')
+    start.add_argument('--end', required=True, metavar='TIMESTAMP', type=int, help='end time')
+    start.add_argument('--rewards', required=True, nargs='+', metavar='TIMESTAMP', type=int, help='end time')
+
+    stop = commands.add_parser('stop', help='stop an existing farm')
+    stop.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
+
+    withdraw = commands.add_parser('withdraw', help='withdraw to the admin account all available balance of given token')
+    withdraw.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
+    withdraw.add_argument('--token', required=True, metavar='ACCOUNT_ID', help='contract address of the token')
+
+    return parser
+
+
+def check_address(addr):
+    """Make sure that the provided WebSocket address is legit. Resolve shortcut aliases."""
+    aliases = {
+        'testnet': 'wss://ws.test.azero.dev',
+        'mainnet': 'wss://ws.azero.dev',
+        'local': 'ws://127.0.0.1:9944'
+    }
+    address = aliases.get(addr, addr)
+    if not address.startswith(('wss://', 'ws://')):
+        raise ValueError(f'Invalid WebSocket address: {addr}')
+    return address
+
+
+def check_account_ids(chain, *account_ids):
+    """Make sure that provided AccountIds are correct."""
+    for i in account_ids:
+        if not chain.is_valid_ss58_address(i):
+            raise ValueError(f'Invalid AccountId: {i}')
+
+
+def check_file(path):
+    """Make sure file exists."""
+    if not isfile(path):
+        raise ValueError(f'File does not exist: {path}')
+
+
+def format_call(name, args):
+    """Make a nice string describing call with arguments."""
+    str_args = ', '.join([f'{k}: {v}' for k, v in args.items()])
+    return f'{name}({str_args})'
+
+
+def deploy_contract(chain, keypair, metadata_file, constructor, **kwargs):
+    metadata = ContractMetadata.create_from_file(metadata_file, chain)
+    contract_name = metadata.metadata_dict['contract']['name']
+    code_hash = metadata.metadata_dict['source']['hash']
+    print(f'*** Deploying contract {contract_name} with constructor:\n    {format_call(constructor, kwargs)}')
+    code = ContractCode(code_hash=bytes.fromhex(code_hash[2:]), metadata=metadata, substrate=chain)
+    contract = code.deploy(keypair=keypair, constructor=constructor, args=kwargs, deployment_salt=str(time()), gas_limit={'ref_time': 25990000000, 'proof_size': 119903})
+    print(f'*** Contract deployment successful. Contract address: \n    {contract.contract_address}')
+    return contract
+
+
+def call_contract(chain, keypair, contract_address, metadata_file, method, **kwargs):
+    contract = ContractInstance.create_from_address(contract_address, metadata_file, chain)
+    print(f'*** Calling contract {contract_address} with method:\n    {format_call(method, kwargs)}')
+    receipt = contract.exec(keypair=keypair, method=method, args=kwargs)
+    try:  # remove try block when https://github.com/polkascan/py-substrate-interface/issues/379 is fixed
+        if receipt.is_success:
+            print(f'*** Contract call successful. Extrinsic identifier {receipt.get_extrinsic_identifier()}')
+        else:
+            error = receipt.error_message
+            name, docs = error['name'], error['docs']
+            print(f'!!! Contract call failed with error {name}: {docs}')
+        return receipt
+    except Exception:
+        print('Error decoding ContractExecutionReceipt. Most likely the contract call was still successful')
+
+
+if __name__ == "__main__":
+    args = argument_parser().parse_args()
+    check_file(args.metadata)
+    chain = SubstrateInterface(url=check_address(args.chain), type_registry={"types": {"ContractExecResult": "ContractExecResultTo269"}})
+    if args.phrase is None:
+        args.phrase = getpass('Please enter the seed phrase: ')
+    keypair = Keypair.create_from_uri(args.phrase)
+
+    if args.command == 'create':
+        check_account_ids(chain, args.pool, *args.rewards)
+        deploy_contract(chain, keypair, args.metadata, constructor='new', pool_id=args.pool, reward_tokens=args.rewards)
+    elif args.command == 'start':
+        check_account_ids(chain, args.farm)
+        call_contract(chain, keypair, args.farm, args.metadata, method='Farm::owner_start_new_farm', start=args.start, end=args.end, rewards=args.rewards)
+    elif args.command == 'stop':
+        check_account_ids(chain, args.farm)
+        call_contract(chain, keypair, args.farm, args.metadata, method='Farm::owner_stop_farm')
+    elif args.command == 'withdraw':
+        check_account_ids(chain, args.farm, args.token)
+        call_contract(chain, keypair, args.farm, args.metadata, method='Farm::owner_withdraw_token', token=args.token)
