@@ -83,16 +83,13 @@ def call_contract(chain, keypair, contract_address, metadata_file, method, **kwa
     contract = ContractInstance.create_from_address(contract_address, metadata_file, chain)
     print(f'*** Calling contract {contract_address} with method:\n    {format_call(method, kwargs)}')
     receipt = contract.exec(keypair=keypair, method=method, args=kwargs)
-    try:  # remove try block when https://github.com/polkascan/py-substrate-interface/issues/379 is fixed
-        if receipt.is_success:
-            print(f'*** Contract call successful. Extrinsic identifier {receipt.get_extrinsic_identifier()}')
-        else:
-            error = receipt.error_message
-            name, docs = error['name'], error['docs']
-            print(f'!!! Contract call failed with error {name}: {docs}')
-        return receipt
-    except Exception:
-        print('Error decoding ContractExecutionReceipt. Most likely the contract call was still successful')
+    if receipt.is_success:
+        print(f'*** Contract call successful. Extrinsic identifier {receipt.get_extrinsic_identifier()}')
+    else:
+        error = receipt.error_message
+        name, docs = error['name'], error['docs']
+        print(f'!!! Contract call failed with error {name}: {docs}')
+    return receipt
 
 
 if __name__ == "__main__":
