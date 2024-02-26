@@ -13,7 +13,7 @@ def argument_parser():
     parser = ArgumentParser(prog='commonfarms-cli', description='Command line tool for management of Common Farms')
     parser.add_argument('--chain', metavar='URL', default='local', help='WebSocker URL of the chain (possible shortcuts: mainnet, testnet, local)')
     parser.add_argument('--phrase', metavar='SEED', help='seed phrase of the farm admin account (if not supplied, an interactive prompt will ask for it)')
-    parser.add_argument('--metadata', metavar='PATH', default='farm_contract.json', help='path to farm contract metadata file')
+    parser.add_argument('--metadata', metavar='PATH', default='../../artifacts/farm_contract.json', help='path to farm contract metadata file')
     commands = parser.add_subparsers(dest='command', required=True, metavar='COMMAND')
 
     create = commands.add_parser('create', help='create a new farm for given trading pool')
