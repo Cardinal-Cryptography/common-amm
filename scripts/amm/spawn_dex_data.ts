@@ -1,30 +1,38 @@
 import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
-import Token_factory from '../../types/constructors/psp22_token';
-import Token from '../../types/contracts/psp22_token'
+import Token_factory from '../../types/constructors/psp22';
+import Token from '../../types/contracts/psp22';
 import * as psp22 from './token';
-import {DEADLINE} from './constants';
-import {parseUnits} from './shared';
+import { DEADLINE } from './constants';
+import { parseUnits } from './shared';
 import Router from '../../types/contracts/router_contract';
-import {loadAddresses} from './utils';
-import BN from 'bn.js';
+import { loadAddresses } from './utils';
 
-console.log('Setting up tokens on', process.env.WS_NODE)
+console.log('Setting up tokens on', process.env.WS_NODE);
 
-const WAZERO_DECIMALS = 12
-const POSSIBLE_DECIMALS = [10, 12/*, 15, 18 TODO: uncomment once overflows are fixed on backend: https://cardinal-cryptography.atlassian.net/browse/A0-3545 */]
-const NUMBER_OF_DIFFERENT_TOTAL_TOKEN_SUPPLY_LEVELS = 8
+const WAZERO_DECIMALS = 12;
+
 const TOKENS_DATA = [
-  { symbol: 'CRC', name: 'Circle', },
-  { symbol: 'TGL', name: 'Triangle', },
-  { symbol: 'QUA', name: 'Quadrangle', },
-  { symbol: 'PEN', name: 'Pentagon', },
-  { symbol: 'HGO', name: 'Hexagon', },
-  { symbol: 'HTG', name: 'Heptagon', },
-  { symbol: 'OGO', name: 'Octagon', },
-  { symbol: 'NOGO', name: 'Nonagon', },
-  { symbol: 'DEGO', name: 'Decagon', },
-  { symbol: 'UGO', name: 'Undecagon', },
-] as const
+  { symbol: 'FIR', name: 'Fire', totalSupply: 8_000_000 },
+  { symbol: 'PAP', name: 'Paper', totalSupply: 5_000_000 },
+  { symbol: 'PLA', name: 'Plants', totalSupply: 1_250_000 },
+  { symbol: 'WAT', name: 'Water', totalSupply: 6_250_000 },
+  { symbol: 'WIN', name: 'Wind', totalSupply: 2_500_000 },
+  { symbol: 'ELE', name: 'Electricity', totalSupply: 2_000_000 },
+  { symbol: 'ICE', name: 'Ice', totalSupply: 4_000_000 },
+  { symbol: 'STE', name: 'Steam', totalSupply: 20_000_000 },
+  { symbol: 'STO', name: 'Stone', totalSupply: 12_500_000 },
+  { symbol: 'WOO', name: 'Wood', totalSupply: 25_000_000 },
+] as const;
+
+const IGNORED_PAIRS = [
+  ['FIR', 'WAT'],
+  ['FIR', 'ICE'],
+  ['WIN', 'STO'],
+  ['WOO', 'ICE'],
+];
+
+const TOKEN_WITHOUT_WAZERO_PAIR = 'ICE';
+const WAZERO_LIQUIDITY_IN_PAIR = 1_000_000;
 
 const wsProvider = new WsProvider(process.env.WS_NODE);
 const keyring = new Keyring({ type: 'sr25519' });
@@ -32,8 +40,6 @@ const keyring = new Keyring({ type: 'sr25519' });
 async function main(): Promise<void> {
   const api = await ApiPromise.create({ provider: wsProvider });
   const deployer = keyring.addFromUri(process.env.AUTHORITY_SEED);
-  const psp22ContractCodeHash = await psp22.upload(api, deployer);
-  console.log('PSP22 contract code hash:', psp22ContractCodeHash);
 
   const router = new Router(loadAddresses().routerAddress, deployer, api);
 
@@ -41,14 +47,11 @@ async function main(): Promise<void> {
 
   const tokenInitGas = await psp22.estimateInit(api, deployer);
 
-  const tokens = await runPromisesInSeries(TOKENS_DATA.map(({ symbol, name }, i) => async () => {
-    const decimals = POSSIBLE_DECIMALS.at(i % POSSIBLE_DECIMALS.length);
-    const minTotalSupply = 10_000
-    const maxTotalSupply = 999_999_999
-    const totalSupply = Math.round((
-      (i + NUMBER_OF_DIFFERENT_TOTAL_TOKEN_SUPPLY_LEVELS) * (maxTotalSupply - minTotalSupply) / NUMBER_OF_DIFFERENT_TOTAL_TOKEN_SUPPLY_LEVELS
-    ) % (maxTotalSupply - minTotalSupply) + minTotalSupply)
+  const decimals = 12;
+  const tokens = [];
 
+  // deploy tokens
+  for (const { symbol, name, totalSupply } of TOKENS_DATA) {
     const { address } = await tokenFactory.new(
       parseUnits(totalSupply, decimals).toString(),
       name,
@@ -57,158 +60,125 @@ async function main(): Promise<void> {
       { gasLimit: tokenInitGas },
     );
 
+    tokens.push({ symbol, name, totalSupply, address, decimals });
+
     console.log('Created token:', {
       symbol,
       name,
       decimals,
       address,
-      totalSupply
-    })
+      totalSupply,
+    });
+  }
 
-    return { symbol, name, address, decimals }
-  }))
+  const allTokensWithNativePair = tokens.filter(
+    ({ symbol }) => symbol !== TOKEN_WITHOUT_WAZERO_PAIR,
+  );
 
-  await runPromisesInSeries(tokens.map(({ address, decimals, name }, i) => async () => {
-    console.log('Starting processing token', name)
+  // Add liquidity to native pairs
+  for (const { name, address, totalSupply } of allTokensWithNativePair) {
+    const tokenAmount = totalSupply / 10;
 
-    const hasLiquidityWithWazero = !!((i + 1) % 3)
+    const tokenAmountString = parseUnits(tokenAmount, decimals).toString();
+    const wazeroAmountString = parseUnits(
+      WAZERO_LIQUIDITY_IN_PAIR,
+      WAZERO_DECIMALS,
+    ).toString();
 
-    if (hasLiquidityWithWazero) {
-      console.log('Starting adding liquidity with wAzero')
+    const tokenContract = new Token(address, deployer, api);
+    await tokenContract.tx.approve(router.address, tokenAmountString);
 
-      const tokenAmount = (i % 4 + 1) * 1000
-      const wazeroAmount = ((i + 2) % 4 + 1) * 1000
+    const params = [
+      address,
+      tokenAmountString,
+      tokenAmountString,
+      wazeroAmountString,
+      deployer.address,
+      DEADLINE,
+      {
+        value: wazeroAmountString,
+      },
+    ] as const;
 
-      const tokenAmountString = parseUnits(tokenAmount, decimals).toString()
-      const wazeroAmountString = parseUnits(wazeroAmount, WAZERO_DECIMALS).toString()
+    try {
+      await router.tx.addLiquidityNative(...params);
+    } catch (e) {
+      await router.query.addLiquidityNative(...params).then((r) => {
+        console.error(r.value.ok.err);
+      });
 
-      const tokenContract = new Token(address, deployer, api);
-      await tokenContract.tx.approve(router.address, tokenAmountString);
-
-      const params = [
-        address,
-        tokenAmountString,
-        tokenAmountString,
-        wazeroAmountString,
-        deployer.address,
-        DEADLINE,
-        {
-          value: wazeroAmountString,
-        },
-      ] as const
-
-      try {
-        await router.tx.addLiquidityNative(...params);
-      } catch (e) {
-        await router.query.addLiquidityNative(...params).then(r => {
-          console.error(r.value.ok.err)
-        })
-
-        throw e
-      }
-
-      console.log('Liquidity with wAzero added for token:', {
-        name,
-        tokenAmount,
-        wazeroAmount
-      })
-    } else {
-      console.log('Liquidity with wAzero not added for token:', { name })
+      throw e;
     }
 
-    await runPromisesInSeries(tokens.slice(i + 1).map((theOtherToken, j) => async () => {
-      console.log('Starting processing a pair with', theOtherToken.name)
+    console.log('Liquidity with wAzero added for token:', {
+      name,
+      tokenAmount,
+      WAZERO_LIQUIDITY_IN_PAIR,
+    });
+  }
 
-      const hasLiquidityWithTheOtherToken = !!((j + 1) % 4)
+  const allNonNativePairsWithPools = tokens
+    .flatMap((token, i) =>
+      tokens.slice(i + 1).map((otherToken) => [token, otherToken]),
+    )
+    .filter(([token0, token1]) =>
+      IGNORED_PAIRS.every(
+        ([ignored0, ignored1]) => token0 !== ignored0 && token1 !== ignored1,
+      ),
+    );
 
-      if (hasLiquidityWithTheOtherToken) {
-        console.log('Starting adding liquidity with', theOtherToken.name)
+  for (const [
+    { address: address0, name: name0, totalSupply: totalSupply0 },
+    { address: address1, name: name1, totalSupply: totalSupply1 },
+  ] of allNonNativePairsWithPools) {
+    const tokenAmount0 = totalSupply0 / 10;
+    const tokenAmount1 = totalSupply1 / 10;
 
-        const tokenDrawnAmount = ((i + j + 3) % 4 + 1) * 1000
-        const theOtherTokenDrawnAmount = ((Math.abs(i - j) + 4) % 4 + 1) * 1000
+    const tokenDrawnAmountString0 = parseUnits(
+      tokenAmount0,
+      decimals,
+    ).toString();
+    const tokenDrawnAmountString1 = parseUnits(
+      tokenAmount1,
+      decimals,
+    ).toString();
 
-        const tokenDrawnAmountString = parseUnits(tokenDrawnAmount, decimals).toString()
-        const theOtherTokenDrawnAmountString = parseUnits(theOtherTokenDrawnAmount, theOtherToken.decimals).toString()
+    const tokenContract0 = new Token(address0, deployer, api);
+    const tokenContract1 = new Token(address1, deployer, api);
 
-        const tokenContract = new Token(address, deployer, api);
-        const theOtherTokenContract = new Token(theOtherToken.address, deployer, api);
+    await tokenContract0.tx.approve(router.address, tokenDrawnAmountString0);
+    await tokenContract1.tx.approve(router.address, tokenDrawnAmountString1);
 
-        const tokenAmount = BN.max(
-          BN.min(
-            new BN(tokenDrawnAmountString),
-            await tokenContract.query.balanceOf(deployer.address)
-              .then(res => res.value.ok?.rawNumber)
-          ),
-          new BN(0)
-        )
-        const theOtherTokenAmount = BN.max(
-          BN.min(
-            new BN(theOtherTokenDrawnAmountString),
-            await theOtherTokenContract.query.balanceOf(deployer.address)
-              .then(res => res.value.ok?.rawNumber)
-          ),
-          new BN(0)
-        )
+    const params = [
+      address0,
+      address1,
+      tokenDrawnAmountString0,
+      tokenDrawnAmountString1,
+      tokenDrawnAmountString0,
+      tokenDrawnAmountString1,
+      deployer.address,
+      DEADLINE,
+    ] as const;
 
-        if (tokenAmount.lten(0) || theOtherTokenAmount.lten(0)) {
-          console.log('Liquidity between tokens not added due to lack of balance of one of them:', {
-            aName: name,
-            bName: theOtherToken.name,
-          })
-          return
-        }
+    try {
+      await router.tx.addLiquidity(...params);
+    } catch (e) {
+      await router.query.addLiquidity(...params).then((r) => {
+        console.error(r.value.ok.err);
+      });
 
-        await tokenContract.tx.approve(router.address, tokenAmount);
-        await theOtherTokenContract.tx.approve(router.address, theOtherTokenAmount);
+      throw e;
+    }
 
-        const params = [
-          address,
-          theOtherToken.address,
-          tokenAmount,
-          theOtherTokenAmount,
-          tokenAmount,
-          theOtherTokenAmount,
-          deployer.address,
-          DEADLINE,
-        ] as const
-
-        try {
-          await router.tx.addLiquidity(...params);
-        } catch (e) {
-          await router.query.addLiquidity(...params).then(r => {
-            console.error(r.value.ok.err)
-          });
-
-          throw e
-        }
-
-        console.log('Liquidity between tokens added:', {
-          aName: name,
-          bName: theOtherToken.name,
-          tokenAmount: Number(tokenAmount.toString().slice(0, -decimals)),
-          theOtherTokenAmount: Number(theOtherTokenAmount.toString().slice(0, -theOtherToken.decimals))
-        })
-      } else {
-        console.log('Liquidity between tokens not added:', {
-          aName: name,
-          bName: theOtherToken.name,
-        })
-      }
-    }))
-  }))
+    console.log('Liquidity between tokens added:', {
+      aName: name0,
+      bName: name1,
+      tokenAmount: tokenDrawnAmountString0,
+      theOtherTokenAmount: tokenDrawnAmountString1,
+    });
+  }
 
   await api.disconnect();
-}
-
-const runPromisesInSeries = async <T>(tasks: (() => Promise<T>)[]) => {
-  const results: T[] = []
-
-  await tasks.reduce((queue, executeTask) =>
-    queue.then(() => executeTask().then(result => results.push(result))),
-    Promise.resolve()
-  )
-
-  return results
 }
 
 main().catch((error) => {
