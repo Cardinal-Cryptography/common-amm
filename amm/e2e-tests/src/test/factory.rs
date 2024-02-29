@@ -102,7 +102,7 @@ pub async fn factory_contract_set_up_correctly() -> Result<()> {
     let FactoryTestSetup {
         wealthy_connection,
         regular_account,
-        zero_account,
+        zero_account: _zero_account,
         factory_contract,
         ..
     } = set_up_factory_test().await?;
@@ -115,7 +115,7 @@ pub async fn factory_contract_set_up_correctly() -> Result<()> {
         .read(factory_contract.all_pairs_length())
         .await??;
 
-    assert!(recipient == zero_account);
+    assert!(recipient.is_none());
     assert!(setter == regular_account);
     assert!(all_pairs_length == 0);
 
@@ -137,7 +137,7 @@ pub async fn set_fee() -> Result<()> {
 
     let fee_recipient = wealthy_connection.read(factory_contract.fee_to()).await??;
 
-    assert!(fee_recipient == zero_account);
+    assert!(fee_recipient.is_none());
 
     ensure!(
         wealthy_connection
@@ -156,7 +156,7 @@ pub async fn set_fee() -> Result<()> {
 
     let regular_recipient = regular_connection.read(factory_contract.fee_to()).await??;
 
-    assert!(regular_recipient == regular_account);
+    assert!(regular_recipient == Some(regular_account));
 
     Ok(())
 }

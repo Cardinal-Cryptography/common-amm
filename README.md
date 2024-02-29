@@ -81,6 +81,12 @@ This will:
 - Sequentially run all the E2E test cases with setup.
 - Stop the node.
 
+##### 💫 Run drink!-based integration tests
+
+To run drink!-based integration test suite, currently implemented only for `Farm` contract, go to `./farm` directory and run `make all-drink` - this will set up the tests and run them.
+
+For more information about the framework see [here](./farm/tests/README.md).
+
 ##### 💫 Deploy
 
 First start your local node. You can do that by running `make start-node` in the root directory of the project.

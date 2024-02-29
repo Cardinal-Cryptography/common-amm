@@ -34,60 +34,28 @@ build-node-arm64:
 build-node-x86_64:
 	@docker buildx build --pull --platform linux/amd64 -t aleph-onenode-chain-x86_64 --load docker
 
-AMM_CONTRACTS = ./amm/contracts
-AMM_CONTRACTS_PATHS := $(shell find $(AMM_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
-
-FARM_CONTRACTS := ./farm/contract
-
-TEST_CONTRACTS = ./test-contracts
-TEST_PATHS := $(shell find $(TEST_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
-
 .PHONY: build-farm
 build-farm: ## Builds farm contracts.
-	@for d in $(FARM_CONTRACTS); do \
-		echo "Building $$d contract" ; \
-		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
-	done
+	@cd farm && make build-farm && cd ..
 
 .PHONY: build-amm
 build-amm: ## Builds AMM contracts.
-	@for d in $(AMM_CONTRACTS_PATHS); do \
-	 	echo "Building $$d contract" ; \
-	 	cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
-	done
+	@cd amm && make build-amm && cd ..
 
 .PHONY: build-all
 build-all: build-farm build-amm build-test-contracts ## Builds all contracts.
 
 .PHONY: build-test-contracts
 build-test-contracts: ## Builds contracts used in e2e-tests
-	@for d in $(TEST_PATHS); do \
-		echo "Building $$d contract" ; \
-		if [ "$$d" = "$(TEST_CONTRACTS)/psp22" ]; then \
-			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release --features "contract"; \
-		else \
-			cargo contract build --quiet --manifest-path $$d/Cargo.toml --release; \
-		fi \
-	done
+	@cd amm && make build-test-contracts && cd ..
 
-	
 .PHONY: check-farm
 check-farm: ## Runs cargo checks on farm contracts.
-	@for d in $(FARM_CONTRACTS); do \
-		echo "Checking $$d" ; \
-		cargo check --quiet --all-targets --all-features --manifest-path $$d/Cargo.toml ; \
-		cargo clippy --quiet --all-features --manifest-path $$d/Cargo.toml -- --no-deps -D warnings ; \
-		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
-	done
+	@cd farm && make check-farm && cd ..
 
 .PHONY: check-amm
 check-amm: ## Runs cargo (contract) check on AMM contracts.
-	@for d in $(AMM_CONTRACTS_PATHS); do \
-		echo "Checking $$d" ; \
-		cargo check --quiet --all-targets --all-features --manifest-path $$d/Cargo.toml ; \
-		cargo clippy --quiet --all-features --manifest-path $$d/Cargo.toml -- --no-deps -D warnings ; \
-		cargo contract check --quiet --manifest-path $$d/Cargo.toml ; \
-	done
+	@cd amm && make check-amm && cd ..
 
 .PHONY: check-all
 check-all: check-farm check-amm ## Runs cargo checks and unit tests on all contracts.
@@ -116,7 +84,7 @@ e2e-tests: ## Runs all the e2e tests in sequence.
 .PHONY: build-and-wrap-all
 build-and-wrap-all: build-all build-test-contracts wrap-all ## Builds all contracts and generates code for contract interaction.
 
-INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.7.0
+INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:2.1.0
 
 .PHONY: check-all-dockerized
 check-all-dockerized: ## Runs cargo checks and unit tests on all contracts in a container.
@@ -135,4 +103,19 @@ build-and-wrap-all-dockerized: ## Builds all contracts and generates code for co
     	make build-and-wrap-all
 
 .PHONY: e2e-tests-with-setup-and-teardown
+e2e-tests-with-setup-and-teardown: export INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.7.0
 e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized build-node start-node e2e-tests stop-node ## Runs the E2E test suite.
+
+.PHONY: all-drink-dockerized
+all-drink-dockerized: ## Runs the drink test in a container.
+	@docker run --rm \
+		--name ink-dev \
+		-v "$(shell pwd)":/code \
+		$(INK_DEV_IMAGE) \
+		make all-drink
+
+.PHONY: all-drink
+all-drink: ## Runs the drink test.
+	@cd amm && make all-drink && cd ..
+	@cd farm && make all-drink && cd ..
+	@make check-all
