@@ -88,6 +88,7 @@ dependencies = [
  "drink",
  "ink-wrapper-types",
  "ink_primitives 4.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num-format",
  "parity-scale-codec",
 ]
 
@@ -2087,7 +2088,6 @@ checksum = "8e04e2fd2b8188ea827b32ef11de88377086d690286ab35747ef7f9bf3ccb590"
 [[package]]
 name = "ink-wrapper-types"
 version = "0.6.0"
-source = "git+https://github.com/Cardinal-Cryptography/ink-wrapper?rev=47ba45b#47ba45b2c1dea7c89a067fb1695ec8a919c2d4c0"
 dependencies = [
  "ahash 0.8.7",
  "anyhow",

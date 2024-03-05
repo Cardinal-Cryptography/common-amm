@@ -5,7 +5,7 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
-ink = { version = "=4.3.0", default-features = false }
+ink = { version = "=4.3.0", default-features = false, features = ["ink-debug"] }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = [
     "derive",
@@ -22,6 +22,8 @@ primitive-types = { version = "0.12.1", default-features = false, features = [
     "codec",
 ] }
 sp-arithmetic = { version = "18.0.0", default-features = false }
+
+num-format = { version = "0.4.4", default-features = false }
 
 [lib]
 name = "pair_contract"

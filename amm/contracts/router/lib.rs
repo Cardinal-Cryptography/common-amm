@@ -2,6 +2,9 @@
 
 #[ink::contract]
 pub mod router {
+    use num_format::*;
+    use ink::env::debug_println;
+
     // Trading fee is 0.3%. This is the same as in Uniswap.
     // Adjusted to not deal with floating point numbers.
     const TRADING_FEE_ADJ_DENOM: u128 = 1000;
@@ -142,12 +145,19 @@ pub mod router {
                 };
 
                 let mut pair: contract_ref!(Pair) = self.get_pair(input, output)?.into();
+
+                debug_println!("[ROUTER] Before swapping {} for {amount_out}", amounts[i]);
+                self.log_gas();
+
                 pair.call_mut()
                     .swap(amount_0_out, amount_1_out, to, None)
                     .try_invoke()
                     .map_err(|_| {
                         RouterError::CrossContractCallFailed(String::from("Pair:swap"))
                     })???;
+
+                debug_println!("[ROUTER] Swapped {} for {amount_out}", amounts[i]);
+                self.log_gas();
             }
             Ok(())
         }
@@ -203,6 +213,12 @@ pub mod router {
                 RouterError::Expired
             );
             Ok(())
+        }
+
+        fn log_gas(&self) {
+            let mut buf = Buffer::default();
+            buf.write_formatted(&self.env().gas_left(), &Locale::en);
+            debug_println!("[ROUTER] Gas left: {}", buf.as_str());
         }
     }
 
@@ -366,19 +382,33 @@ pub mod router {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterError> {
+            debug_println!("[ROUTER] Swap exact tokens for tokens");
+            self.log_gas();
+
             self.check_timestamp(deadline)?;
             let amounts = self.calculate_amounts_out(amount_in, &path)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
                 RouterError::InsufficientOutputAmount
             );
+
+            debug_println!("[ROUTER] Amount prechecks passed");
+            self.log_gas();
+
             psp22_transfer_from(
                 path[0],
                 self.env().caller(),
                 self.get_pair(path[0], path[1])?,
                 amounts[0],
             )?;
+            debug_println!("[ROUTER] Psp22 transfer from passed");
+            self.log_gas();
+
             self.swap(&amounts, &path, to)?;
+
+            debug_println!("[ROUTER] Swap passed");
+            self.log_gas();
+
             Ok(amounts)
         }
 

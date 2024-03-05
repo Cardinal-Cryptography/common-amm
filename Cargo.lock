@@ -642,6 +642,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
 
 [[package]]
+name = "num-format"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a652d9771a63711fd3c3deb670acfbe5c30a4072e664d7a3bf5a9e1056ac72c3"
+dependencies = [
+ "arrayvec",
+ "itoa",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -662,6 +672,7 @@ version = "0.1.0"
 dependencies = [
  "amm-helpers",
  "ink",
+ "num-format",
  "parity-scale-codec",
  "primitive-types",
  "psp22 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -845,6 +856,7 @@ version = "0.1.0"
 dependencies = [
  "amm-helpers",
  "ink",
+ "num-format",
  "parity-scale-codec",
  "psp22 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "scale-info",

@@ -5,7 +5,7 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
-ink = { version = "=4.3.0", default-features = false }
+ink = { version = "=4.3.0", default-features = false, features = ["ink-debug"] }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = [
     "derive",
@@ -19,6 +19,8 @@ wrapped-azero = { git = "https://github.com/Cardinal-Cryptography/wAZERO.git", d
 
 traits = { path = "../../traits", default-features = false }
 amm-helpers = { path = "../../../helpers", default-features = false }
+
+num-format = { version = "0.4.4", default-features = false }
 
 [lib]
 name = "router_contract"

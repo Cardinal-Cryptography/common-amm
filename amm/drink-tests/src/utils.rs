@@ -226,10 +226,6 @@ pub mod psp22 {
                 .unwrap(),
         )
     }
-
-    pub fn total_supply(session: &mut Session<MinimalRuntime>, token: AccountId) -> u128 {
-        handle_ink_error(session.query(PSP22::total_supply(&token.into())).unwrap())
-    }
 }
 
 pub fn get_timestamp(session: &mut Session<MinimalRuntime>) -> u64 {
