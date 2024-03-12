@@ -1,15 +1,14 @@
+use drink::{self, session::Session};
+use drink::contracts_api::decode_debug_buffer;
+use factory_contract::Factory as _;
+use ink_wrapper_types::Connection;
+use num_format::{Locale, ToFormattedString};
+use router_contract::Router as _;
+
 use crate::factory_contract;
 use crate::pair_contract;
 use crate::router_contract;
 use crate::utils::*;
-
-use factory_contract::Factory as _;
-use router_contract::Router as _;
-
-use drink::{self, session::Session};
-use drink::contract_api::decode_debug_buffer;
-use ink_wrapper_types::Connection;
-use num_format::{Locale, ToFormattedString};
 
 #[drink::test]
 fn test_fees(mut session: Session) {

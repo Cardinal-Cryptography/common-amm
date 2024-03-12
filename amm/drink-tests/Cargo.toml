@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dev-dependencies]
-drink = "0.8.6"
+drink = { path = "../../../drink/drink" }
 ink-wrapper-types = { path = "../../../ink-wrapper/ink-wrapper-types", default-features = false, features = [
     "drink",
 ] }
