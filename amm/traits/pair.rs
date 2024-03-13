@@ -1,5 +1,4 @@
 use crate::MathError;
-use amm_helpers::types::WrappedU256;
 use ink::prelude::vec::Vec;
 use ink::{primitives::AccountId, LangError};
 use psp22::PSP22Error;
@@ -20,22 +19,6 @@ pub trait Pair {
     /// as part of the _current_ transaction.
     #[ink(message)]
     fn get_reserves(&self) -> (u128, u128, u32);
-
-    /// Returns cumulative prive of the first token.
-    ///
-    /// NOTE: Cumulative price is the sum of token price,
-    /// recorded at the end of the block (in the last transaction),
-    /// since the beginning of the token pair.
-    #[ink(message)]
-    fn price_0_cumulative_last(&self) -> WrappedU256;
-
-    /// Returns cumulative prive of the second token.
-    ///
-    /// NOTE: Cumulative price is the sum of token price,
-    /// recorded at the end of the block (in the last transaction),
-    /// since the beginning of the token pair.
-    #[ink(message)]
-    fn price_1_cumulative_last(&self) -> WrappedU256;
 
     /// Mints liquidity tokens `to` account.
     /// The amount minted is equivalent to the excess of contract's balance and reserves.
