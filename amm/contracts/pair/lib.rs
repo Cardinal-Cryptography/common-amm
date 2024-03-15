@@ -2,9 +2,6 @@
 
 #[ink::contract]
 pub mod pair {
-    use num_format::*;
-    use ink::env::debug_println;
-
     // 2^112
     const Q112: u128 = 5192296858534827628530496329220096;
     // From the UniswapV2 whitepaper. Section 3.7.
@@ -279,12 +276,6 @@ pub mod pair {
                 }
             }
         }
-
-        fn log_gas(&self) {
-            let mut buf = Buffer::default();
-            buf.write_formatted(&self.env().gas_left(), &Locale::en);
-            debug_println!("[PAIR] Gas left: {}", buf.as_str());
-        }
     }
 
     impl Pair for PairContract {
@@ -449,9 +440,6 @@ pub mod pair {
 
             ensure!(to != token_0 && to != token_1, PairError::InvalidTo);
 
-            debug_println!("[PAIR] Prechecks passed");
-            self.log_gas();
-
             // Optimistically transfer tokens.
             if amount_0_out > 0 {
                 self.token_0().transfer(to, amount_0_out, Vec::new())?;
@@ -460,17 +448,11 @@ pub mod pair {
                 self.token_1().transfer(to, amount_1_out, Vec::new())?;
             }
 
-            debug_println!("[PAIR] Optimistic transfer passed");
-            self.log_gas();
-
             if let Some(data) = data {
                 // Call the callback.
                 let mut swap_callee: contract_ref!(SwapCallee) = to.into();
                 swap_callee.swap_call(self.env().caller(), amount_0_out, amount_1_out, data);
             }
-
-            debug_println!("[PAIR] Callback passed");
-            self.log_gas();
 
             let contract = self.env().account_id();
             let (balance_0, balance_1) = self.token_balances(contract);
@@ -501,9 +483,6 @@ pub mod pair {
                 0
             };
 
-            debug_println!("[PAIR] Liquidity depth calculated");
-            self.log_gas();
-
             ensure!(
                 amount_0_in > 0 || amount_1_in > 0,
                 PairError::InsufficientInputAmount
@@ -528,9 +507,6 @@ pub mod pair {
                 )
                 .ok_or(MathError::SubUnderflow(10))?;
 
-            debug_println!("[PAIR] Balances adjusted");
-            self.log_gas();
-
             // Cast to U256 to prevent Overflow
             ensure!(
                 casted_mul(balance_0_adjusted, balance_1_adjusted)
@@ -542,9 +518,6 @@ pub mod pair {
 
             self.update(balance_0, balance_1, reserves.0, reserves.1)?;
 
-            debug_println!("[PAIR] Update passed");
-            self.log_gas();
-
             self.env().emit_event(Swap {
                 sender: self.env().caller(),
                 amount_0_in,
@@ -553,9 +526,6 @@ pub mod pair {
                 amount_1_out,
                 to,
             });
-
-            debug_println!("[PAIR] Event emitted");
-            self.log_gas();
 
             Ok(())
         }
@@ -718,6 +688,7 @@ pub mod pair {
             if num >= Q112 || denom >= Q112 {
                 None
             } else {
+                #[allow(clippy::arithmetic_side_effects)]
                 Some(U256::from(num).checked_mul(Q112.into()).unwrap() / U256::from(denom))
             }
         }

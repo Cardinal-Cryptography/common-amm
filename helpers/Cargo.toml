@@ -5,8 +5,8 @@ authors = ["Cardinal Cryptography"]
 edition = "2021"
 
 [dependencies]
-ink = { version = "=4.3.0", default-features = false }
-ink_metadata = { version = "=4.3.0", features = ["derive"], optional = true }
+ink = { path = "../../ink/crates/ink", default-features = false }
+ink_metadata = { path = "../../ink/crates/metadata", features = ["derive"], optional = true }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = [
     "derive",
