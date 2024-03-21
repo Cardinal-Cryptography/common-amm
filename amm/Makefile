@@ -44,16 +44,19 @@ CONTRACTS := factory_contract pair_contract router_contract wrapped_azero
 
 .PHONY: wrap-all
 wrap-all: ## Generates Rust wrappers for interacting with AMM contracts.
-	@for c in $(CONTRACTS); do \
-		echo "Wrapping $$c contract" ; \
-		ink-wrapper --metadata ../target/ink/$$c/$$c.json \
-		            --wasm-path ../../../target/ink/$$c/$$c.wasm \
-	 		| rustfmt --edition 2021 > ./drink-tests/src/$$c.rs ; \
-	done
-	@echo "Wrapping psp22 contract" ; \
-	ink-wrapper --metadata ../target/ink/psp22/psp22.json \
-	            --wasm-path ../../../target/ink/psp22/psp22.wasm \
-		| rustfmt --edition 2021 > ./drink-tests/src/psp22_contract.rs ; \
+	./scripts/prepare_rust_wrappers.sh
+
+INK_DEV_IMAGE := "public.ecr.aws/p6e8q1z1/ink-dev:2.1.0"
+SCRIPT_DIR := $(shell cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+.PHONY: wrap-all-dockerized
+wrap-all-dockerized: ## Generates Rust wrappers for interacting with AMM contracts using Docker.
+	@docker run --rm \
+		--name ink-dev \
+		-v "$(SCRIPT_DIR)/..":/code \
+		--workdir /code/amm \
+		$(INK_DEV_IMAGE) \
+		make wrap-all
 
 .PHONY: setup-tests
 setup-tests: build-test-contracts build-amm wrap-all  ## Builds contracts and generates wrappers.
