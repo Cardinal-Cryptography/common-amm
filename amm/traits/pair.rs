@@ -1,5 +1,5 @@
 use crate::MathError;
-use amm_helpers::types::WrappedU256;
+use amm_helpers::types::{FeeSize, WrappedU256};
 use ink::prelude::vec::Vec;
 use ink::{primitives::AccountId, LangError};
 use psp22::PSP22Error;
@@ -82,6 +82,11 @@ pub trait Pair {
     /// Returns address of the second token.
     #[ink(message)]
     fn get_token_1(&self) -> AccountId;
+
+    /// Returns the trading fee of the pair.
+    /// Denominated in basis points (1/100 of a percent).
+    #[ink(message)]
+    fn get_fee_millis(&self) -> FeeSize;
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]

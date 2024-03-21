@@ -7,7 +7,7 @@ pub mod router {
     const TRADING_FEE_ADJ_DENOM: u128 = 1000;
     const TRADING_FEE_ADJ_NUM: u128 = 997;
 
-    use amm_helpers::{ensure, math::casted_mul};
+    use amm_helpers::{ensure, math::casted_mul, types::FeeSize};
     use ink::{
         codegen::TraitCallBuilder,
         contract_ref,
@@ -15,23 +15,32 @@ pub mod router {
         storage::Mapping,
     };
     use psp22::{PSP22Error, PSP22};
-    use traits::{Factory, MathError, Pair, Router, RouterError};
+    use traits::{Factory, MathError, Ownable, Pair, Router, RouterError};
     use wrapped_azero::WrappedAZERO;
+
+    /// Note that we use NORMAL_FEE for creating/getting pairs.
+    /// That is a "normal" mode of operations.
+    /// Only owner is allowed to force update of pairs cache and put a different pair there.
+    ///
+    /// Non-stablecoins have a 0.3% fee.
+    const FEE: FeeSize = FeeSize::Normal;
 
     #[ink(storage)]
     pub struct RouterContract {
         factory: AccountId,
         wnative: AccountId,
         pairs: Mapping<(AccountId, AccountId), AccountId>,
+        owner: AccountId,
     }
 
     impl RouterContract {
         #[ink(constructor)]
-        pub fn new(factory: AccountId, wnative: AccountId) -> Self {
+        pub fn new(factory: AccountId, wnative: AccountId, owner: AccountId) -> Self {
             Self {
                 factory,
                 wnative,
                 pairs: Default::default(),
+                owner,
             }
         }
 
@@ -101,7 +110,7 @@ pub mod router {
             amount_1_min: u128,
         ) -> Result<(u128, u128), RouterError> {
             if self.get_pair(token_0, token_1).is_err() {
-                let new_pair = self.factory_ref().create_pair(token_0, token_1)?;
+                let new_pair = self.factory_ref().create_pair(token_0, token_1, FEE)?;
                 self.pairs.insert((token_0, token_1), &new_pair);
                 self.pairs.insert((token_1, token_0), &new_pair);
             };
@@ -653,6 +662,59 @@ pub mod router {
         ) -> Result<Vec<u128>, RouterError> {
             self.calculate_amounts_in(amount_out, &path)
         }
+
+        /// Caches the pair address for the given pair.
+        #[ink(message)]
+        fn cache_pair(
+            &mut self,
+            token0: AccountId,
+            token1: AccountId,
+            pair_address: AccountId,
+        ) -> Result<(), RouterError> {
+            ensure!(
+                self.env().caller() == self.owner,
+                RouterError::CallerNotOwner
+            );
+            if self.pairs.get((token0, token1)).is_some() {
+                return Ok(()); // Pair already exists
+            }
+            self.pairs.insert((token0, token1), &pair_address);
+            self.pairs.insert((token1, token0), &pair_address);
+            Ok(())
+        }
+
+        /// Removes the cached pair address for the given pair.
+        #[ink(message)]
+        fn rm_cached_pair(
+            &mut self,
+            token0: AccountId,
+            token1: AccountId,
+        ) -> Result<(), RouterError> {
+            ensure!(
+                self.env().caller() == self.owner,
+                RouterError::CallerNotOwner
+            );
+            self.pairs.remove((token0, token1));
+            self.pairs.remove((token1, token0));
+            Ok(())
+        }
+    }
+
+    impl Ownable for RouterContract {
+        #[ink(message)]
+        fn set_owner(&mut self, new_owner: AccountId) -> Result<(), RouterError> {
+            ensure!(
+                self.env().caller() == self.owner,
+                RouterError::CallerNotOwner
+            );
+            self.owner = new_owner;
+            Ok(())
+        }
+
+        #[ink(message)]
+        fn owner(&self) -> AccountId {
+            self.owner
+        }
     }
 
     #[inline]
@@ -675,14 +737,73 @@ pub mod router {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use ink::{env::test::set_caller, primitives::AccountId};
 
+        fn factory() -> AccountId {
+            AccountId::from([0x03; 32])
+        }
+        fn wnative() -> AccountId {
+            AccountId::from([0x04; 32])
+        }
+        fn owner() -> AccountId {
+            AccountId::from([0x05; 32])
+        }
+
+        type Env = ink::env::DefaultEnvironment;
         #[ink::test]
         fn initialize_works() {
-            let factory = AccountId::from([0x03; 32]);
-            let wnative = AccountId::from([0x04; 32]);
-            let router = RouterContract::new(factory, wnative);
-            assert_eq!(router.factory(), factory);
-            assert_eq!(router.wnative(), wnative);
+            let router = RouterContract::new(factory(), wnative(), owner());
+            assert_eq!(router.factory(), factory());
+            assert_eq!(router.wnative(), wnative());
+            assert_eq!(router.owner(), owner());
+        }
+
+        #[ink::test]
+        fn ownable_works() {
+            let mut router = RouterContract::new(factory(), wnative(), owner());
+            let new_owner = AccountId::from([0x06; 32]);
+            set_caller::<Env>(new_owner);
+            assert_eq!(
+                router.set_owner(new_owner),
+                Err(RouterError::CallerNotOwner)
+            );
+            set_caller::<Env>(owner());
+            assert_eq!(router.set_owner(new_owner), Ok(()));
+            assert_eq!(router.owner(), new_owner);
+        }
+
+        #[ink::test]
+        fn pair_cache_works() {
+            let mut router = RouterContract::new(factory(), wnative(), owner());
+            let token0 = AccountId::from([0x07; 32]);
+            let token1 = AccountId::from([0x08; 32]);
+            let pair = AccountId::from([0x09; 32]);
+            assert_eq!(
+                router.cache_pair(token0, token1, pair),
+                Err(RouterError::CallerNotOwner)
+            );
+            // This fails as it tries to call the factory for a non-existing pair.
+            // Fails since ink's unit test don't support cross-contract calls.
+            // assert_eq!(
+            //     router.get_pair(token0, token1),
+            //     Err(RouterError::PairNotFound)
+            // );
+            set_caller::<Env>(owner());
+            assert_eq!(router.cache_pair(token0, token1, pair), Ok(()));
+            assert_eq!(router.get_pair(token0, token1), Ok(pair));
+            assert_eq!(router.get_pair(token1, token0), Ok(pair));
+
+            // Should be a passing no-op.
+            assert_eq!(router.cache_pair(token1, token0, pair), Ok(()));
+            assert_eq!(router.get_pair(token0, token1), Ok(pair));
+            assert_eq!(router.get_pair(token1, token0), Ok(pair));
+
+            assert_eq!(router.rm_cached_pair(token0, token1), Ok(()));
+            // Fails again due to the lack of support for cross-contract calls.
+            // assert_eq!(
+            //     router.get_pair(token0, token1),
+            //     Err(RouterError::PairNotFound)
+            // );
         }
     }
 }

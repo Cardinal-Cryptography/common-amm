@@ -2,7 +2,7 @@
 
 #[ink::contract]
 pub mod factory {
-    use amm_helpers::ensure;
+    use amm_helpers::{ensure, types::FeeSize};
     use ink::{codegen::EmitEvent, env::hash::Blake2x256, storage::Mapping, ToAccountId};
     use pair_contract::pair::PairContractRef;
     use traits::{Factory, FactoryError};
@@ -13,6 +13,7 @@ pub mod factory {
         pub token_0: AccountId,
         #[ink(topic)]
         pub token_1: AccountId,
+        pub fee_millis: FeeSize,
         pub pair: AccountId,
         pub pair_len: u64,
     }
@@ -45,9 +46,10 @@ pub mod factory {
             salt_bytes: &[u8],
             token_0: AccountId,
             token_1: AccountId,
+            fee_size: FeeSize,
         ) -> Result<AccountId, FactoryError> {
             let pair_hash = self.pair_contract_code_hash;
-            let pair = match PairContractRef::new(token_0, token_1)
+            let pair = match PairContractRef::new(token_0, token_1, fee_size)
                 .endowment(0)
                 .code_hash(pair_hash)
                 .salt_bytes(&salt_bytes)
@@ -64,6 +66,7 @@ pub mod factory {
             token_0: AccountId,
             token_1: AccountId,
             pair: AccountId,
+            fee_millis: FeeSize,
             pair_len: u64,
         ) {
             EmitEvent::<FactoryContract>::emit_event(
@@ -71,6 +74,7 @@ pub mod factory {
                 PairCreated {
                     token_0,
                     token_1,
+                    fee_millis,
                     pair,
                     pair_len,
                 },
@@ -112,6 +116,7 @@ pub mod factory {
             &mut self,
             token_0: AccountId,
             token_1: AccountId,
+            fee_size: FeeSize,
         ) -> Result<AccountId, FactoryError> {
             ensure!(token_0 != token_1, FactoryError::IdenticalAddresses);
             let token_pair = if token_0 < token_1 {
@@ -126,7 +131,7 @@ pub mod factory {
 
             let salt = self.env().hash_encoded::<Blake2x256, _>(&token_pair);
             let pair_contract =
-                self._instantiate_pair(salt.as_ref(), token_pair.0, token_pair.1)?;
+                self._instantiate_pair(salt.as_ref(), token_pair.0, token_pair.1, fee_size)?;
 
             self.get_pair
                 .insert((token_pair.0, token_pair.1), &pair_contract);
@@ -139,6 +144,7 @@ pub mod factory {
                 token_pair.0,
                 token_pair.1,
                 pair_contract,
+                fee_size,
                 self.all_pairs_length(),
             );
 

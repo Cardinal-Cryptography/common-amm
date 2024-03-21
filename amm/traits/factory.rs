@@ -1,4 +1,5 @@
 use crate::PairError;
+use amm_helpers::types::FeeSize;
 use ink::primitives::{AccountId, Hash};
 
 /// Factory trait for tracking all pairs within the UniswapV2 DEX.
@@ -27,6 +28,7 @@ pub trait Factory {
         &mut self,
         token_0: AccountId,
         token_1: AccountId,
+        fee_size: FeeSize,
     ) -> Result<AccountId, FactoryError>;
 
     /// Sets the address for receiving protocol's share of trading fees.

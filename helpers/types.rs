@@ -55,3 +55,27 @@ macro_rules! construct_from {
 }
 
 construct_from!(u8, u16, u32, u64, usize, i8, i16, i32, i64);
+
+// Fee size that is charged for trading.
+// Denominated in parts per 1000.
+// ie 1 = 0.1%, 10 = 1%, 100 = 10%
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[repr(u8)]
+pub enum FeeSize {
+    Normal = 3,
+    Stable = 1,
+}
+
+impl Default for FeeSize {
+    fn default() -> Self {
+        FeeSize::Normal
+    }
+}
+
+#[cfg(feature = "std")]
+impl StorageLayout for FeeSize {
+    fn layout(key: &Key) -> Layout {
+        Layout::Leaf(LeafLayout::from_key::<Self>(LayoutKey::from(key)))
+    }
+}

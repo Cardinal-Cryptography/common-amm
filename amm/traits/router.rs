@@ -222,6 +222,28 @@ pub trait Router {
         amount_out: u128,
         path: Vec<AccountId>,
     ) -> Result<Vec<u128>, RouterError>;
+
+    /// Caches the pair address for the given pair.
+    #[ink(message)]
+    fn cache_pair(
+        &mut self,
+        token0: AccountId,
+        token1: AccountId,
+        pair_address: AccountId,
+    ) -> Result<(), RouterError>;
+
+    /// Removes the cached pair address for the given pair.
+    #[ink(message)]
+    fn rm_cached_pair(&mut self, token0: AccountId, token1: AccountId) -> Result<(), RouterError>;
+}
+
+#[ink::trait_definition]
+pub trait Ownable {
+    #[ink(message)]
+    fn set_owner(&mut self, new_owner: AccountId) -> Result<(), RouterError>;
+
+    #[ink(message)]
+    fn owner(&self) -> AccountId;
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -246,6 +268,8 @@ pub enum RouterError {
     InsufficientAmountA,
     InsufficientAmountB,
     InsufficientLiquidity,
+
+    CallerNotOwner,
 }
 
 macro_rules! impl_froms {

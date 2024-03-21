@@ -9,7 +9,7 @@ pub type Balance = <ink::env::DefaultEnvironment as ink::env::Environment>::Bala
 
 pub use factory::{Factory, FactoryError};
 pub use pair::{Pair, PairError};
-pub use router::{Router, RouterError};
+pub use router::{Ownable, Router, RouterError};
 pub use swap_callee::SwapCallee;
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]

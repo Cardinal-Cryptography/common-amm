@@ -19,7 +19,6 @@ pub mod pair {
 
     // Whitepaper 3.2.1, equation (11)
     const TRADING_FEE_ADJ_RESERVES: u128 = 1000;
-    const TRADING_FEE_ADJ_AMOUNTS: u128 = 3;
 
     // Whitepaper 2.4, equation (7)
     const PROTOCOL_FEE_ADJ_DENOM: u128 = 5;
@@ -30,7 +29,7 @@ pub mod pair {
         constants::{BURN_ADDRESS, MINIMUM_LIQUIDITY},
         ensure,
         math::casted_mul,
-        types::WrappedU256,
+        types::{FeeSize, WrappedU256},
     };
     use ink::{
         contract_ref,
@@ -110,10 +109,16 @@ pub mod pair {
         pub price_0_cumulative_last: WrappedU256,
         pub price_1_cumulative_last: WrappedU256,
         pub k_last: Option<WrappedU256>,
+        pub fee_millis: FeeSize,
     }
 
     impl PairData {
-        fn new(token_0: AccountId, token_1: AccountId, factory: AccountId) -> Self {
+        fn new(
+            token_0: AccountId,
+            token_1: AccountId,
+            factory: AccountId,
+            fee_millis: FeeSize,
+        ) -> Self {
             Self {
                 factory,
                 token_0,
@@ -124,6 +129,7 @@ pub mod pair {
                 price_0_cumulative_last: 0.into(),
                 price_1_cumulative_last: 0.into(),
                 k_last: None,
+                fee_millis,
             }
         }
     }
@@ -136,8 +142,8 @@ pub mod pair {
 
     impl PairContract {
         #[ink(constructor)]
-        pub fn new(token_0: AccountId, token_1: AccountId) -> Self {
-            let pair = PairData::new(token_0, token_1, Self::env().caller());
+        pub fn new(token_0: AccountId, token_1: AccountId, fee_millis: FeeSize) -> Self {
+            let pair = PairData::new(token_0, token_1, Self::env().caller(), fee_millis);
             Self {
                 psp22: PSP22Data::default(),
                 pair,
@@ -491,7 +497,7 @@ pub mod pair {
                 .ok_or(MathError::MulOverflow(3))?
                 .checked_sub(
                     amount_0_in
-                        .checked_mul(TRADING_FEE_ADJ_AMOUNTS)
+                        .checked_mul(self.pair.fee_millis as u128)
                         .ok_or(MathError::MulOverflow(4))?,
                 )
                 .ok_or(MathError::SubUnderflow(9))?;
@@ -500,7 +506,7 @@ pub mod pair {
                 .ok_or(MathError::MulOverflow(5))?
                 .checked_sub(
                     amount_1_in
-                        .checked_mul(TRADING_FEE_ADJ_AMOUNTS)
+                        .checked_mul(self.pair.fee_millis as u128)
                         .ok_or(MathError::MulOverflow(6))?,
                 )
                 .ok_or(MathError::SubUnderflow(10))?;
@@ -563,6 +569,11 @@ pub mod pair {
         #[ink(message)]
         fn get_token_1(&self) -> AccountId {
             self.pair.token_1
+        }
+
+        #[ink(message)]
+        fn get_fee_millis(&self) -> FeeSize {
+            self.pair.fee_millis
         }
     }
 
@@ -735,7 +746,8 @@ pub mod pair {
         fn initialize_works() {
             let token_0 = AccountId::from([0x03; 32]);
             let token_1 = AccountId::from([0x04; 32]);
-            let pair = PairContract::new(token_0, token_1);
+            let fee_millis = FeeSize::Normal;
+            let pair = PairContract::new(token_0, token_1, fee_millis);
             assert_eq!(pair.get_token_0(), token_0);
             assert_eq!(pair.get_token_1(), token_1);
         }
