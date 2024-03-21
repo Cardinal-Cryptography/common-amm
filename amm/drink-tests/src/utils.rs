@@ -21,7 +21,7 @@ pub fn charlie() -> ink_primitives::AccountId {
 
 pub fn upload_all(session: &mut Session<MinimalRuntime>) {
     session
-        .upload_code(psp22_contract::upload())
+        .upload_code(psp22::upload())
         .expect("Upload psp22 code");
     session
         .upload_code(factory_contract::upload())
@@ -97,7 +97,8 @@ pub mod router {
         factory: AccountId,
         wazero: AccountId,
     ) -> router_contract::Instance {
-        let instance = router_contract::Instance::new(factory, wazero);
+        let instance =
+            router_contract::Instance::new(factory, wazero, session.get_actor().to_account_id());
 
         session
             .instantiate(instance)
@@ -166,9 +167,9 @@ pub mod router {
     }
 }
 
-pub mod psp22 {
+pub mod psp22_utils {
     use super::*;
-    use psp22_contract::{Instance as PSP22, PSP22 as _};
+    use psp22::{Instance as PSP22, PSP22 as _};
 
     /// Uploads and creates a PSP22 instance with 1B*10^18 issuance and given names.
     /// Returns its AccountId casted to PSP22 interface.
@@ -176,8 +177,8 @@ pub mod psp22 {
         session: &mut Session<MinimalRuntime>,
         name: String,
         caller: drink::AccountId32,
-    ) -> psp22_contract::Instance {
-        let _code_hash = session.upload_code(psp22_contract::upload()).unwrap();
+    ) -> psp22::Instance {
+        let _code_hash = session.upload_code(psp22::upload()).unwrap();
 
         let _ = session.set_actor(caller);
 
@@ -203,7 +204,7 @@ pub mod psp22 {
         spender: AccountId,
         amount: u128,
         caller: drink::AccountId32,
-    ) -> Result<(), psp22_contract::PSP22Error> {
+    ) -> Result<(), psp22::PSP22Error> {
         let _ = session.set_actor(caller);
 
         handle_ink_error(

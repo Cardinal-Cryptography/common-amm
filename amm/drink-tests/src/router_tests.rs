@@ -19,12 +19,13 @@ fn add_liquidity(mut session: Session) {
     let fee_to_setter = bob();
 
     let factory = factory::setup(&mut session, fee_to_setter);
-    let ice = psp22::setup(&mut session, ICE.to_string(), BOB);
+    let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
     let wazero = wazero::setup(&mut session);
     let router = router::setup(&mut session, factory.into(), wazero.into());
 
     let token_amount = 10_000;
-    psp22::increase_allowance(&mut session, ice.into(), router.into(), token_amount, BOB).unwrap();
+    psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), token_amount, BOB)
+        .unwrap();
 
     let all_pairs_length_before = session
         .query(factory.all_pairs_length())
@@ -94,8 +95,8 @@ fn add_liquidity_collects_too_much_fee(mut session: Session) {
 
     let fee_to_setter = bob();
     let factory = factory::setup(&mut session, fee_to_setter);
-    let ice = psp22::setup(&mut session, ICE.to_string(), BOB);
-    let wood = psp22::setup(&mut session, WOOD.to_string(), BOB);
+    let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
+    let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
     let wazero = wazero::setup(&mut session);
     let router = router::setup(&mut session, factory.into(), wazero.into());
     // feed charlie some native tokens
@@ -113,8 +114,10 @@ fn add_liquidity_collects_too_much_fee(mut session: Session) {
         .unwrap();
 
     let token_amount = 1_000 * 10u128.pow(18);
-    psp22::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB).unwrap();
-    psp22::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB).unwrap();
+    psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
+    psp22_utils::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
 
     let now = get_timestamp(&mut session);
     set_timestamp(&mut session, now);
@@ -150,7 +153,7 @@ fn add_liquidity_collects_too_much_fee(mut session: Session) {
         .into();
 
     // Since no swaps occured Charlie (`fee_to`) should not have any liquidity
-    let charlie_lp = psp22::balance_of(&mut session, ice_wood_pair.into(), charlie());
+    let charlie_lp = psp22_utils::balance_of(&mut session, ice_wood_pair.into(), charlie());
     assert_eq!(0, charlie_lp);
 }
 
@@ -166,8 +169,8 @@ fn test_fees(mut session: Session) {
 
     // initial amount of ICE is 1_000_000_000 * 10 ** 18
     let factory = factory::setup(&mut session, fee_to_setter);
-    let ice = psp22::setup(&mut session, ICE.to_string(), BOB);
-    let wood = psp22::setup(&mut session, WOOD.to_string(), BOB);
+    let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
+    let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
     let wazero = wazero::setup(&mut session);
     let router = router::setup(&mut session, factory.into(), wazero.into());
 
@@ -187,8 +190,10 @@ fn test_fees(mut session: Session) {
 
     let exp = 10u128.pow(18);
     let token_amount = 1_000_000 * exp;
-    psp22::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB).unwrap();
-    psp22::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB).unwrap();
+    psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
+    psp22_utils::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
 
     let deadline = now + 10;
 
@@ -205,7 +210,7 @@ fn test_fees(mut session: Session) {
     let ice_wood_pair: pair_contract::Instance =
         factory::get_pair(&mut session, factory.into(), ice.into(), wood.into());
 
-    let bob_lp_balance: u128 = psp22::balance_of(&mut session, ice_wood_pair.into(), bob());
+    let bob_lp_balance: u128 = psp22_utils::balance_of(&mut session, ice_wood_pair.into(), bob());
     assert_eq!(liquidity_minted, bob_lp_balance);
 
     let swap_amount = 10_000 * exp;
@@ -227,9 +232,9 @@ fn test_fees(mut session: Session) {
     // assert!(swap_res[1] >= min_amount_out);
 
     // No fees distributed until the burn/mint transaction.
-    assert!(psp22::balance_of(&mut session, ice_wood_pair.into(), charlie()) == 0);
+    assert!(psp22_utils::balance_of(&mut session, ice_wood_pair.into(), charlie()) == 0);
     // Burn some liquidity to trigger fee collection.
-    psp22::increase_allowance(
+    psp22_utils::increase_allowance(
         &mut session,
         ice_wood_pair.into(),
         router.into(),
@@ -253,9 +258,9 @@ fn test_fees(mut session: Session) {
         .unwrap();
 
     // Fees now sent to `fee_to` address (CHARLIE).
-    let charlie_lp_balance = psp22::balance_of(&mut session, ice_wood_pair.into(), charlie());
+    let charlie_lp_balance = psp22_utils::balance_of(&mut session, ice_wood_pair.into(), charlie());
     // Charlie withdraws his fees
-    psp22::increase_allowance(
+    psp22_utils::increase_allowance(
         &mut session,
         ice_wood_pair.into(),
         router.into(),
