@@ -382,7 +382,7 @@ mod farm {
 
         // To learn how much rewards the user has, it's best to dry-run claim_rewards.
         #[ink(message)]
-        fn claim_rewards(&mut self, tokens: Vec<u8>) -> Result<Vec<u128>, FarmError> {
+        fn claim_rewards(&mut self, tokens_indices: Vec<u8>) -> Result<Vec<u128>, FarmError> {
             self.update()?;
             let account = self.env().caller();
             self.update_account(account);
@@ -394,7 +394,7 @@ mod farm {
 
             let mut rewards_claimed: Vec<u128> = vec![0u128; self.reward_tokens.len()];
 
-            for token_idx in tokens {
+            for token_idx in tokens_indices {
                 let idx = token_idx as usize;
                 let token = self.reward_tokens[idx];
                 let user_reward = user_rewards[idx];

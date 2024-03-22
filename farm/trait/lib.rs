@@ -112,14 +112,14 @@ pub trait Farm {
     /// Requests farming rewards that have been accumulated to the caller of this method.
     ///
     /// Arguments:
-    /// `tokens` - vector of tokens' indices to be claimed.
+    /// `tokens_indices` - vector of tokens' indices to be claimed.
     ///
     /// NOTE: To acquire token indices, one can query the `view_farm_details`
     ///       and use `reward_tokens` information for that.
     ///       It may happen that one of the reward tokens is malicious and fails during the operation,
     ///       in such case it's advised to filter out that token from the `tokens` list.
     #[ink(message)]
-    fn claim_rewards(&mut self, tokens: Vec<u8>) -> Result<Vec<u128>, FarmError>;
+    fn claim_rewards(&mut self, tokens_indices: Vec<u8>) -> Result<Vec<u128>, FarmError>;
 
     /// Returns information about the current farm instance.
     #[ink(message)]
