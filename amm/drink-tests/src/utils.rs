@@ -97,8 +97,7 @@ pub mod router {
         factory: AccountId,
         wazero: AccountId,
     ) -> router_contract::Instance {
-        let instance =
-            router_contract::Instance::new(factory, wazero, session.get_actor().to_account_id());
+        let instance = router_contract::Instance::new(factory, wazero);
 
         session
             .instantiate(instance)
