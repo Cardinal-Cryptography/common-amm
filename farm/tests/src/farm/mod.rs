@@ -121,3 +121,14 @@ pub fn owner_stop_farm(
 
     handle_ink_error(session.execute(farm.owner_stop_farm()).unwrap())
 }
+
+pub fn owner_add_reward_token(
+    session: &mut Session<MinimalRuntime>,
+    farm: &Farm,
+    caller: AccountId32,
+    token: AccountId,
+) -> Result<(), FarmError> {
+    let _ = session.set_actor(caller);
+
+    handle_ink_error(session.execute(farm.owner_add_reward_token(token)).unwrap())
+}

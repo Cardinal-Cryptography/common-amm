@@ -380,6 +380,30 @@ mod farm {
             Ok(undistributed_balance)
         }
 
+        #[ink(message)]
+        fn owner_add_reward_token(&mut self, token: AccountId) -> Result<(), FarmError> {
+            ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
+            ensure!(!self.is_active, FarmError::FarmIsRunning);
+            for r in self.reward_tokens.iter() {
+                if r == &token {
+                    return Err(FarmError::DuplicateRewardTokens);
+                }
+            }
+            if self.reward_tokens.len() == MAX_REWARD_TOKENS as usize {
+                return Err(FarmError::TooManyRewardTokens);
+            }
+            if self.pool_id == token {
+                return Err(FarmError::RewardTokenIsPoolToken);
+            }
+            self.update()?;
+            self.reward_tokens.push(token);
+            self.farm_distributed_unclaimed_rewards.push(0);
+            self.farm_cumulative_reward_per_share
+                .push(WrappedU256::ZERO);
+            self.farm_reward_rates.push(WrappedU256::ZERO);
+            Ok(())
+        }
+
         // To learn how much rewards the user has, it's best to dry-run claim_rewards.
         #[ink(message)]
         fn claim_rewards(&mut self, tokens: Vec<u8>) -> Result<Vec<u128>, FarmError> {

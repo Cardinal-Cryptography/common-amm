@@ -108,6 +108,15 @@ pub trait Farm {
     /// NOTE: Implementation should make sure that it's callable only by an authorized account (owner of the farm).
     #[ink(message)]
     fn owner_withdraw_token(&mut self, token: AccountId) -> Result<u128, FarmError>;
+    
+
+    /// Adds a new reward token to the farm.
+    ///
+    /// NOTE: Implementation must make sure that:
+    /// - Only OWNER can call it.
+    /// - It's callable only when the farm is stopped.
+    #[ink(message)]
+    fn owner_add_reward_token(&mut self, token: AccountId) -> Result<(), FarmError>;
 
     /// Requests farming rewards that have been accumulated to the caller of this method.
     ///
