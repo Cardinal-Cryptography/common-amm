@@ -651,11 +651,6 @@ fn setup_farm(
     let wood = psp22::setup(session, WOOD.to_string(), WOOD.to_string(), BOB);
     let farm = farm::setup(session, ice.into(), vec![wood.into()], BOB);
 
-    // deposits lp token
-    let deposit_amount = 1000000;
-    psp22::increase_allowance(session, ice.into(), farm.into(), deposit_amount, BOB);
-    farm::deposit_to_farm(session, &farm, deposit_amount, BOB).unwrap();
-
     let rewards_amount = u128::MAX;
     psp22::increase_allowance(session, wood.into(), farm.into(), rewards_amount, BOB);
 
@@ -679,8 +674,12 @@ fn owner_stop_farm_before_start(mut session: Session<MinimalRuntime>) {
     set_timestamp(&mut session, now);
 
     // Stop before it even starts.
-    let (farm, _, _) = setup_farm(&mut session, now + 10, now + 100);
-    farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
+    let (farm, ice, _wood) = setup_farm(&mut session, now + 10, now + 100);
+
+    let deposit_amount = 1_000_000;
+    farm::join_farm(&mut session, ice.into(), &farm, deposit_amount, BOB).unwrap();
+
+    farm::owner_stop_farm(&mut session, &farm, FARM_OWNER).unwrap();
     let details = farm::get_farm_details(&mut session, &farm);
     assert_eq!(details.is_active, false);
     assert_eq!(
@@ -696,7 +695,11 @@ fn owner_stop_farm_while_running(mut session: Session<MinimalRuntime>) {
     let farm_start = now + 10;
     let farm_duration = 100;
 
-    let (farm, _, _) = setup_farm(&mut session, farm_start, farm_start + farm_duration);
+    let (farm, ice, _) = setup_farm(&mut session, farm_start, farm_start + farm_duration);
+    
+    let deposit_amount = 1_000_000;
+    farm::join_farm(&mut session, ice.into(), &farm, deposit_amount, BOB).unwrap();
+
     set_timestamp(&mut session, farm_start + 10);
     let now = get_timestamp(&mut session);
     farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
@@ -712,7 +715,10 @@ fn owner_stop_farm_after_end(mut session: Session<MinimalRuntime>) {
     let farm_duration = 100;
     let farm_end = farm_start + farm_duration;
 
-    let (farm, _, _) = setup_farm(&mut session, farm_start, farm_start + farm_duration);
+    let (farm, ice, _) = setup_farm(&mut session, farm_start, farm_start + farm_duration);
+    
+    let deposit_amount = 1_000_000;
+    farm::join_farm(&mut session, ice.into(), &farm, deposit_amount, BOB).unwrap();
 
     set_timestamp(&mut session, farm_end + 10);
     farm::owner_stop_farm(&mut session, &farm, BOB).unwrap();
@@ -731,6 +737,9 @@ fn owner_withdraw_pool_token(mut session: Session<MinimalRuntime>) {
     let farm_duration = 100;
 
     let (farm, ice, _) = setup_farm(&mut session, farm_start, farm_start + farm_duration);
+
+    let deposit_amount = 1_000_000;
+    farm::join_farm(&mut session, ice.into(), &farm, deposit_amount, BOB).unwrap();
 
     // Transfer LP token to the farm, by mistake.
     let lp_token_amount = 1000;
@@ -758,7 +767,7 @@ fn owner_withdraw_pool_token(mut session: Session<MinimalRuntime>) {
 }
 
 #[drink::test]
-fn owner_add_reward_token(mut session: Session<MinimalRuntime>) {
+fn owner_add_reward_token_failures(mut session: Session<MinimalRuntime>) {
     use ink_primitives::AccountId;
 
     let now = get_timestamp(&mut session);
@@ -768,12 +777,13 @@ fn owner_add_reward_token(mut session: Session<MinimalRuntime>) {
     let farm_duration = 100;
     let farm_end = farm_start + farm_duration;
 
+    // pool
     let ice = psp22::setup(&mut session, ICE.to_string(), ICE.to_string(), BOB);
+    // reward
     let wood = psp22::setup(&mut session, WOOD.to_string(), WOOD.to_string(), BOB);
     let farm = farm::setup(&mut session, ice.into(), vec![wood.into()], BOB);
 
     let farm_details: FarmDetails = farm::get_farm_details(&mut session, &farm);
-
     let expected_details = FarmDetails {
         pool_id: ice.into(),
         is_active: false,
@@ -782,16 +792,19 @@ fn owner_add_reward_token(mut session: Session<MinimalRuntime>) {
         start: 0,
         end: 0,
     };
-
     assert_eq!(farm_details, expected_details);
 
-    // deposits lp token
     let deposit_amount = 1000000;
-    psp22::increase_allowance(&mut session, ice.into(), farm.into(), deposit_amount, BOB);
-    farm::deposit_to_farm(&mut session, &farm, deposit_amount, BOB).unwrap();
+    let _ = farm::join_farm(&mut session, ice.into(), &farm, deposit_amount, BOB);
 
     let rewards_amount = u128::MAX;
-    psp22::increase_allowance(&mut session, wood.into(), farm.into(), rewards_amount, BOB);
+    psp22::increase_allowance(
+        &mut session,
+        wood.into(),
+        farm.into(),
+        rewards_amount,
+        FARM_OWNER,
+    );
 
     // starting the new farm
     farm::start(
@@ -816,8 +829,8 @@ fn owner_add_reward_token(mut session: Session<MinimalRuntime>) {
     let _ = farm::owner_stop_farm(&mut session, &farm, FARM_OWNER).expect("To succeed");
     let add_result = farm::owner_add_reward_token(&mut session, &farm, FARM_OWNER, wood.into());
     assert_eq!(add_result, Err(FarmError::DuplicateRewardTokens()));
+}
 
-    let add_result = farm::owner_add_reward_token(&mut session, &farm, FARM_OWNER, fake_token);
     assert_eq!(Ok(()), add_result);
 
     let farm_details: FarmDetails = farm::get_farm_details(&mut session, &farm);

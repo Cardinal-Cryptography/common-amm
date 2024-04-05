@@ -132,3 +132,23 @@ pub fn owner_add_reward_token(
 
     handle_ink_error(session.execute(farm.owner_add_reward_token(token)).unwrap())
 }
+
+pub fn join_farm(
+    session: &mut Session<MinimalRuntime>,
+    pool: AccountId,
+    farm: &Farm,
+    deposit_amount: u128,
+    caller: AccountId32,
+) -> Result<(), FarmError> {
+    let _ = session.set_actor(caller.clone());
+
+    // deposit ICE (pool LP token) into farm
+    crate::psp22::increase_allowance(
+        session,
+        pool,
+        (*farm).into(),
+        deposit_amount,
+        caller.clone(),
+    );
+    deposit_to_farm(session, &farm, deposit_amount, caller)
+}
