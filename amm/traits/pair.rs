@@ -19,7 +19,7 @@ pub trait Pair {
     /// NOTE: This does not include the tokens that were transferred to the contract
     /// as part of the _current_ transaction.
     #[ink(message)]
-    fn get_reserves(&self) -> (u128, u128, u32);
+    fn get_reserves(&self) -> (u128, u128, u32, u8);
 
     /// Returns cumulative prive of the first token.
     ///
@@ -82,6 +82,10 @@ pub trait Pair {
     /// Returns address of the second token.
     #[ink(message)]
     fn get_token_1(&self) -> AccountId;
+
+    /// Returns protocol fee (in millis).
+    #[ink(message)]
+    fn get_fee(&self) -> u8;
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
