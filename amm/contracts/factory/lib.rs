@@ -86,7 +86,7 @@ pub mod factory {
 
         fn _only_owner(&self) -> Result<(), FactoryError> {
             if self.env().caller() != self.owner {
-                return Err(FactoryError::CallerIsNotFeeSetter);
+                return Err(FactoryError::CallerIsNotOwner);
             }
             Ok(())
         }
@@ -122,7 +122,7 @@ pub mod factory {
                 (token_1, token_0)
             };
             if self.env().caller() != self.owner {
-                ensure!(fee == DEFAULT_FEE, FactoryError::CallerIsNotFeeSetter);
+                ensure!(fee == DEFAULT_FEE, FactoryError::CallerIsNotOwner);
                 ensure!(
                     self.get_pair.get(token_pair).is_none(),
                     FactoryError::PairExists
