@@ -7,6 +7,8 @@ mod swap_callee;
 
 pub type Balance = <ink::env::DefaultEnvironment as ink::env::Environment>::Balance;
 
+pub const DEFAULT_FEE: u8 = 3;
+
 pub use factory::{Factory, FactoryError};
 pub use pair::{Pair, PairError};
 pub use router::{Router, RouterError};

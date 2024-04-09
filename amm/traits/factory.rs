@@ -27,23 +27,24 @@ pub trait Factory {
         &mut self,
         token_0: AccountId,
         token_1: AccountId,
+        fee: u8,
     ) -> Result<AccountId, FactoryError>;
 
     /// Sets the address for receiving protocol's share of trading fees.
     #[ink(message)]
     fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), FactoryError>;
 
-    /// Sets the address eligible for calling `set_foo_to` method.
+    /// Sets the owner address.
     #[ink(message)]
-    fn set_fee_to_setter(&mut self, fee_to_setter: AccountId) -> Result<(), FactoryError>;
+    fn set_owner(&mut self, owner: AccountId) -> Result<(), FactoryError>;
 
     /// Returns recipient address of the trading fees.
     #[ink(message)]
     fn fee_to(&self) -> Option<AccountId>;
 
-    /// Returns account allowed to call `set_fee_to_setter`.
+    /// Returns owner account address.
     #[ink(message)]
-    fn fee_to_setter(&self) -> AccountId;
+    fn owner(&self) -> AccountId;
 
     /// Returns address of `Pair` contract instance (if any) for `(token_0, token_1)` pair.
     #[ink(message)]

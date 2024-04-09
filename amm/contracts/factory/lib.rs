@@ -5,7 +5,7 @@ pub mod factory {
     use amm_helpers::ensure;
     use ink::{codegen::EmitEvent, env::hash::Blake2x256, storage::Mapping, ToAccountId};
     use pair_contract::pair::PairContractRef;
-    use traits::{Factory, FactoryError};
+    use traits::{Factory, FactoryError, DEFAULT_FEE};
 
     #[ink(event)]
     pub struct PairCreated {
@@ -24,19 +24,19 @@ pub mod factory {
         all_pairs_length: u64,
         pair_contract_code_hash: Hash,
         fee_to: Option<AccountId>,
-        fee_to_setter: AccountId,
+        owner: AccountId,
     }
 
     impl FactoryContract {
         #[ink(constructor)]
-        pub fn new(fee_to_setter: AccountId, pair_code_hash: Hash) -> Self {
+        pub fn new(owner: AccountId, pair_code_hash: Hash) -> Self {
             Self {
                 get_pair: Default::default(),
                 all_pairs: Default::default(),
                 all_pairs_length: 0,
                 pair_contract_code_hash: pair_code_hash,
                 fee_to: None,
-                fee_to_setter,
+                owner,
             }
         }
 
@@ -45,9 +45,10 @@ pub mod factory {
             salt_bytes: &[u8],
             token_0: AccountId,
             token_1: AccountId,
+            fee: u8,
         ) -> Result<AccountId, FactoryError> {
             let pair_hash = self.pair_contract_code_hash;
-            let pair = match PairContractRef::new(token_0, token_1)
+            let pair = match PairContractRef::new(token_0, token_1, fee)
                 .endowment(0)
                 .code_hash(pair_hash)
                 .salt_bytes(&salt_bytes)
@@ -83,8 +84,8 @@ pub mod factory {
             self.all_pairs_length += 1;
         }
 
-        fn _only_fee_setter(&self) -> Result<(), FactoryError> {
-            if self.env().caller() != self.fee_to_setter {
+        fn _only_owner(&self) -> Result<(), FactoryError> {
+            if self.env().caller() != self.owner {
                 return Err(FactoryError::CallerIsNotFeeSetter);
             }
             Ok(())
@@ -112,6 +113,7 @@ pub mod factory {
             &mut self,
             token_0: AccountId,
             token_1: AccountId,
+            fee: u8,
         ) -> Result<AccountId, FactoryError> {
             ensure!(token_0 != token_1, FactoryError::IdenticalAddresses);
             let token_pair = if token_0 < token_1 {
@@ -119,14 +121,17 @@ pub mod factory {
             } else {
                 (token_1, token_0)
             };
-            ensure!(
-                self.get_pair.get(token_pair).is_none(),
-                FactoryError::PairExists
-            );
+            if self.env().caller() != self.owner {
+                ensure!(fee == DEFAULT_FEE, FactoryError::CallerIsNotFeeSetter);
+                ensure!(
+                    self.get_pair.get(token_pair).is_none(),
+                    FactoryError::PairExists
+                );
+            }
 
             let salt = self.env().hash_encoded::<Blake2x256, _>(&token_pair);
             let pair_contract =
-                self._instantiate_pair(salt.as_ref(), token_pair.0, token_pair.1)?;
+                self._instantiate_pair(salt.as_ref(), token_pair.0, token_pair.1, fee)?;
 
             self.get_pair
                 .insert((token_pair.0, token_pair.1), &pair_contract);
@@ -147,15 +152,15 @@ pub mod factory {
 
         #[ink(message)]
         fn set_fee_to(&mut self, fee_to: AccountId) -> Result<(), FactoryError> {
-            self._only_fee_setter()?;
+            self._only_owner()?;
             self.fee_to = Some(fee_to);
             Ok(())
         }
 
         #[ink(message)]
-        fn set_fee_to_setter(&mut self, fee_to_setter: AccountId) -> Result<(), FactoryError> {
-            self._only_fee_setter()?;
-            self.fee_to_setter = fee_to_setter;
+        fn set_owner(&mut self, owner: AccountId) -> Result<(), FactoryError> {
+            self._only_owner()?;
+            self.owner = owner;
             Ok(())
         }
 
@@ -165,8 +170,8 @@ pub mod factory {
         }
 
         #[ink(message)]
-        fn fee_to_setter(&self) -> AccountId {
-            self.fee_to_setter
+        fn owner(&self) -> AccountId {
+            self.owner
         }
 
         #[ink(message)]
