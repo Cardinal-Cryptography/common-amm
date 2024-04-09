@@ -2,10 +2,7 @@
 
 #[ink::contract]
 pub mod router {
-    // Trading fee is 0.3%. This is the same as in Uniswap.
-    // Adjusted to not deal with floating point numbers.
     const TRADING_FEE_ADJ_DENOM: u128 = 1000;
-    const TRADING_FEE_ADJ_NUM: u128 = 997;
 
     use amm_helpers::{ensure, math::casted_mul};
     use ink::{
@@ -15,7 +12,7 @@ pub mod router {
         storage::Mapping,
     };
     use psp22::{PSP22Error, PSP22};
-    use traits::{Factory, MathError, Pair, Router, RouterError};
+    use traits::{Factory, MathError, Pair, Router, RouterError, DEFAULT_FEE};
     use wrapped_azero::WrappedAZERO;
 
     #[ink(storage)]
@@ -33,6 +30,21 @@ pub mod router {
                 wnative,
                 pairs: Default::default(),
             }
+        }
+
+        #[ink(message)]
+        pub fn update_cache(
+            &mut self,
+            token_0: AccountId,
+            token_1: AccountId,
+        ) -> Result<AccountId, RouterError> {
+            let pair = self
+                .factory_ref()
+                .get_pair(token_0, token_1)
+                .ok_or(RouterError::PairNotFound)?;
+            self.pairs.insert((token_0, token_1), &pair);
+            self.pairs.insert((token_1, token_0), &pair);
+            Ok(pair)
         }
 
         #[inline]
@@ -67,14 +79,14 @@ pub mod router {
             &self,
             token_0: AccountId,
             token_1: AccountId,
-        ) -> Result<(u128, u128), RouterError> {
+        ) -> Result<(u128, u128, u8), RouterError> {
             ensure!(token_0 != token_1, RouterError::IdenticalAddresses);
             let pair: contract_ref!(Pair) = self.get_pair(token_0, token_1)?.into();
-            let (reserve_0, reserve_1, _) = pair.get_reserves();
+            let (reserve_0, reserve_1, _, fee) = pair.get_reserves();
             if token_0 < token_1 {
-                Ok((reserve_0, reserve_1))
+                Ok((reserve_0, reserve_1, fee))
             } else {
-                Ok((reserve_1, reserve_0))
+                Ok((reserve_1, reserve_0, fee))
             }
         }
 
@@ -101,12 +113,14 @@ pub mod router {
             amount_1_min: u128,
         ) -> Result<(u128, u128), RouterError> {
             if self.get_pair(token_0, token_1).is_err() {
-                let new_pair = self.factory_ref().create_pair(token_0, token_1)?;
+                let new_pair = self
+                    .factory_ref()
+                    .create_pair(token_0, token_1, DEFAULT_FEE)?;
                 self.pairs.insert((token_0, token_1), &new_pair);
                 self.pairs.insert((token_1, token_0), &new_pair);
             };
 
-            let (reserve_0, reserve_1) = self.get_reserves(token_0, token_1)?;
+            let (reserve_0, reserve_1, _) = self.get_reserves(token_0, token_1)?;
 
             if reserve_0 == 0 && reserve_1 == 0 {
                 return Ok((amount_0_desired, amount_1_desired));
@@ -177,8 +191,8 @@ pub mod router {
             let mut amounts = vec![0; path.len()];
             amounts[path.len() - 1] = amount_out;
             for i in (0..path.len() - 1).rev() {
-                let (reserve_0, reserve_1) = self.get_reserves(path[i], path[i + 1])?;
-                amounts[i] = self.get_amount_in(amounts[i + 1], reserve_0, reserve_1)?;
+                let (reserve_0, reserve_1, fee) = self.get_reserves(path[i], path[i + 1])?;
+                amounts[i] = self.get_amount_in(amounts[i + 1], reserve_0, reserve_1, fee)?;
             }
 
             Ok(amounts)
@@ -200,8 +214,8 @@ pub mod router {
             let mut amounts = Vec::with_capacity(path.len());
             amounts.push(amount_in);
             for i in 0..path.len() - 1 {
-                let (reserve_0, reserve_1) = self.get_reserves(path[i], path[i + 1])?;
-                amounts.push(self.get_amount_out(amounts[i], reserve_0, reserve_1)?);
+                let (reserve_0, reserve_1, fee) = self.get_reserves(path[i], path[i + 1])?;
+                amounts.push(self.get_amount_out(amounts[i], reserve_0, reserve_1, fee)?);
             }
 
             Ok(amounts)
@@ -571,6 +585,7 @@ pub mod router {
             amount_in: u128,
             reserve_0: u128,
             reserve_1: u128,
+            fee: u8,
         ) -> Result<u128, RouterError> {
             ensure!(amount_in > 0, RouterError::InsufficientAmount);
             ensure!(
@@ -579,13 +594,14 @@ pub mod router {
             );
 
             // Adjusts for fees paid in the `token_in`.
-            let amount_in_with_fee = casted_mul(amount_in, TRADING_FEE_ADJ_NUM);
+
+            let amount_in_with_fee = casted_mul(amount_in, TRADING_FEE_ADJ_DENOM - (fee as u128));
 
             let numerator = amount_in_with_fee
                 .checked_mul(reserve_1.into())
                 .ok_or(MathError::MulOverflow(13))?;
 
-            let denominator = casted_mul(reserve_0, 1000)
+            let denominator = casted_mul(reserve_0, TRADING_FEE_ADJ_DENOM)
                 .checked_add(amount_in_with_fee)
                 .ok_or(MathError::AddOverflow(2))?;
 
@@ -607,6 +623,7 @@ pub mod router {
             amount_out: u128,
             reserve_0: u128,
             reserve_1: u128,
+            fee: u8,
         ) -> Result<u128, RouterError> {
             ensure!(amount_out > 0, RouterError::InsufficientAmount);
             ensure!(
@@ -622,7 +639,7 @@ pub mod router {
                 reserve_1
                     .checked_sub(amount_out)
                     .ok_or(MathError::SubUnderflow(15))?,
-                TRADING_FEE_ADJ_NUM,
+                TRADING_FEE_ADJ_DENOM - (fee as u128),
             );
 
             let amount_in: u128 = numerator

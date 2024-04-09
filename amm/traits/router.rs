@@ -194,6 +194,7 @@ pub trait Router {
         amount_in: u128,
         reserve_0: u128,
         reserve_1: u128,
+        fee: u8,
     ) -> Result<u128, RouterError>;
 
     /// Returns amount of `A` tokens user has to supply
@@ -205,6 +206,7 @@ pub trait Router {
         amount_out: u128,
         reserve_0: u128,
         reserve_1: u128,
+        fee: u8,
     ) -> Result<u128, RouterError>;
 
     /// Returns amounts of tokens received for `amount_in`.
