@@ -2,13 +2,16 @@
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub struct CallerIsNotOwner;
+pub enum RouterOwnerError {
+    CallerIsNotOwner,
+    TokenMismatch,
+}
 
 #[ink::contract]
 pub mod router {
     const TRADING_FEE_DENOM: u128 = 1000;
 
-    use crate::CallerIsNotOwner;
+    use crate::RouterOwnerError;
     use amm_helpers::{ensure, math::casted_mul};
     use ink::{
         codegen::TraitCallBuilder,
@@ -45,10 +48,11 @@ pub mod router {
         }
 
         #[ink(message)]
-        pub fn set_owner(&mut self, new_owner: AccountId) -> Result<(), CallerIsNotOwner> {
-            if self.env().caller() != self.owner {
-                return Err(CallerIsNotOwner);
-            }
+        pub fn set_owner(&mut self, new_owner: AccountId) -> Result<(), RouterOwnerError> {
+            ensure!(
+                self.env().caller() == self.owner,
+                RouterOwnerError::CallerIsNotOwner
+            );
             self.owner = new_owner;
             Ok(())
         }
@@ -59,10 +63,18 @@ pub mod router {
             token_0: AccountId,
             token_1: AccountId,
             pair: AccountId,
-        ) -> Result<(), CallerIsNotOwner> {
-            if self.env().caller() != self.owner {
-                return Err(CallerIsNotOwner);
-            }
+        ) -> Result<(), RouterOwnerError> {
+            ensure!(
+                self.env().caller() == self.owner,
+                RouterOwnerError::CallerIsNotOwner
+            );
+            let pair_ref: contract_ref!(Pair) = pair.into();
+            let t_0 = pair_ref.get_token_0();
+            let t_1 = pair_ref.get_token_1();
+            ensure!(
+                (token_0 == t_0 && token_1 == t_1) || (token_0 == t_1 && token_1 == t_0),
+                RouterOwnerError::TokenMismatch
+            );
             self.pairs.insert((token_0, token_1), &pair);
             self.pairs.insert((token_1, token_0), &pair);
             Ok(())
