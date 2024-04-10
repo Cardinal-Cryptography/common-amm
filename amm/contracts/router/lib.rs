@@ -80,6 +80,21 @@ pub mod router {
             Ok(())
         }
 
+        #[ink(message)]
+        pub fn clear_pair(
+            &mut self,
+            token_0: AccountId,
+            token_1: AccountId,
+        ) -> Result<(), RouterOwnerError> {
+            ensure!(
+                self.env().caller() == self.owner,
+                RouterOwnerError::CallerIsNotOwner
+            );
+            self.pairs.remove((token_0, token_1));
+            self.pairs.remove((token_1, token_0));
+            Ok(())
+        }
+
         #[inline]
         fn factory_ref(&self) -> contract_ref!(Factory) {
             self.factory.into()
