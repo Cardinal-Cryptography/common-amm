@@ -2,6 +2,7 @@
 
 #[ink::contract]
 pub mod factory {
+    const DEFAULT_FEE: u8 = 3;
     use amm_helpers::ensure;
     use ink::{codegen::EmitEvent, env::hash::Blake2x256, storage::Mapping, ToAccountId};
     use pair_contract::pair::PairContractRef;
@@ -47,7 +48,7 @@ pub mod factory {
             token_1: AccountId,
         ) -> Result<AccountId, FactoryError> {
             let pair_hash = self.pair_contract_code_hash;
-            let pair = match PairContractRef::new(token_0, token_1)
+            let pair = match PairContractRef::new(token_0, token_1, DEFAULT_FEE)
                 .endowment(0)
                 .code_hash(pair_hash)
                 .salt_bytes(&salt_bytes)
