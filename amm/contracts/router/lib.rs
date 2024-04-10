@@ -1,9 +1,14 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub struct CallerIsNotOwner;
+
 #[ink::contract]
 pub mod router {
     const TRADING_FEE_DENOM: u128 = 1000;
 
+    use crate::CallerIsNotOwner;
     use amm_helpers::{ensure, math::casted_mul};
     use ink::{
         codegen::TraitCallBuilder,
@@ -19,6 +24,7 @@ pub mod router {
     pub struct RouterContract {
         factory: AccountId,
         wnative: AccountId,
+        owner: AccountId,
         pairs: Mapping<(AccountId, AccountId), AccountId>,
     }
 
@@ -28,8 +34,38 @@ pub mod router {
             Self {
                 factory,
                 wnative,
+                owner: Self::env().caller(),
                 pairs: Default::default(),
             }
+        }
+
+        #[ink(message)]
+        pub fn owner(&self) -> AccountId {
+            self.owner
+        }
+
+        #[ink(message)]
+        pub fn set_owner(&mut self, new_owner: AccountId) -> Result<(), CallerIsNotOwner> {
+            if self.env().caller() != self.owner {
+                return Err(CallerIsNotOwner);
+            }
+            self.owner = new_owner;
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn update_pair(
+            &mut self,
+            token_0: AccountId,
+            token_1: AccountId,
+            pair: AccountId,
+        ) -> Result<(), CallerIsNotOwner> {
+            if self.env().caller() != self.owner {
+                return Err(CallerIsNotOwner);
+            }
+            self.pairs.insert((token_0, token_1), &pair);
+            self.pairs.insert((token_1, token_0), &pair);
+            Ok(())
         }
 
         #[inline]
