@@ -137,8 +137,8 @@ pub mod pair {
 
     impl PairContract {
         #[ink(constructor)]
-        pub fn new(token_0: AccountId, token_1: AccountId, fee: u8) -> Self {
-            let pair = PairData::new(token_0, token_1, Self::env().caller(), fee);
+        pub fn new(token_0: AccountId, token_1: AccountId, factory: AccountId, fee: u8) -> Self {
+            let pair = PairData::new(token_0, token_1, factory, fee);
             Self {
                 psp22: PSP22Data::default(),
                 pair,
@@ -742,10 +742,12 @@ pub mod pair {
         fn initialize_works() {
             let token_0 = AccountId::from([0x03; 32]);
             let token_1 = AccountId::from([0x04; 32]);
+            let factory = AccountId::from([0x05; 32]);
             let fee = 3;
-            let pair = PairContract::new(token_0, token_1, fee);
+            let pair = PairContract::new(token_0, token_1, factory, fee);
             assert_eq!(pair.get_token_0(), token_0);
             assert_eq!(pair.get_token_1(), token_1);
+            assert_eq!(pair.get_factory(), factory);
             assert_eq!(pair.get_fee(), fee);
         }
 

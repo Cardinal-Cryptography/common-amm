@@ -48,15 +48,16 @@ pub mod factory {
             token_1: AccountId,
         ) -> Result<AccountId, FactoryError> {
             let pair_hash = self.pair_contract_code_hash;
-            let pair = match PairContractRef::new(token_0, token_1, DEFAULT_FEE)
-                .endowment(0)
-                .code_hash(pair_hash)
-                .salt_bytes(&salt_bytes)
-                .try_instantiate()
-            {
-                Ok(Ok(res)) => Ok(res),
-                _ => Err(FactoryError::PairInstantiationFailed),
-            }?;
+            let pair =
+                match PairContractRef::new(token_0, token_1, self.env().account_id(), DEFAULT_FEE)
+                    .endowment(0)
+                    .code_hash(pair_hash)
+                    .salt_bytes(&salt_bytes)
+                    .try_instantiate()
+                {
+                    Ok(Ok(res)) => Ok(res),
+                    _ => Err(FactoryError::PairInstantiationFailed),
+                }?;
             Ok(pair.to_account_id())
         }
 
