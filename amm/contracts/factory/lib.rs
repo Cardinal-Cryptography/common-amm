@@ -2,6 +2,7 @@
 
 #[ink::contract]
 pub mod factory {
+    // All pairs created via this factory have fixed fee of 0.3%
     const DEFAULT_FEE: u8 = 3;
     use amm_helpers::ensure;
     use ink::{codegen::EmitEvent, env::hash::Blake2x256, storage::Mapping, ToAccountId};
