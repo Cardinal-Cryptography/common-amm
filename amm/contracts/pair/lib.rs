@@ -291,12 +291,11 @@ pub mod pair {
         }
 
         #[ink(message)]
-        fn get_reserves(&self) -> (u128, u128, u32, u8) {
+        fn get_reserves(&self) -> (u128, u128, u32) {
             (
                 self.pair.reserve_0,
                 self.pair.reserve_1,
                 self.pair.block_timestamp_last,
-                self.pair.fee,
             )
         }
         #[ink(message)]

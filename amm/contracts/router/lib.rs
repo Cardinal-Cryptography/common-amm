@@ -2,16 +2,13 @@
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum RouterOwnerError {
-    CallerIsNotOwner,
-    TokenMismatch,
-}
+pub struct CallerIsNotOwner;
 
 #[ink::contract]
 pub mod router {
     const TRADING_FEE_DENOM: u128 = 1000;
 
-    use crate::RouterOwnerError;
+    use crate::CallerIsNotOwner;
     use amm_helpers::{ensure, math::casted_mul};
     use ink::{
         codegen::TraitCallBuilder,
@@ -28,7 +25,7 @@ pub mod router {
         factory: AccountId,
         wnative: AccountId,
         owner: AccountId,
-        pairs: Mapping<(AccountId, AccountId), AccountId>,
+        pairs: Mapping<(AccountId, AccountId), (AccountId, u8)>,
     }
 
     impl RouterContract {
@@ -48,48 +45,35 @@ pub mod router {
         }
 
         #[ink(message)]
-        pub fn set_owner(&mut self, new_owner: AccountId) -> Result<(), RouterOwnerError> {
-            ensure!(
-                self.env().caller() == self.owner,
-                RouterOwnerError::CallerIsNotOwner
-            );
+        pub fn set_owner(&mut self, new_owner: AccountId) -> Result<(), CallerIsNotOwner> {
+            ensure!(self.env().caller() == self.owner, CallerIsNotOwner);
             self.owner = new_owner;
             Ok(())
         }
 
         #[ink(message)]
-        pub fn update_pair(
-            &mut self,
+        pub fn read_cache(
+            &self,
             token_0: AccountId,
             token_1: AccountId,
-            pair: AccountId,
-        ) -> Result<(), RouterOwnerError> {
-            ensure!(
-                self.env().caller() == self.owner,
-                RouterOwnerError::CallerIsNotOwner
-            );
-            let pair_ref: contract_ref!(Pair) = pair.into();
-            let t_0 = pair_ref.get_token_0();
-            let t_1 = pair_ref.get_token_1();
-            ensure!(
-                (token_0 == t_0 && token_1 == t_1) || (token_0 == t_1 && token_1 == t_0),
-                RouterOwnerError::TokenMismatch
-            );
-            self.pairs.insert((token_0, token_1), &pair);
-            self.pairs.insert((token_1, token_0), &pair);
+        ) -> Option<(AccountId, u8)> {
+            self.pairs.get((token_0, token_1))
+        }
+
+        #[ink(message)]
+        pub fn add_pair_to_cache(&mut self, pair: AccountId) -> Result<(), CallerIsNotOwner> {
+            ensure!(self.env().caller() == self.owner, CallerIsNotOwner);
+            self.cache_pair(pair);
             Ok(())
         }
 
         #[ink(message)]
-        pub fn clear_pair(
+        pub fn remove_pair_from_cache(
             &mut self,
             token_0: AccountId,
             token_1: AccountId,
-        ) -> Result<(), RouterOwnerError> {
-            ensure!(
-                self.env().caller() == self.owner,
-                RouterOwnerError::CallerIsNotOwner
-            );
+        ) -> Result<(), CallerIsNotOwner> {
+            ensure!(self.env().caller() == self.owner, CallerIsNotOwner);
             self.pairs.remove((token_0, token_1));
             self.pairs.remove((token_1, token_0));
             Ok(())
@@ -105,6 +89,16 @@ pub mod router {
             self.wnative.into()
         }
 
+        #[inline]
+        fn cache_pair(&mut self, pair: AccountId) {
+            let pair_ref: contract_ref!(Pair) = pair.into();
+            let token_0 = pair_ref.get_token_0();
+            let token_1 = pair_ref.get_token_1();
+            let fee = pair_ref.get_fee();
+            self.pairs.insert((token_0, token_1), &(pair, fee));
+            self.pairs.insert((token_1, token_0), &(pair, fee));
+        }
+
         /// Returns address of a `Pair` contract instance (if exists) for
         /// `(token_0, token_1)` pair registered in `factory` Factory instance.
         #[inline]
@@ -113,7 +107,7 @@ pub mod router {
             token_0: AccountId,
             token_1: AccountId,
         ) -> Result<AccountId, RouterError> {
-            if let Some(pair) = self.pairs.get((token_0, token_1)) {
+            if let Some((pair, _)) = self.pairs.get((token_0, token_1)) {
                 Ok(pair)
             } else {
                 self.factory_ref()
@@ -123,18 +117,30 @@ pub mod router {
         }
 
         #[inline]
+        fn get_fee(&self, token_0: AccountId, token_1: AccountId) -> Result<u8, RouterError> {
+            if let Some((_, fee)) = self.pairs.get((token_0, token_1)) {
+                Ok(fee)
+            } else {
+                let pair = self.get_pair(token_0, token_1)?;
+                let pair: contract_ref!(Pair) = pair.into();
+                let fee = pair.get_fee();
+                Ok(fee)
+            }
+        }
+
+        #[inline]
         fn get_reserves(
             &self,
             token_0: AccountId,
             token_1: AccountId,
-        ) -> Result<(u128, u128, u8), RouterError> {
+        ) -> Result<(u128, u128), RouterError> {
             ensure!(token_0 != token_1, RouterError::IdenticalAddresses);
             let pair: contract_ref!(Pair) = self.get_pair(token_0, token_1)?.into();
-            let (reserve_0, reserve_1, _, fee) = pair.get_reserves();
+            let (reserve_0, reserve_1, _) = pair.get_reserves();
             if token_0 < token_1 {
-                Ok((reserve_0, reserve_1, fee))
+                Ok((reserve_0, reserve_1))
             } else {
-                Ok((reserve_1, reserve_0, fee))
+                Ok((reserve_1, reserve_0))
             }
         }
 
@@ -162,11 +168,10 @@ pub mod router {
         ) -> Result<(u128, u128), RouterError> {
             if self.get_pair(token_0, token_1).is_err() {
                 let new_pair = self.factory_ref().create_pair(token_0, token_1)?;
-                self.pairs.insert((token_0, token_1), &new_pair);
-                self.pairs.insert((token_1, token_0), &new_pair);
+                self.cache_pair(new_pair);
             };
 
-            let (reserve_0, reserve_1, _) = self.get_reserves(token_0, token_1)?;
+            let (reserve_0, reserve_1) = self.get_reserves(token_0, token_1)?;
 
             if reserve_0 == 0 && reserve_1 == 0 {
                 return Ok((amount_0_desired, amount_1_desired));
@@ -237,7 +242,8 @@ pub mod router {
             let mut amounts = vec![0; path.len()];
             amounts[path.len() - 1] = amount_out;
             for i in (0..path.len() - 1).rev() {
-                let (reserve_0, reserve_1, fee) = self.get_reserves(path[i], path[i + 1])?;
+                let (reserve_0, reserve_1) = self.get_reserves(path[i], path[i + 1])?;
+                let fee = self.get_fee(path[i], path[i + 1])?;
                 amounts[i] = self.get_amount_in(amounts[i + 1], reserve_0, reserve_1, fee)?;
             }
 
@@ -260,7 +266,8 @@ pub mod router {
             let mut amounts = Vec::with_capacity(path.len());
             amounts.push(amount_in);
             for i in 0..path.len() - 1 {
-                let (reserve_0, reserve_1, fee) = self.get_reserves(path[i], path[i + 1])?;
+                let (reserve_0, reserve_1) = self.get_reserves(path[i], path[i + 1])?;
+                let fee = self.get_fee(path[i], path[i + 1])?;
                 amounts.push(self.get_amount_out(amounts[i], reserve_0, reserve_1, fee)?);
             }
 
