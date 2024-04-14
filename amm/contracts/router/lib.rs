@@ -12,6 +12,7 @@ pub mod router {
         codegen::TraitCallBuilder,
         contract_ref,
         prelude::{string::String, vec, vec::Vec},
+        storage::Mapping,
     };
     use psp22::{PSP22Error, PSP22};
     use traits::{Factory, MathError, Pair, Router, RouterError};
@@ -21,12 +22,17 @@ pub mod router {
     pub struct RouterContract {
         factory: AccountId,
         wnative: AccountId,
+        pairs: Mapping<(AccountId, AccountId), AccountId>,
     }
 
     impl RouterContract {
         #[ink(constructor)]
         pub fn new(factory: AccountId, wnative: AccountId) -> Self {
-            Self { factory, wnative }
+            Self {
+                factory,
+                wnative,
+                pairs: Default::default(),
+            }
         }
 
         #[inline]
@@ -47,9 +53,13 @@ pub mod router {
             token_0: AccountId,
             token_1: AccountId,
         ) -> Result<AccountId, RouterError> {
-            self.factory_ref()
-                .get_pair(token_0, token_1)
-                .ok_or(RouterError::PairNotFound)
+            if let Some(pair) = self.pairs.get((token_0, token_1)) {
+                Ok(pair)
+            } else {
+                self.factory_ref()
+                    .get_pair(token_0, token_1)
+                    .ok_or(RouterError::PairNotFound)
+            }
         }
 
         #[inline]
@@ -82,7 +92,7 @@ pub mod router {
         }
 
         fn calculate_liquidity(
-            &self,
+            &mut self,
             token_0: AccountId,
             token_1: AccountId,
             amount_0_desired: u128,
@@ -91,7 +101,9 @@ pub mod router {
             amount_1_min: u128,
         ) -> Result<(u128, u128), RouterError> {
             if self.get_pair(token_0, token_1).is_err() {
-                self.factory_ref().create_pair(token_0, token_1)?;
+                let new_pair = self.factory_ref().create_pair(token_0, token_1)?;
+                self.pairs.insert((token_0, token_1), &new_pair);
+                self.pairs.insert((token_1, token_0), &new_pair);
             };
 
             let (reserve_0, reserve_1) = self.get_reserves(token_0, token_1)?;
