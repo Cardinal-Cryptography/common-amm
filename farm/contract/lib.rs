@@ -171,31 +171,38 @@ mod farm {
         // 2) self.user_cumulative_last_update[acc][i] = self.farm_cumulative[i] for all i
         fn update_account(&mut self, account: AccountId) {
             let user_shares = self.shares.get(account).unwrap_or(0);
-            let new_reward_vector = match self.user_cumulative_reward_last_update.take(account) {
-                Some(user_cumulative_reward_last_update) => {
-                    let mut user_claimable_rewards = self
-                        .user_claimable_rewards
-                        .take(account)
-                        .unwrap_or(vec![0; self.reward_tokens.len()]);
-                    for (idx, user_cumulative) in
-                        user_cumulative_reward_last_update.into_iter().enumerate()
-                    {
-                        let user_reward = rewards_earned_by_shares(
-                            user_shares,
-                            self.farm_cumulative_reward_per_share[idx]
-                                .0
-                                .saturating_sub(user_cumulative.0),
-                        )
-                        .unwrap_or(0);
-                        user_claimable_rewards[idx] =
-                            user_claimable_rewards[idx].saturating_add(user_reward);
-                    }
-                    user_claimable_rewards
+            let mut new_reward_vector = vec![0; self.reward_tokens.len()];
+            
+            if let Some(mut user_cumulative_reward_last_update) =
+                self.user_cumulative_reward_last_update.take(account)
+            {
+                let mut user_claimable_rewards = self
+                    .user_claimable_rewards
+                    .take(account)
+                    .unwrap_or(vec![0; self.reward_tokens.len()]);
+
+                // Extend to cover for any new reward tokens.
+                let new_rewards_count = self.reward_tokens.len() - user_claimable_rewards.len();
+                user_cumulative_reward_last_update
+                    .extend(vec![WrappedU256::ZERO; new_rewards_count]);
+                user_claimable_rewards.extend(vec![0; new_rewards_count]);
+
+                for (idx, user_cumulative) in
+                    user_cumulative_reward_last_update.into_iter().enumerate()
+                {
+                    let user_reward = rewards_earned_by_shares(
+                        user_shares,
+                        self.farm_cumulative_reward_per_share[idx]
+                            .0
+                            .saturating_sub(user_cumulative.0),
+                    )
+                    .unwrap_or(0);
+                    user_claimable_rewards[idx] =
+                        user_claimable_rewards[idx].saturating_add(user_reward);
                 }
-                None => {
-                    vec![0; self.reward_tokens.len()]
-                }
-            };
+                new_reward_vector = user_claimable_rewards;
+            }
+
             self.user_claimable_rewards
                 .insert(account, &new_reward_vector);
             self.user_cumulative_reward_last_update
