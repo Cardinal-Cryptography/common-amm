@@ -99,33 +99,32 @@ pub mod router {
             self.pairs.insert((token_1, token_0), &(pair, fee));
         }
 
-        /// Returns address of a `Pair` contract instance (if exists) for
-        /// `(token_0, token_1)` pair registered in `factory` Factory instance.
+        #[inline]
+        fn get_pair_and_fee(
+            &self,
+            token_0: AccountId,
+            token_1: AccountId,
+        ) -> Result<(AccountId, u8), RouterError> {
+            if let Some(result) = self.pairs.get((token_0, token_1)) {
+                Ok(result)
+            } else {
+                let pair = self
+                    .factory_ref()
+                    .get_pair(token_0, token_1)
+                    .ok_or(RouterError::PairNotFound)?;
+                let pair_ref: contract_ref!(Pair) = pair.into();
+                let fee = pair_ref.get_fee();
+                Ok((pair, fee))
+            }
+        }
+
         #[inline]
         fn get_pair(
             &self,
             token_0: AccountId,
             token_1: AccountId,
         ) -> Result<AccountId, RouterError> {
-            if let Some((pair, _)) = self.pairs.get((token_0, token_1)) {
-                Ok(pair)
-            } else {
-                self.factory_ref()
-                    .get_pair(token_0, token_1)
-                    .ok_or(RouterError::PairNotFound)
-            }
-        }
-
-        #[inline]
-        fn get_fee(&self, token_0: AccountId, token_1: AccountId) -> Result<u8, RouterError> {
-            if let Some((_, fee)) = self.pairs.get((token_0, token_1)) {
-                Ok(fee)
-            } else {
-                let pair = self.get_pair(token_0, token_1)?;
-                let pair: contract_ref!(Pair) = pair.into();
-                let fee = pair.get_fee();
-                Ok(fee)
-            }
+            Ok(self.get_pair_and_fee(token_0, token_1)?.0)
         }
 
         #[inline]
@@ -133,14 +132,15 @@ pub mod router {
             &self,
             token_0: AccountId,
             token_1: AccountId,
-        ) -> Result<(u128, u128), RouterError> {
+        ) -> Result<(u128, u128, u8), RouterError> {
             ensure!(token_0 != token_1, RouterError::IdenticalAddresses);
-            let pair: contract_ref!(Pair) = self.get_pair(token_0, token_1)?.into();
+            let (pair, fee) = self.get_pair_and_fee(token_0, token_1)?;
+            let pair: contract_ref!(Pair) = pair.into();
             let (reserve_0, reserve_1, _) = pair.get_reserves();
             if token_0 < token_1 {
-                Ok((reserve_0, reserve_1))
+                Ok((reserve_0, reserve_1, fee))
             } else {
-                Ok((reserve_1, reserve_0))
+                Ok((reserve_1, reserve_0, fee))
             }
         }
 
@@ -166,12 +166,12 @@ pub mod router {
             amount_0_min: u128,
             amount_1_min: u128,
         ) -> Result<(u128, u128), RouterError> {
-            if self.get_pair(token_0, token_1).is_err() {
+            if self.get_pair_and_fee(token_0, token_1).is_err() {
                 let new_pair = self.factory_ref().create_pair(token_0, token_1)?;
                 self.cache_pair(new_pair);
             };
 
-            let (reserve_0, reserve_1) = self.get_reserves(token_0, token_1)?;
+            let (reserve_0, reserve_1, _) = self.get_reserves(token_0, token_1)?;
 
             if reserve_0 == 0 && reserve_1 == 0 {
                 return Ok((amount_0_desired, amount_1_desired));
@@ -242,8 +242,7 @@ pub mod router {
             let mut amounts = vec![0; path.len()];
             amounts[path.len() - 1] = amount_out;
             for i in (0..path.len() - 1).rev() {
-                let (reserve_0, reserve_1) = self.get_reserves(path[i], path[i + 1])?;
-                let fee = self.get_fee(path[i], path[i + 1])?;
+                let (reserve_0, reserve_1, fee) = self.get_reserves(path[i], path[i + 1])?;
                 amounts[i] = self.get_amount_in(amounts[i + 1], reserve_0, reserve_1, fee)?;
             }
 
@@ -266,8 +265,7 @@ pub mod router {
             let mut amounts = Vec::with_capacity(path.len());
             amounts.push(amount_in);
             for i in 0..path.len() - 1 {
-                let (reserve_0, reserve_1) = self.get_reserves(path[i], path[i + 1])?;
-                let fee = self.get_fee(path[i], path[i + 1])?;
+                let (reserve_0, reserve_1, fee) = self.get_reserves(path[i], path[i + 1])?;
                 amounts.push(self.get_amount_out(amounts[i], reserve_0, reserve_1, fee)?);
             }
 
