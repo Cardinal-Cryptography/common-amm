@@ -43,7 +43,7 @@ build-amm: ## Builds AMM contracts.
 	@cd amm && make build-amm && cd ..
 
 .PHONY: build-all
-build-all: build-farm build-amm build-test-contracts ## Builds all contracts.
+build-all: build-farm build-amm ## Builds all contracts.
 
 .PHONY: build-test-contracts
 build-test-contracts: ## Builds contracts used in e2e-tests
@@ -101,6 +101,14 @@ build-and-wrap-all-dockerized: ## Builds all contracts and generates code for co
     	-v "$(shell pwd)":/code \
     	$(INK_DEV_IMAGE) \
     	make build-and-wrap-all
+
+.PHONY: build-dockerized
+build-dockerized: ## Builds the contracts in a container.
+	@docker run --rm \
+		--name ink-dev \
+		-v "$(shell pwd)":/code \
+		$(INK_DEV_IMAGE) \
+		make build-all
 
 .PHONY: e2e-tests-with-setup-and-teardown
 e2e-tests-with-setup-and-teardown: export INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.7.0

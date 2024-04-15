@@ -14,7 +14,7 @@ scale-info = { version = "2.9", default-features = false, features = [
     "derive",
 ], optional = true }
 
-psp22 = { version = "=0.2.2" , default-features = false }
+psp22 = { version = "=0.2.2", default-features = false }
 
 traits = { path = "../../traits", default-features = false }
 amm-helpers = { path = "../../../helpers", default-features = false }
