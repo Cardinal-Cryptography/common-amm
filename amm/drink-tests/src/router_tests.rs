@@ -3,6 +3,7 @@ use crate::pair_contract;
 use crate::pair_contract::Pair;
 use crate::router_contract;
 use crate::utils::*;
+use ink_wrapper_types::ToAccountId;
 
 use factory_contract::Factory as _;
 use router_contract::Router as _;
@@ -10,6 +11,7 @@ use router_contract::Router as _;
 use drink::frame_support::sp_runtime::traits::IntegerSquareRoot;
 use drink::frame_support::sp_runtime::traits::Scale;
 use drink::{self, session::Session};
+use ink_primitives::AccountId;
 use ink_wrapper_types::Connection;
 
 #[drink::test]
@@ -283,7 +285,12 @@ fn test_fees(mut session: Session) {
     let received_protocol_fees = protocol_fees_ice + protocol_fees_wood;
 
     // Trading fee is 0.3%.
-    let trading_fee = 0.3 / 100.0;
+    let trading_fee = (session
+        .query(ice_wood_pair.get_fee())
+        .unwrap()
+        .result
+        .unwrap() as f64)
+        / 1000.0;
 
     // Protocol fees are 1/6 of the trading fees.
     // Protocol fees are a sum of:
@@ -299,4 +306,59 @@ fn test_fees(mut session: Session) {
 
     assert!(received_protocol_fees >= expected_protocol_fees as u128);
     assert!(received_protocol_fees <= expected_with_imp_loss as u128);
+}
+
+#[drink::test]
+fn test_pair_cache(mut session: Session) {
+    upload_all(&mut session);
+
+    let factory = factory::setup(&mut session, bob());
+    let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
+    let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
+    let wazero = wazero::setup(&mut session);
+    let router = router::setup(&mut session, factory.into(), wazero.into());
+
+    // Create a trading pair "normal way"
+    let exp = 10u128.pow(18);
+    let token_amount = 1_000_000 * exp;
+    psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
+    psp22_utils::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
+    router::add_liquidity(
+        &mut session,
+        router.into(),
+        ice.into(),
+        wood.into(),
+        token_amount,
+        token_amount,
+        bob(),
+    );
+
+    // Sanity check if cache contains the same pair as in factory
+    let pair_in_factory: AccountId =
+        factory::get_pair(&mut session, factory.into(), ice.into(), wood.into()).into();
+    let pair_in_router: AccountId =
+        router::get_cached_pair(&mut session, router.into(), ice.into(), wood.into());
+    assert_eq!(pair_in_factory, pair_in_router);
+
+    // Create new pair with custom fee
+    let small_fee: u8 = 1;
+    let new_pair: AccountId = session
+        .instantiate(pair_contract::Instance::new(
+            ice.into(),
+            wood.into(),
+            factory.into(),
+            small_fee,
+        ))
+        .unwrap()
+        .result
+        .to_account_id();
+
+    // Replace old pair in cache
+    session.execute(router.add_pair_to_cache(new_pair)).unwrap();
+    let new_pair_in_router: AccountId =
+        router::get_cached_pair(&mut session, router.into(), ice.into(), wood.into());
+    assert_eq!(new_pair, new_pair_in_router);
+    assert!(pair_in_router != new_pair_in_router);
 }

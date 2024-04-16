@@ -164,6 +164,21 @@ pub mod router {
             .unwrap()
             .unwrap()
     }
+
+    pub fn get_cached_pair(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        token0: AccountId,
+        token1: AccountId,
+    ) -> AccountId {
+        session
+            .query(router_contract::Instance::from(router).read_cache(token0, token1))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap()
+            .0
+    }
 }
 
 pub mod psp22_utils {
