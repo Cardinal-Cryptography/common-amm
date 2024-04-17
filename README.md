@@ -35,6 +35,25 @@ To build all contracts, run this command from the project root directory:
 make build-all
 ```
 
+##### 💫 Build verifiably
+
+Given a deployed set of contracts with some code hashes, it's possible to check that the contract has been produced from a certain version of the source code in this repo (say a given commit). To do so:
+
+1. `git checkout $COMMIT`
+2. `make build-dockerized`.
+
+You can also run `make build-dockerized` and ensure that the generated code hashes are the same as the ones found on chian.
+
+The contracts will be deployed using the same docker image as the one used for this procedure, which smooths out indeterminism in ink! contract compilation.
+
+The reason to build contracts with this command is to allow for _reproducible builds_ (ink! contracts' builds are not deterministic).
+
+##### How to verify
+
+Check out the repository at commit `TODO` (after deployment) and in the root of the project run the command above. This will output contracts' builds to `/target/ink` directory. 
+
+For every contract there's a separate folder in which you will find `<contract>.json` containing contract's metadata. One of the keys is `source.hash`. Compare that to the code hash of the on-chain contract.
+
 ##### 💫 Wrap
 
 Use these [instructions](https://github.com/Cardinal-Cryptography/ink-wrapper#installation) to set up your `ink-wrapper` environment.

@@ -14,8 +14,10 @@ scale-info = { version = "2.9", default-features = false, features = [
     "derive",
 ], optional = true }
 
-psp22 = { version = "=0.2.2" , default-features = false }
-wrapped-azero = { git = "https://github.com/Cardinal-Cryptography/wAZERO.git", default-features = false, features = ["ink-as-dependency"] }
+psp22 = { version = "=0.2.2", default-features = false }
+wrapped-azero = { git = "https://github.com/Cardinal-Cryptography/wAZERO.git", default-features = false, features = [
+    "ink-as-dependency",
+] }
 
 traits = { path = "../../traits", default-features = false }
 amm-helpers = { path = "../../../helpers", default-features = false }
