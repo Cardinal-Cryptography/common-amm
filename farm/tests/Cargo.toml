@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dev-dependencies]
-drink = "0.8.6"
+drink = "0.8.7"
 ink-wrapper-types = { git = "https://github.com/Cardinal-Cryptography/ink-wrapper", rev = "47ba45b", default-features = false, features = [
     "drink",
 ] }
