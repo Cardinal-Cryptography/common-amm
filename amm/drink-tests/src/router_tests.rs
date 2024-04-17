@@ -444,7 +444,7 @@ fn test_custom_fee(mut session: Session) {
     // but it should be close to the expected value
     let received_protocol_fees = protocol_fees_ice + protocol_fees_wood;
 
-    // Trading fee is 0.3%.
+    // Trading fee is 0.1%.
     let trading_fee = (session
         .query(ice_wood_pair.get_fee())
         .unwrap()
@@ -459,7 +459,7 @@ fn test_custom_fee(mut session: Session) {
     //
     // This makes it dynamic and hard to predict. So we're setting lower & upper bounds.
 
-    // Lower bound for the received protocol fees is the exact 0.3%/6 of the output amount.
+    // Lower bound for the received protocol fees is the exact 0.1%/6 of the output amount.
     let expected_protocol_fees = (swap_res[1] as f64 * trading_fee) / 6.0;
     // Upper bound for the received protocol fees is the % from the input amount.
     let expected_with_imp_loss = (swap_res[0] as f64 * trading_fee) / 6.0;
