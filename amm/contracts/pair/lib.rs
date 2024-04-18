@@ -33,6 +33,7 @@ pub mod pair {
     };
     use ink::{
         contract_ref,
+        env::debug_println,
         prelude::{
             string::{String, ToString},
             vec::Vec,
@@ -194,6 +195,7 @@ pub mod pair {
                             .try_into()
                             .map_err(|_| MathError::CastOverflow(1))?;
                         if liquidity > 0 {
+                            debug_println!("Minting fee: {}", liquidity);
                             let events = self.psp22.mint(fee_to, liquidity)?;
                             self.emit_events(events)
                         }

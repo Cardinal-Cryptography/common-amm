@@ -243,7 +243,8 @@ fn test_fees(mut session: Session) {
         BOB,
     )
     .unwrap();
-    let (_ice, _wood) = session
+
+    let result = session
         .execute(router.remove_liquidity(
             ice.into(),
             wood.into(),
@@ -253,10 +254,16 @@ fn test_fees(mut session: Session) {
             bob(),
             deadline,
         ))
-        .unwrap()
-        .result
-        .unwrap()
         .unwrap();
+
+    use drink::contract_api::decode_debug_buffer;
+    let buffer = result.debug_message;
+    let debug_messages = decode_debug_buffer(&buffer);
+    for msg in debug_messages {
+        println!("{}", msg);
+    }
+
+    let (_ice, _wood) = result.result.unwrap().unwrap();
 
     // Fees now sent to `fee_to` address (CHARLIE).
     let charlie_lp_balance = psp22_utils::balance_of(&mut session, ice_wood_pair.into(), charlie());
