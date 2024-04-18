@@ -138,7 +138,11 @@ pub mod pair {
     impl PairContract {
         #[ink(constructor)]
         pub fn new(token_0: AccountId, token_1: AccountId, factory: AccountId, fee: u8) -> Self {
-            let pair = PairData::new(token_0, token_1, factory, fee);
+            let pair = if token_0 < token_1 {
+                PairData::new(token_0, token_1, factory, fee)
+            } else {
+                PairData::new(token_1, token_0, factory, fee)
+            };
             Self {
                 psp22: PSP22Data::default(),
                 pair,
