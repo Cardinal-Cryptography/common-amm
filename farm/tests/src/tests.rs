@@ -954,9 +954,10 @@ fn owner_add_reward_token_success(mut session: Session<MinimalRuntime>) {
         new_farm_details.reward_tokens,
         vec![wood.into(), sand.into()]
     );
+    let expected_rate = half_rewards / farm_duration as u128;
     assert_eq!(
         new_farm_details.reward_rates,
-        vec![half_rewards, half_rewards]
+        vec![expected_rate, expected_rate]
     );
 
     // No rewards yet earned, at the beginning of the farm.
