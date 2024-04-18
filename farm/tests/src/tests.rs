@@ -860,18 +860,115 @@ fn owner_add_reward_token_failures(mut session: Session<MinimalRuntime>) {
     assert_eq!(add_result, Err(FarmError::DuplicateRewardTokens()));
 }
 
-    assert_eq!(Ok(()), add_result);
+#[drink::test]
+fn owner_add_reward_token_success(mut session: Session<MinimalRuntime>) {
+    seed_account(&mut session, FARMER);
+
+    // Start the BASE farm, without new tokens yet.
+    let now = get_timestamp(&mut session);
+    let farm_start = now + 10;
+    let farm_duration = 100u64;
+
+    let reward_amount = farm_duration as u128 * 1_000_000u128;
+
+    let (farm, ice, wood) = setup_farm(
+        &mut session,
+        farm_start,
+        farm_start + farm_duration,
+        reward_amount,
+    );
+
+    let deposit_amount = 1_000_000;
+    farm::join_farm(&mut session, ice.into(), &farm, deposit_amount, FARMER).unwrap();
+
+    set_timestamp(&mut session, farm_start + farm_duration / 2);
+    let rewards = farm::claim_rewards(&mut session, &farm, vec![0], FARMER).unwrap();
+    let half_rewards = reward_amount / 2;
+    assert_eq!(rewards[0], half_rewards);
+
+    // Stop the farm exactly in its middle, there should be still half of the `reward_amount` left.
+    farm::owner_stop_farm(&mut session, &farm, FARM_OWNER).unwrap();
+
+    // Extend farm with new reward token.
+
+    // Create token
+    let sand = psp22::setup(&mut session, SAND.to_string(), SAND.to_string(), FARM_OWNER);
+    // Add the new reward
+    assert_eq!(
+        Ok(()),
+        farm::owner_add_reward_token(&mut session, &farm, FARM_OWNER, sand.into())
+    );
 
     let farm_details: FarmDetails = farm::get_farm_details(&mut session, &farm);
+    assert_eq!(farm_details.reward_tokens, vec![wood.into(), sand.into()]);
 
-    let expected_details = FarmDetails {
-        pool_id: ice.into(),
-        is_active: false,
-        reward_tokens: vec![wood.into(), fake_token],
-        reward_rates: vec![farm_details.reward_rates[0], 0],
-        start: farm_start,
-        end: now + 50,
-    };
+    // Start new farm instance.
+    let now = get_timestamp(&mut session);
+    inc_timestamp(&mut session);
+    let new_start = now + 10;
+    let new_end = new_start + farm_duration;
 
-    assert_eq!(farm_details, expected_details);
+    let missing_reward_res = farm::start(
+        &mut session,
+        &farm,
+        new_start,
+        new_end,
+        vec![half_rewards],
+        FARM_OWNER,
+    );
+    assert_eq!(
+        missing_reward_res,
+        Err(FarmError::RewardsVecLengthMismatch())
+    );
+
+    psp22::increase_allowance(
+        &mut session,
+        sand.into(),
+        farm.into(),
+        half_rewards,
+        FARM_OWNER,
+    );
+
+    // We need to withdraw original reward token before starting a new farm.
+    assert!(farm::owner_withdraw(&mut session, &farm, wood.into(), FARM_OWNER).is_ok());
+    psp22::increase_allowance(
+        &mut session,
+        wood.into(),
+        farm.into(),
+        half_rewards,
+        FARM_OWNER,
+    );
+
+    let start_farm_res = farm::start(
+        &mut session,
+        &farm,
+        new_start,
+        new_end,
+        vec![half_rewards, half_rewards],
+        FARM_OWNER,
+    );
+    assert_eq!(start_farm_res, Ok(()));
+
+    let new_farm_details = farm::get_farm_details(&mut session, &farm);
+    assert_eq!(
+        new_farm_details.reward_tokens,
+        vec![wood.into(), sand.into()]
+    );
+    assert_eq!(
+        new_farm_details.reward_rates,
+        vec![half_rewards, half_rewards]
+    );
+
+    // No rewards yet earned, at the beginning of the farm.
+    set_timestamp(&mut session, new_start);
+    let rewards = farm::query_unclaimed_rewards(&mut session, &farm, vec![0, 1], FARMER).unwrap();
+    assert_eq!(rewards, vec![0, 0]);
+
+    // Finish farm.
+    set_timestamp(&mut session, new_end);
+    let rewards = farm::query_unclaimed_rewards(&mut session, &farm, vec![0, 1], FARMER).unwrap();
+    assert_eq!(rewards, vec![half_rewards, half_rewards]);
+
+    let rewards = farm::claim_rewards(&mut session, &farm, vec![0, 1], FARMER).unwrap();
+    assert_eq!(rewards, vec![half_rewards, half_rewards]);
 }

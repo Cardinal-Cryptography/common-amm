@@ -171,21 +171,23 @@ mod farm {
         // 2) self.user_cumulative_last_update[acc][i] = self.farm_cumulative[i] for all i
         fn update_account(&mut self, account: AccountId) {
             let user_shares = self.shares.get(account).unwrap_or(0);
-            let mut new_reward_vector = vec![0; self.reward_tokens.len()];
-            
+            let rewards_len = self.reward_tokens.len();
+            let mut new_reward_vector = vec![0; rewards_len];
+
             if let Some(mut user_cumulative_reward_last_update) =
                 self.user_cumulative_reward_last_update.take(account)
             {
                 let mut user_claimable_rewards = self
                     .user_claimable_rewards
                     .take(account)
-                    .unwrap_or(vec![0; self.reward_tokens.len()]);
+                    .unwrap_or(vec![0; rewards_len]);
 
-                // Extend to cover for any new reward tokens.
-                let new_rewards_count = self.reward_tokens.len() - user_claimable_rewards.len();
-                user_cumulative_reward_last_update
-                    .extend(vec![WrappedU256::ZERO; new_rewards_count]);
-                user_claimable_rewards.extend(vec![0; new_rewards_count]);
+                // Extend to cover for the new reward tokens.
+                user_cumulative_reward_last_update.extend(vec![
+                        WrappedU256::ZERO;
+                        rewards_len - user_cumulative_reward_last_update.len()
+                    ]);
+                user_claimable_rewards.extend(vec![0; rewards_len - user_claimable_rewards.len()]);
 
                 for (idx, user_cumulative) in
                     user_cumulative_reward_last_update.into_iter().enumerate()
@@ -325,8 +327,8 @@ mod farm {
             rewards: Vec<u128>,
         ) -> Result<(), FarmError> {
             ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
-            self.update()?;
             ensure!(!self.is_active, FarmError::FarmIsRunning);
+            self.update()?;
             self.farm_reward_rates = self.assert_start_params(start, end, rewards.clone())?;
             self.start = start;
             self.end = end;
