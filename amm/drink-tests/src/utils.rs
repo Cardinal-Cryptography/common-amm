@@ -11,6 +11,8 @@ pub const WOOD: &str = "WOOD";
 pub const BOB: drink::AccountId32 = AccountId32::new([1u8; 32]);
 pub const CHARLIE: drink::AccountId32 = AccountId32::new([3u8; 32]);
 
+pub const TOKEN: u128 = 10u128.pow(18);
+
 pub fn bob() -> ink_primitives::AccountId {
     AsRef::<[u8; 32]>::as_ref(&BOB).clone().into()
 }
@@ -164,6 +166,21 @@ pub mod router {
             .unwrap()
             .unwrap()
     }
+
+    pub fn get_cached_pair(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        token0: AccountId,
+        token1: AccountId,
+    ) -> AccountId {
+        session
+            .query(router_contract::Instance::from(router).read_cache(token0, token1))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap()
+            .0
+    }
 }
 
 pub mod psp22_utils {
@@ -182,7 +199,7 @@ pub mod psp22_utils {
         let _ = session.set_actor(caller);
 
         let instance = PSP22::new(
-            1_000_000_000u128 * 10u128.pow(18),
+            1_000_000_000u128 * TOKEN,
             Some(name.clone()),
             Some(name),
             18,
@@ -209,6 +226,23 @@ pub mod psp22_utils {
         handle_ink_error(
             session
                 .execute(PSP22::increase_allowance(&token.into(), spender, amount))
+                .unwrap(),
+        )
+    }
+
+    /// Increases allowance of given token to given spender by given amount.
+    pub fn transfer(
+        session: &mut Session<MinimalRuntime>,
+        token: AccountId,
+        to: AccountId,
+        amount: u128,
+        caller: drink::AccountId32,
+    ) -> Result<(), psp22::PSP22Error> {
+        let _ = session.set_actor(caller);
+
+        handle_ink_error(
+            session
+                .execute(PSP22::transfer(&token.into(), to, amount, [].to_vec()))
                 .unwrap(),
         )
     }
