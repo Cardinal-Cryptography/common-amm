@@ -1,6 +1,0 @@
-[submodule "test-contracts/psp22"]
-	path = test-contracts/psp22
-	url = https://github.com/Cardinal-Cryptography/PSP22.git
-[submodule "test-contracts/wrapped-azero"]
-	path = test-contracts/wrapped-azero
-	url = https://github.com/Cardinal-Cryptography/wAZERO.git
