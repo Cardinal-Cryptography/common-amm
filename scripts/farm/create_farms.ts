@@ -1,90 +1,16 @@
 import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
-import fs from 'fs';
 import Token from '../../types/contracts/psp22';
 import Farm from '../../types/contracts/farm_contract';
 import Farm_factory from '../../types/constructors/farm_contract';
 import type { KeyringPair } from '@polkadot/keyring/types';
 import BN from 'bn.js';
-import { uploadCode, pickRandomUpToN, randomBN, estimateFarmInit } from './utils';
-import { HexString } from '@polkadot/util/types';
-import { PSP22Metadata } from './types';
-import { AccountId } from 'types-arguments/farm_contract';
+import { uploadFarm, loadAddresses, pickRandomUpToN, randomBN, estimateFarmInit, getTokenMetadata } from './utils';
+import { PSP22Metadata, FarmSpec, FarmDetails, Reward } from './types';
 
 // Create a new instance of contract
 const wsProvider = new WsProvider(process.env.WS_NODE);
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
-
-function loadAddresses(filePath: string): string[] {
-    // Read the content of the file
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-
-    // Parse the JSON array from the file content
-    const jsonArray: string[] = JSON.parse(fileContent);
-
-    // Make sure the parsed content is an array of strings
-    if (
-        Array.isArray(jsonArray) &&
-        jsonArray.every((item) => typeof item === 'string')
-    ) {
-        return jsonArray;
-    } else {
-        throw new Error(
-            'Invalid JSON format. The file should contain a JSON array of strings.',
-        );
-    }
-}
-
-
-async function getTokenMetadata(
-    api: ApiPromise,
-    signer: KeyringPair,
-    tokenAddress: string,
-): Promise<PSP22Metadata> {
-    const token = new Token(tokenAddress, signer, api);
-    const {
-        value: { ok: name },
-    } = await token.query.tokenName();
-    const {
-        value: { ok: symbol },
-    } = await token.query.tokenSymbol();
-    const {
-        value: { ok: decimals },
-    } = await token.query.tokenDecimals();
-
-    const {
-        value: { ok: total_supply },
-    } = await token.query.totalSupply();
-
-    const {
-        value: { ok: my_balance },
-    } = await token.query.balanceOf(signer.address);
-
-    return {
-        address: tokenAddress,
-        name,
-        symbol,
-        decimals,
-        total_supply: total_supply.toString(),
-        my_balance: my_balance.toString(),
-    } as PSP22Metadata;
-}
-
-async function uploadFarm(api: ApiPromise, deployer: KeyringPair): Promise<HexString> {
-    return uploadCode(api, deployer, 'farm_contract.contract');
-}
-
-type Reward = {
-    token: string;
-    amount: BN;
-}
-
-type FarmSpec = {
-    poolAddress: string;
-    rewards: Reward[];
-    startTimestamp: number;
-    endTimestamp: number;
-}
 
 // function pickRandomRewards(rewardTokens: PSP22Metadata[]): Reward[] {
 //     let reward_tokens = pickRandomUpToN(rewardTokens, rewardTokens.length);
@@ -166,12 +92,7 @@ function printRewards(rewards: Reward[]): void {
     }
 }
 
-type FarmDetails = {
-    address: string;
-    spec: FarmSpec;
-}
-
-async function createFarm(
+async function createAndStartFarm(
     api: ApiPromise,
     signer: KeyringPair,
     farm_factory: Farm_factory,
@@ -199,35 +120,27 @@ async function createFarm(
 }
 
 
-function excludeZeroBalances(tokens: PSP22Metadata[]): PSP22Metadata[] {
-    return tokens.filter((token) => token.my_balance !== '0');
-}
-
 async function main(): Promise<void> {
     const api = await ApiPromise.create({ provider: wsProvider });
     const signer = keyring.addFromUri(process.env.AUTHORITY_SEED);
 
-    const tokenAddresses = loadAddresses('./token_addresses.json');
     const poolAddress = loadAddresses('./pool_addresses.json');
 
     let reward_tokens = [];
-
-    for (let token of tokenAddresses) {
+    for (let token of loadAddresses('./token_addresses.json')) {
         const tokenMetadata = await getTokenMetadata(api, signer, token);
-        reward_tokens.push(tokenMetadata);
+        // For some tokens we don't have any balance, so we exclude them.
+        if (tokenMetadata.my_balance !== '0') {
+            reward_tokens.push(tokenMetadata);
+        }
     }
 
-    // For some tokens we don't have any balance, so we exclude them.
-    reward_tokens = excludeZeroBalances(reward_tokens);
-
-    const farmCodeHash = await uploadFarm(api, signer);
-
+    const _farmCodeHash = await uploadFarm(api, signer);
     const farm_factory = new Farm_factory(api, signer);
 
     for (let pool of poolAddress) {
         const farmSpec = randomizeFarmSpec(pool, reward_tokens);
-
-        const farm_details = await createFarm(api, signer, farm_factory, farmSpec);
+        const farm_details = await createAndStartFarm(api, signer, farm_factory, farmSpec);
         console.log('Farm created:', farm_details);
     }
 }

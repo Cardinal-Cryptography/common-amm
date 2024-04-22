@@ -1,6 +1,6 @@
 import Token from '../../types/contracts/psp22';
-import Router from '../../types/contracts/router_contract';
 import fs from 'fs';
+import { PSP22Metadata } from './types';
 
 import { ApiPromise } from '@polkadot/api';
 import { Abi } from '@polkadot/api-contract';
@@ -10,6 +10,64 @@ import {
     ContractInstantiateResult,
     WeightV2,
 } from '@polkadot/types/interfaces';
+
+export function loadAddresses(filePath: string): string[] {
+    // Read the content of the file
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+
+    // Parse the JSON array from the file content
+    const jsonArray: string[] = JSON.parse(fileContent);
+
+    // Make sure the parsed content is an array of strings
+    if (
+        Array.isArray(jsonArray) &&
+        jsonArray.every((item) => typeof item === 'string')
+    ) {
+        return jsonArray;
+    } else {
+        throw new Error(
+            'Invalid JSON format. The file should contain a JSON array of strings.',
+        );
+    }
+}
+
+export async function getTokenMetadata(
+    api: ApiPromise,
+    signer: KeyringPair,
+    tokenAddress: string,
+): Promise<PSP22Metadata> {
+    const token = new Token(tokenAddress, signer, api);
+    const {
+        value: { ok: name },
+    } = await token.query.tokenName();
+    const {
+        value: { ok: symbol },
+    } = await token.query.tokenSymbol();
+    const {
+        value: { ok: decimals },
+    } = await token.query.tokenDecimals();
+
+    const {
+        value: { ok: total_supply },
+    } = await token.query.totalSupply();
+
+    const {
+        value: { ok: my_balance },
+    } = await token.query.balanceOf(signer.address);
+
+    return {
+        address: tokenAddress,
+        name,
+        symbol,
+        decimals,
+        total_supply: total_supply.toString(),
+        my_balance: my_balance.toString(),
+    } as PSP22Metadata;
+}
+
+export async function uploadFarm(api: ApiPromise, deployer: KeyringPair): Promise<HexString> {
+    return uploadCode(api, deployer, 'farm_contract.contract');
+}
 
 /**
  * Uploads the contract to the chain.
