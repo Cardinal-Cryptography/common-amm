@@ -547,7 +547,7 @@ mod farm {
             .map_err(|_| MathError::CastOverflow)
     }
 
-    pub fn no_duplicates<A: Eq + PartialEq>(v: &Vec<A>) -> bool {
+    pub fn no_duplicates<A: Eq + PartialEq>(v: &[A]) -> bool {
         for (idx, el) in v.iter().enumerate() {
             // Add 1 since the first `idx=0` and we would
             // start iterating from the beginning (rather than the next element).

@@ -2,7 +2,7 @@
 
 resolver = "2"
 
-members = ["amm/contracts/*", "farm/contract", "farm/trait", "test-contracts/*"]
+members = ["amm/contracts/*", "farm/contract", "farm/trait"]
 
 exclude = [
     "amm/e2e-tests",
@@ -10,4 +10,6 @@ exclude = [
     "helpers",
     "farm/tests",
     "amm/drink-tests",
+    "test-contracts/wrapped-azero",
+    "test-contracts/psp22",
 ]
