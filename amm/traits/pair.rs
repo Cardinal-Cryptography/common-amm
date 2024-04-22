@@ -82,6 +82,10 @@ pub trait Pair {
     /// Returns address of the second token.
     #[ink(message)]
     fn get_token_1(&self) -> AccountId;
+
+    /// Returns protocol fee (in millis).
+    #[ink(message)]
+    fn get_fee(&self) -> u8;
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]

@@ -2,6 +2,8 @@
 
 #[ink::contract]
 pub mod factory {
+    // All pairs created via this factory have fixed fee of 0.3%
+    const DEFAULT_FEE: u8 = 3;
     use amm_helpers::ensure;
     use ink::{codegen::EmitEvent, env::hash::Blake2x256, storage::Mapping, ToAccountId};
     use pair_contract::pair::PairContractRef;
@@ -47,15 +49,16 @@ pub mod factory {
             token_1: AccountId,
         ) -> Result<AccountId, FactoryError> {
             let pair_hash = self.pair_contract_code_hash;
-            let pair = match PairContractRef::new(token_0, token_1)
-                .endowment(0)
-                .code_hash(pair_hash)
-                .salt_bytes(&salt_bytes)
-                .try_instantiate()
-            {
-                Ok(Ok(res)) => Ok(res),
-                _ => Err(FactoryError::PairInstantiationFailed),
-            }?;
+            let pair =
+                match PairContractRef::new(token_0, token_1, self.env().account_id(), DEFAULT_FEE)
+                    .endowment(0)
+                    .code_hash(pair_hash)
+                    .salt_bytes(&salt_bytes)
+                    .try_instantiate()
+                {
+                    Ok(Ok(res)) => Ok(res),
+                    _ => Err(FactoryError::PairInstantiationFailed),
+                }?;
             Ok(pair.to_account_id())
         }
 
