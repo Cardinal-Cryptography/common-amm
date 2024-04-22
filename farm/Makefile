@@ -28,8 +28,8 @@ generate-psp22-wrapper: ## Generates Rust wrappers for interacting with PSP22 co
 	@echo "Building PSP22 contract" ; \
 	cargo contract build --quiet --manifest-path ../test-contracts/psp22/Cargo.toml --release --features "contract" ;
 	@echo "Wrapping PSP22 contract" ; \
-	ink-wrapper --metadata ../target/ink/psp22/psp22.json \
-				--wasm-path ../../../../target/ink/psp22/psp22.wasm \
+	ink-wrapper --metadata ../test-contracts/psp22/target/ink/psp22.json \
+				--wasm-path ../../../../test-contracts/psp22/target/ink/psp22.wasm \
 		| rustfmt --edition 2021 > ./tests/src/psp22/psp22_contract.rs ; \
 
 .PHONY: generate-wrappers

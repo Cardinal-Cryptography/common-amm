@@ -245,7 +245,7 @@ dependencies = [
  "amm-helpers",
  "ink",
  "parity-scale-codec",
- "psp22 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "psp22",
  "scale-info",
 ]
 
@@ -258,7 +258,7 @@ dependencies = [
  "ink",
  "parity-scale-codec",
  "primitive-types",
- "psp22 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "psp22",
  "scale-info",
 ]
 
@@ -664,7 +664,7 @@ dependencies = [
  "ink",
  "parity-scale-codec",
  "primitive-types",
- "psp22 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "psp22",
  "scale-info",
  "sp-arithmetic",
  "traits",
@@ -747,15 +747,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e835ff2298f5721608eb1a980ecaee1aef2c132bf95ecc026a11b7bf3c01c02e"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "psp22"
-version = "0.2.2"
-dependencies = [
- "ink",
- "parity-scale-codec",
- "scale-info",
 ]
 
 [[package]]
@@ -856,10 +847,10 @@ dependencies = [
  "amm-helpers",
  "ink",
  "parity-scale-codec",
- "psp22 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "psp22",
  "scale-info",
  "traits",
- "wrapped-azero 0.1.0",
+ "wrapped-azero",
 ]
 
 [[package]]
@@ -1176,7 +1167,7 @@ dependencies = [
  "ink_metadata",
  "parity-scale-codec",
  "primitive-types",
- "psp22 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "psp22",
  "scale-info",
  "sp-arithmetic",
 ]
@@ -1330,17 +1321,7 @@ source = "git+https://github.com/Cardinal-Cryptography/wAZERO.git#f60d2cce0eb6d2
 dependencies = [
  "ink",
  "parity-scale-codec",
- "psp22 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "wrapped-azero"
-version = "1.0.0"
-dependencies = [
- "ink",
- "parity-scale-codec",
- "psp22 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "scale-info",
+ "psp22",
 ]
 
 [[package]]

@@ -10,6 +10,11 @@ AMM_CONTRACTS_PATHS := $(shell find $(AMM_CONTRACTS) -mindepth 1 -maxdepth 1 -ty
 TEST_CONTRACTS = ../test-contracts
 TEST_PATHS := $(shell find $(TEST_CONTRACTS) -mindepth 1 -maxdepth 1 -type d)
 
+CONTRACTS := factory_contract pair_contract router_contract wrapped_azero
+
+INK_DEV_IMAGE := "public.ecr.aws/p6e8q1z1/ink-dev:2.1.0"
+SCRIPT_DIR := $(shell cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 .PHONY: build-amm
 build-amm: ## Builds AMM contracts.
 	@for d in $(AMM_CONTRACTS_PATHS); do \
@@ -30,20 +35,15 @@ check-amm: check-drink-tests ## Runs cargo (contract) check on AMM contracts.
 build-test-contracts: ## Builds contracts used in e2e-tests
 	@for d in $(TEST_PATHS); do \
 		echo "Building $$d contract" ; \
-		cargo contract build --quiet --manifest-path $$d/Cargo.toml --release --features "contract"; \
+		cd $$d && cargo contract build --quiet --release --features "contract" && cd $(SCRIPT_DIR) ; \
 	done
 
 .PHONY: build-all
 build-all: build-amm build-test-contracts ## Builds all contracts.
 
-CONTRACTS := factory_contract pair_contract router_contract wrapped_azero
-
 .PHONY: wrap-all
 wrap-all: ## Generates Rust wrappers for interacting with AMM contracts.
 	./scripts/prepare_rust_wrappers.sh
-
-INK_DEV_IMAGE := "public.ecr.aws/p6e8q1z1/ink-dev:2.1.0"
-SCRIPT_DIR := $(shell cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 .PHONY: wrap-all-dockerized
 wrap-all-dockerized: ## Generates Rust wrappers for interacting with AMM contracts using Docker.
