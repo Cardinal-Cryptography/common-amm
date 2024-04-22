@@ -33,6 +33,10 @@ def argument_parser():
     withdraw.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
     withdraw.add_argument('--token', required=True, metavar='ACCOUNT_ID', help='contract address of the token')
 
+    add_reward_token = commands.add_parser('add_reward_token', help='add a new reward token to an existing farm')
+    add_reward_token.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
+    add_reward_token.add_argument('--token', required=True, metavar='ACCOUNT_ID', help='contract address of the new reward token')
+
     return parser
 
 
@@ -112,3 +116,8 @@ if __name__ == "__main__":
     elif args.command == 'withdraw':
         check_account_ids(chain, args.farm, args.token)
         call_contract(chain, keypair, args.farm, args.metadata, method='Farm::owner_withdraw_token', token=args.token)
+    elif args.command == 'add_reward_token':
+        check_account_ids(chain, args.farm, args.token)
+        call_contract(chain, keypair, args.farm, args.metadata, method='Farm::owner_add_reward_token', token=args.token)
+    else:
+        raise ValueError(f'Unknown command: {args.command}')
