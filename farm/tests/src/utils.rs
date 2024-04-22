@@ -35,3 +35,10 @@ pub fn handle_ink_error<R>(res: ContractResult<Result<R, InkLangError>>) -> R {
         Ok(r) => r,
     }
 }
+
+pub fn seed_account(session: &mut Session<MinimalRuntime>, account: AccountId32) {
+    session
+        .sandbox()
+        .mint_into(account, 1_000_000_000u128)
+        .unwrap();
+}
