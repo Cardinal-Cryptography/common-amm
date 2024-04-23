@@ -59,6 +59,10 @@ check-all: check-farm check-amm ## Runs cargo checks and unit tests on all contr
 	@echo "Checking AMM e2e tests"
 	@cd ./amm/e2e-tests && cargo check --quiet
 
+.PHONY: check-e2e-tests
+check-e2e-tests: ## Runs cargo checks on AMM e2e tests.
+	@cd ./amm/e2e-tests && cargo check --quiet
+
 .PHONY: format
 format: ## Formats contract files.
 	@cargo fmt --all
@@ -122,4 +126,4 @@ all-drink-dockerized: ## Runs the drink test in a container.
 all-drink: ## Runs the drink test.
 	@cd amm && make all-drink && cd ..
 	@cd farm && make all-drink && cd ..
-	@make check-all
+	@make check-e2e-tests
