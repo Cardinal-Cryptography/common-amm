@@ -1,6 +1,9 @@
 # Ignore build artifacts from the local tests sub-crate.
 **/target/
-/artifacts/
+artifacts/*
+# But commit the psp22 and wrapped_azero since they don't change.
+!/artifacts/psp22*
+!/artifacts/wrapped_azero*
 
 # Ignore TypeScript contract wrappers.
 types/
