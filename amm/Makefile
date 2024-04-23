@@ -18,6 +18,11 @@ build-amm: ## Builds AMM contracts.
 	 	echo "Building $$d contract" ; \
 	 	cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
 	done
+	@for d in $(CONTRACTS); do \
+		cp ../target/ink/$$d/$$d.wasm ../artifacts/$$d.wasm ; \
+		cp ../target/ink/$$d/$$d.json ../artifacts/$$d.json ; \
+		cp ../target/ink/$$d/$$d.contract ../artifacts/$$d.contract ; \
+	done
 
 .PHONY: check-amm
 check-amm: check-drink-tests ## Runs cargo (contract) check on AMM contracts.
