@@ -17,7 +17,9 @@ tokio = { version = "1.28.2", features = ["parking_lot", "sync"] }
 
 aleph_client = "3.0.0"
 ink_primitives = "4.2.1"
-ink-wrapper-types = "0.5.0"
+ink-wrapper-types = { version = "0.9.0", default-features = false, features = [
+    "drink",
+] }
 
 traits = { path = "../traits" }
 amm-helpers = { path = "../../helpers", default-features = false }
