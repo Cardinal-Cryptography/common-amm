@@ -12,7 +12,6 @@ types/
 addresses.json
 
 # Ignore Rust contract wrappers.
-amm/e2e-tests/src/*_contract.rs
 amm/drink-tests/src/*_contract.rs
 amm/drink-tests/resources/*.wasm
 farm/tests/src/psp22/psp22_contract.rs

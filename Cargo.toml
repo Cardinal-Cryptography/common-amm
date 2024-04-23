@@ -5,7 +5,6 @@ resolver = "2"
 members = ["amm/contracts/*", "farm/contract", "farm/trait"]
 
 exclude = [
-    "amm/e2e-tests",
     "amm/traits",
     "helpers",
     "farm/tests",
