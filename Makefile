@@ -40,14 +40,10 @@ build-farm: ## Builds farm contracts.
 
 .PHONY: build-amm
 build-amm: ## Builds AMM contracts.
-	@cd amm && make build-amm && cd ..
+	@cd amm && make build-all && cd ..
 
 .PHONY: build-all
-build-all: build-farm build-amm build-test-contracts ## Builds all contracts.
-
-.PHONY: build-test-contracts
-build-test-contracts: ## Builds contracts used in e2e-tests
-	@cd amm && make build-test-contracts && cd ..
+build-all: build-farm build-amm ## Builds all contracts.
 
 .PHONY: check-farm
 check-farm: ## Runs cargo checks on farm contracts.
@@ -60,8 +56,6 @@ check-amm: ## Runs cargo (contract) check on AMM contracts.
 .PHONY: check-all
 check-all: check-farm check-amm ## Runs cargo checks and unit tests on all contracts.
 	@cargo test --quiet --locked --frozen --workspace
-	@echo "Checking AMM e2e tests"
-	@cd ./amm/e2e-tests && cargo check --quiet
 
 .PHONY: format
 format: ## Formats contract files.
@@ -69,20 +63,8 @@ format: ## Formats contract files.
 
 CONTRACT_DATA = ./target/ink
 
-.PHONY: wrap-all
-wrap-all: ## Generates code for contract interaction.
-	@for c in $(notdir $(shell find $(CONTRACT_DATA) -mindepth 1 -maxdepth 1 -type d)); do \
-		echo "Wrapping $$c" ; \
-	 	ink-wrapper -m ./target/ink/$$c/$$c.json --wasm-path ../../../target/ink/$$c/$$c.wasm \
-	 		| rustfmt --edition 2021 > ./amm/e2e-tests/src/$$c.rs ; \
-	done
-
-.PHONY: e2e-tests
-e2e-tests: ## Runs all the e2e tests in sequence.
-	@cd amm/e2e-tests && cargo test -- --test-threads 1 && cd ..
-
 .PHONY: build-and-wrap-all
-build-and-wrap-all: build-all build-test-contracts wrap-all ## Builds all contracts and generates code for contract interaction.
+build-and-wrap-all: build-all wrap-all ## Builds all contracts and generates code for contract interaction.
 
 INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:2.1.0
 
@@ -110,10 +92,6 @@ build-dockerized: ## Builds the contracts in a container.
 		$(INK_DEV_IMAGE) \
 		make build-all
 
-.PHONY: e2e-tests-with-setup-and-teardown
-e2e-tests-with-setup-and-teardown: export INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:1.7.0
-e2e-tests-with-setup-and-teardown: build-and-wrap-all-dockerized build-node start-node e2e-tests stop-node ## Runs the E2E test suite.
-
 .PHONY: all-drink-dockerized
 all-drink-dockerized: ## Runs the drink test in a container.
 	@docker run --rm \
@@ -126,4 +104,3 @@ all-drink-dockerized: ## Runs the drink test in a container.
 all-drink: ## Runs the drink test.
 	@cd amm && make all-drink && cd ..
 	@cd farm && make all-drink && cd ..
-	@make check-all

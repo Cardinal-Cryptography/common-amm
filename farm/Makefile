@@ -8,6 +8,8 @@ help: # Show help for each of the Makefile recipes.
 build-farm: ## Builds farm contracts.
 	@echo "Building farm contract" ; \
 	cargo contract build --quiet --manifest-path contract/Cargo.toml --release ; \
+	cp ../target/ink/farm_contract/farm_contract.wasm ../artifacts/farm_contract.wasm ; \
+	cp ../target/ink/farm_contract/farm_contract.json ../artifacts/farm_contract.json ; \
 
 .PHONY: check-farm
 check-farm: ## Runs cargo checks on farm contracts.
@@ -19,17 +21,15 @@ check-farm: ## Runs cargo checks on farm contracts.
 .PHONY: generate-farm-wrapper
 generate-farm-wrapper: build-farm ## Generates Rust wrappers for interacting with farm contract.
 	@echo "Wrapping farm contract" ; \
-	ink-wrapper --metadata ../target/ink/farm_contract/farm_contract.json \
-				--wasm-path ../../../../target/ink/farm_contract/farm_contract.wasm \
+	ink-wrapper --metadata ../artifacts/farm_contract.json \
+				--wasm-path ../../../../artifacts/farm_contract.wasm \
 		| rustfmt --edition 2021 > ./tests/src/farm/farm_contract.rs ; \
 
 .PHONY: generate-psp22-wrapper
 generate-psp22-wrapper: ## Generates Rust wrappers for interacting with PSP22 contracts.
-	@echo "Building PSP22 contract" ; \
-	cargo contract build --quiet --manifest-path ../test-contracts/psp22/Cargo.toml --release --features "contract" ;
 	@echo "Wrapping PSP22 contract" ; \
-	ink-wrapper --metadata ../test-contracts/psp22/target/ink/psp22.json \
-				--wasm-path ../../../../test-contracts/psp22/target/ink/psp22.wasm \
+	ink-wrapper --metadata ../artifacts/psp22.json \
+				--wasm-path ../../../../artifacts/psp22.wasm \
 		| rustfmt --edition 2021 > ./tests/src/psp22/psp22_contract.rs ; \
 
 .PHONY: generate-wrappers
