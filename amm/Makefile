@@ -12,17 +12,6 @@ CONTRACTS := factory_contract pair_contract router_contract
 INK_DEV_IMAGE := "public.ecr.aws/p6e8q1z1/ink-dev:2.1.0"
 SCRIPT_DIR := $(shell cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-.PHONY: build-amm
-build-amm: ## Builds AMM contracts.
-	@for d in $(AMM_CONTRACTS_PATHS); do \
-	 	echo "Building $$d contract" ; \
-	 	cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
-	done
-	@for d in $(CONTRACTS); do \
-		cp ../target/ink/$$d/$$d.wasm ../artifacts/$$d.wasm ; \
-		cp ../target/ink/$$d/$$d.json ../artifacts/$$d.json ; \
-	done
-
 .PHONY: check-amm
 check-amm: check-drink-tests ## Runs cargo (contract) check on AMM contracts.
 	@for d in $(AMM_CONTRACTS_PATHS); do \
@@ -33,7 +22,15 @@ check-amm: check-drink-tests ## Runs cargo (contract) check on AMM contracts.
 	done
 
 .PHONY: build-all
-build-all: build-amm ## Builds all contracts.
+build-all: ## Builds all contracts.
+	@for d in $(AMM_CONTRACTS_PATHS); do \
+	 	echo "Building $$d contract" ; \
+	 	cargo contract build --quiet --manifest-path $$d/Cargo.toml --release ; \
+	done
+	@for d in $(CONTRACTS); do \
+		cp ../target/ink/$$d/$$d.wasm ../artifacts/$$d.wasm ; \
+		cp ../target/ink/$$d/$$d.json ../artifacts/$$d.json ; \
+	done
 
 .PHONY: wrap-all
 wrap-all: ## Generates Rust wrappers for interacting with AMM contracts.
@@ -49,7 +46,7 @@ wrap-all-dockerized: ## Generates Rust wrappers for interacting with AMM contrac
 		make wrap-all
 
 .PHONY: setup-tests
-setup-tests: build-amm wrap-all  ## Builds contracts and generates wrappers.
+setup-tests: build-all wrap-all  ## Builds contracts and generates wrappers.
 
 .PHONY: drink-tests
 drink-tests: ## Runs tests for drink contract.

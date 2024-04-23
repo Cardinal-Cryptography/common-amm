@@ -40,7 +40,7 @@ build-farm: ## Builds farm contracts.
 
 .PHONY: build-amm
 build-amm: ## Builds AMM contracts.
-	@cd amm && make build-amm && cd ..
+	@cd amm && make build-all && cd ..
 
 .PHONY: build-all
 build-all: build-farm build-amm ## Builds all contracts.

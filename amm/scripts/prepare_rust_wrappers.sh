@@ -23,9 +23,4 @@ function wrap_contracts() {
     done
 }
 
-
-function run() {
-    wrap_contracts
-}
-
-run
+wrap_contracts
