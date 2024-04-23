@@ -43,11 +43,7 @@ build-amm: ## Builds AMM contracts.
 	@cd amm && make build-amm && cd ..
 
 .PHONY: build-all
-build-all: build-farm build-amm build-test-contracts ## Builds all contracts.
-
-.PHONY: build-test-contracts
-build-test-contracts: ## Builds contracts used in e2e-tests
-	@cd amm && make build-test-contracts && cd ..
+build-all: build-farm build-amm ## Builds all contracts.
 
 .PHONY: check-farm
 check-farm: ## Runs cargo checks on farm contracts.
@@ -73,7 +69,7 @@ CONTRACT_DATA = ./target/ink
 wrap-all: ## Generates code for contract interaction.
 	@for c in $(notdir $(shell find $(CONTRACT_DATA) -mindepth 1 -maxdepth 1 -type d)); do \
 		echo "Wrapping $$c" ; \
-	 	ink-wrapper -m ./target/ink/$$c/$$c.json --wasm-path ../../../target/ink/$$c/$$c.wasm \
+	 	ink-wrapper -m ./artifacts/$$c.json --wasm-path ../../../artifacts/$$c.wasm \
 	 		| rustfmt --edition 2021 > ./amm/e2e-tests/src/$$c.rs ; \
 	done
 
@@ -82,7 +78,7 @@ e2e-tests: ## Runs all the e2e tests in sequence.
 	@cd amm/e2e-tests && cargo test -- --test-threads 1 && cd ..
 
 .PHONY: build-and-wrap-all
-build-and-wrap-all: build-all build-test-contracts wrap-all ## Builds all contracts and generates code for contract interaction.
+build-and-wrap-all: build-all wrap-all ## Builds all contracts and generates code for contract interaction.
 
 INK_DEV_IMAGE = public.ecr.aws/p6e8q1z1/ink-dev:2.1.0
 
