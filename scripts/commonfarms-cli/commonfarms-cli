@@ -16,8 +16,11 @@ def argument_parser():
                         help='WebSocker URL of the chain (possible shortcuts: mainnet, testnet, local)')
     parser.add_argument('--phrase', metavar='SEED',
                         help='seed phrase of the farm admin account (if not supplied, an interactive prompt will ask for it)')
-    parser.add_argument('--metadata', metavar='PATH', default='../../artifacts/farm_contract.json',
+    parser.add_argument('--farm-metadata', metavar='PATH', default='../../artifacts/farm_contract.json',
                         help='path to farm contract metadata file')
+    parser.add_argument('--psp22-metadata', metavar='PATH', default='../../artifacts/psp22.json',
+                        help='path to PSP22 contract metadata file')
+
     commands = parser.add_subparsers(
         dest='command', required=True, metavar='COMMAND')
 
@@ -61,6 +64,15 @@ def argument_parser():
         '--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
     add_reward_token.add_argument(
         '--token', required=True, metavar='ACCOUNT_ID', help='contract address of the new reward token')
+
+    increase_allowance = commands.add_parser(
+        'increase_allowance', help='increase allowance for the farm to spend TOKEN')
+    increase_allowance.add_argument(
+        '--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
+    increase_allowance.add_argument(
+        '--token', required=True, metavar='ACCOUNT_ID', help='contract address of the token')
+    increase_allowance.add_argument(
+        '--amount', required=True, metavar='AMOUNT', type=int, help='amount to increase allowance')
 
     return parser
 
@@ -146,7 +158,8 @@ def read_contract(chain, contract_address, metadata_file, method, **kwargs):
 
 if __name__ == "__main__":
     args = argument_parser().parse_args()
-    check_file(args.metadata)
+    check_file(args.farm_metadata)
+    check_file(args.psp22_metadata)
     chain = SubstrateInterface(url=check_address(args.chain), type_registry={
                                "types": {"ContractExecResult": "ContractExecResultTo269"}})
     if args.phrase is None and args.command != 'details':
@@ -155,25 +168,31 @@ if __name__ == "__main__":
 
     if args.command == 'create':
         check_account_ids(chain, args.pool, *args.rewards)
-        deploy_contract(chain, keypair, args.metadata, constructor='new',
+        deploy_contract(chain, keypair, args.farm_metadata, constructor='new',
                         pool_id=args.pool, reward_tokens=args.rewards)
     elif args.command == 'start':
         check_account_ids(chain, args.farm)
-        call_contract(chain, keypair, args.farm, args.metadata, method='Farm::owner_start_new_farm',
+        call_contract(chain, keypair, args.farm, args.farm_metadata, method='Farm::owner_start_new_farm',
                       start=args.start, end=args.end, rewards=args.rewards)
     elif args.command == 'stop':
         check_account_ids(chain, args.farm)
-        call_contract(chain, keypair, args.farm, args.metadata,
+        call_contract(chain, keypair, args.farm, args.farm_metadata,
                       method='Farm::owner_stop_farm')
     elif args.command == 'withdraw':
         check_account_ids(chain, args.farm, args.token)
-        call_contract(chain, keypair, args.farm, args.metadata,
+        call_contract(chain, keypair, args.farm, args.farm_metadata,
                       method='Farm::owner_withdraw_token', token=args.token)
     elif args.command == 'add_reward_token':
         check_account_ids(chain, args.farm, args.token)
-        call_contract(chain, keypair, args.farm, args.metadata,
+        call_contract(chain, keypair, args.farm, args.farm_metadata,
                       method='Farm::owner_add_reward_token', token=args.token)
     elif args.command == 'details':
         check_account_ids(chain, args.farm)
-        read_contract(chain, args.farm, args.metadata,
+        read_contract(chain, args.farm, args.farm_metadata,
                       method='Farm::view_farm_details')
+    elif args.command == 'increase_allowance':
+        check_account_ids(chain, args.farm, args.token)
+        call_contract(chain, keypair, args.token, args.psp22_metadata,
+                      method='PSP22::increase_allowance', spender=args.farm, delta_value=args.amount)
+    else:
+        raise ValueError(f'Unknown command: {args.command}')
