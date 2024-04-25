@@ -8,12 +8,13 @@ import { FarmSpec, FarmDetails, Reward } from './types';
 
 // Create a new instance of contract
 const wsProvider = new WsProvider(process.env.WS_NODE);
+
 // Create a keyring instance
 const keyring = new Keyring({ type: 'sr25519' });
 
-const HOUR_MILLIS = 60 * 60 * 1000;
-const DAY_MILLIS = 24 * HOUR_MILLIS;
-const WEEK_MILLIS = 7 * DAY_MILLIS;
+// Read authority seed from env var. 
+const signer = keyring.addFromUri(process.env.AUTHORITY_SEED);
+
 
 function printFarmSpec(farmSpec: FarmSpec): void {
     console.log('Farm spec:');
@@ -53,9 +54,9 @@ async function createAndStartFarm(
     for (let rewardToken of farmSpec.rewards) {
         console.log('Approving token:', rewardToken.token, 'amount:', rewardToken.amount.toString());
         const token = new Token(rewardToken.token, signer, api);
-        await token.tx.approve(farm.address, rewardToken.amount);
+        await token.tx.approve(address, rewardToken.amount);
     }
-    // Check if the farm has a start and end timestamp
+    // Check if the farm has a non-zero start and end timestamps,
     // if they're both 0, farm will not be started.
     if (farmSpec.startTimestamp != 0 && farmSpec.endTimestamp != 0) {
         const res = await farm.tx.ownerStartNewFarm(farmSpec.startTimestamp, farmSpec.endTimestamp, rewardAmounts);
@@ -71,9 +72,8 @@ async function createAndStartFarm(
 
 async function main(): Promise<void> {
     const api = await ApiPromise.create({ provider: wsProvider });
-    const signer = keyring.addFromUri(process.env.AUTHORITY_SEED);
 
-    const farms = loadFarmSpecs('./farm_specs.json');
+    const farms = loadFarmSpecs("put JSON with farm spec here. eg farm_spec.json ");
     if (!farms) {
         throw new Error('No farms found');
     }
