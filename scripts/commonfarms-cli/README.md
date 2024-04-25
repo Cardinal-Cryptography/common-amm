@@ -12,8 +12,8 @@ positional arguments:
     start               schedule a start of an existing farm
     stop                stop an existing farm
     withdraw            withdraw to the admin account all available balance of given token
-    add_reward_token    add a new reward token to an existing farm
-    increase_allowance  increase allowance for the farm to spend TOKEN
+    add-reward-token    add a new reward token to an existing farm
+    increase-allowance  increase allowance for the farm to spend TOKEN
 
 options:
   -h, --help            show this help message and exit

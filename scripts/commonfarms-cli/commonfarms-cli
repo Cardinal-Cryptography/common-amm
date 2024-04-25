@@ -59,14 +59,14 @@ def argument_parser():
                           metavar='ACCOUNT_ID', help='contract address of the token')
 
     add_reward_token = commands.add_parser(
-        'add_reward_token', help='add a new reward token to an existing farm')
+        'add-reward-token', help='add a new reward token to an existing farm')
     add_reward_token.add_argument(
         '--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
     add_reward_token.add_argument(
         '--token', required=True, metavar='ACCOUNT_ID', help='contract address of the new reward token')
 
     increase_allowance = commands.add_parser(
-        'increase_allowance', help='increase allowance for the farm to spend TOKEN')
+        'increase-allowance', help='increase allowance for the farm to spend TOKEN')
     increase_allowance.add_argument(
         '--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
     increase_allowance.add_argument(
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         check_account_ids(chain, args.farm, args.token)
         call_contract(chain, keypair, args.farm, args.farm_metadata,
                       method='Farm::owner_withdraw_token', token=args.token)
-    elif args.command == 'add_reward_token':
+    elif args.command == 'add-reward-token':
         check_account_ids(chain, args.farm, args.token)
         call_contract(chain, keypair, args.farm, args.farm_metadata,
                       method='Farm::owner_add_reward_token', token=args.token)
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         check_account_ids(chain, args.farm)
         read_contract(chain, args.farm, args.farm_metadata,
                       method='Farm::view_farm_details')
-    elif args.command == 'increase_allowance':
+    elif args.command == 'increase-allowance':
         check_account_ids(chain, args.farm, args.token)
         call_contract(chain, keypair, args.token, args.psp22_metadata,
                       method='PSP22::increase_allowance', spender=args.farm, delta_value=args.amount)
