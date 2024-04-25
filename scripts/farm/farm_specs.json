@@ -1,0 +1,13 @@
+[
+    {
+        "poolAddress": "",
+        "rewards": [
+            {
+                "token": "",
+                "amount": ""
+            }
+        ],
+        "startTimestamp": 0,
+        "endTimestamp": 0
+    }
+]

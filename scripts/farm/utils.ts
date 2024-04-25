@@ -1,6 +1,6 @@
 import Token from '../../types/contracts/psp22';
 import fs from 'fs';
-import { PSP22Metadata } from './types';
+import { PSP22Metadata, FarmSpec } from './types';
 
 import { ApiPromise } from '@polkadot/api';
 import { Abi } from '@polkadot/api-contract';
@@ -29,6 +29,34 @@ export function loadAddresses(filePath: string): string[] {
             'Invalid JSON format. The file should contain a JSON array of strings.',
         );
     }
+}
+
+export function loadFarmSpecs(filePath: string): FarmSpec[] {
+    // Read the content of the file
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+
+    // Parse the JSON array from the file content
+    const jsonArray: FarmSpec[] = JSON.parse(fileContent);
+
+    // Make sure the parsed content is an array of strings
+    if (
+        Array.isArray(jsonArray) &&
+        jsonArray.every(
+            (item) =>
+                typeof item === 'object' &&
+                'poolAddress' in item &&
+                'startTimestamp' in item &&
+                'endTimestamp' in item &&
+                'rewards' in item,
+        )
+    ) {
+        return jsonArray;
+    } else {
+        throw new Error(
+            'Invalid JSON format. The file should contain a JSON array of FarmSpec objects.',
+        );
+    }
+
 }
 
 export async function getTokenMetadata(
