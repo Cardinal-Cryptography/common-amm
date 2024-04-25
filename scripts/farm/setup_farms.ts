@@ -24,10 +24,9 @@ function printFarmSpec(farmSpec: FarmSpec): void {
 }
 
 function printRewards(rewards: Reward[]): void {
-    console.log('Picked ' + rewards.length + ' random rewards:')
+    console.log('Picked ' + rewards.length + ' rewards:')
     for (let reward of rewards) {
-        console.log('Token:', reward.token, 'Amount:', reward.amount.toString());
-
+        console.log('\tToken:', reward.token, 'Amount:', reward.amount.toString());
     }
 }
 
@@ -48,16 +47,23 @@ async function createAndStartFarm(
     if (address === undefined) {
         throw new Error('Farm address is undefined');
     }
+    console.log(`Farm ${address} for pool ${farmSpec.poolAddress} created successfully.`);
     const farm = new Farm(address, signer, api);
     const rewardAmounts = farmSpec.rewards.map((reward) => reward.amount);
     for (let rewardToken of farmSpec.rewards) {
+        console.log('Approving token:', rewardToken.token, 'amount:', rewardToken.amount.toString());
         const token = new Token(rewardToken.token, signer, api);
-        await token.tx.approve(address, rewardToken.amount);
+        await token.tx.approve(farm.address, rewardToken.amount);
     }
     // Check if the farm has a start and end timestamp
     // if they're both 0, farm will not be started.
     if (farmSpec.startTimestamp != 0 && farmSpec.endTimestamp != 0) {
-        await farm.tx.ownerStartNewFarm(farmSpec.startTimestamp, farmSpec.endTimestamp, rewardAmounts);
+        const res = await farm.tx.ownerStartNewFarm(farmSpec.startTimestamp, farmSpec.endTimestamp, rewardAmounts);
+        if (res.result.isError) {
+            console.error('Error while starting farm: ', res.result);
+            throw new Error('Error while starting farm');
+        }
+        console.log(`Farm ${address} started successfully.`);
     }
     return { address, spec: farmSpec };
 }

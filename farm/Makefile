@@ -10,6 +10,7 @@ build-farm: ## Builds farm contracts.
 	cargo contract build --quiet --manifest-path contract/Cargo.toml --release ; \
 	cp ../target/ink/farm_contract/farm_contract.wasm ../artifacts/farm_contract.wasm ; \
 	cp ../target/ink/farm_contract/farm_contract.json ../artifacts/farm_contract.json ; \
+	cp ../target/ink/farm_contract/farm_contract.contract ../artifacts/farm_contract.contract ; 
 
 .PHONY: check-farm
 check-farm: ## Runs cargo checks on farm contracts.
