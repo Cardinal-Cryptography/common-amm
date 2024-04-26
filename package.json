@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "compile": "typechain-compiler --noCompile",
+    "compile": "rm -rf /types && typechain-compiler --noCompile",
     "deploy-local": "source scripts/local_env && ts-node scripts/amm/deploy.ts",
     "create-tokens-local": "source scripts/local_env && ts-node scripts/amm/create_tokens.ts",
     "add-liquidity-local": "source scripts/local_env && ts-node scripts/amm/add_liquidity.ts",
