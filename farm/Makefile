@@ -26,16 +26,6 @@ generate-farm-wrapper: build-farm ## Generates Rust wrappers for interacting wit
 				--wasm-path ../../../../artifacts/farm_contract.wasm \
 		| rustfmt --edition 2021 > ./tests/src/farm/farm_contract.rs ; \
 
-.PHONY: generate-psp22-wrapper
-generate-psp22-wrapper: ## Generates Rust wrappers for interacting with PSP22 contracts.
-	@echo "Wrapping PSP22 contract" ; \
-	ink-wrapper --metadata ../artifacts/psp22.json \
-				--wasm-path ../../../../artifacts/psp22.wasm \
-		| rustfmt --edition 2021 > ./tests/src/psp22/psp22_contract.rs ; \
-
-.PHONY: generate-wrappers
-generate-wrappers: generate-psp22-wrapper generate-farm-wrapper ## Generates Rust wrappers for interacting with contracts.
-
 .PHONY: setup-tests
 setup-tests: build-farm generate-wrappers ## Builds contracts and generates wrappers.
 
