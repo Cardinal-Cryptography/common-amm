@@ -30,6 +30,7 @@ build-all: ## Builds all contracts.
 	@for d in $(CONTRACTS); do \
 		cp ../target/ink/$$d/$$d.wasm ../artifacts/$$d.wasm ; \
 		cp ../target/ink/$$d/$$d.json ../artifacts/$$d.json ; \
+		cp ../target/ink/$$d/$$d.contract ../artifacts/$$d.contract ; \
 	done
 
 .PHONY: wrap-all
