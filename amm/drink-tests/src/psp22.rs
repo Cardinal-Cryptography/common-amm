@@ -243,9 +243,7 @@ impl PSP22 for Instance {
 }
 #[allow(dead_code)]
 pub fn upload() -> ink_wrapper_types::UploadCall {
-    let wasm = include_bytes!(
-        "/Users/gorskimateusz/projects/aleph/dex/amm/scripts/../../artifacts/psp22.wasm"
-    );
+    let wasm = include_bytes!("../../../artifacts/psp22.wasm");
     ink_wrapper_types::UploadCall::new(wasm.to_vec(), CODE_HASH)
 }
 impl Instance {

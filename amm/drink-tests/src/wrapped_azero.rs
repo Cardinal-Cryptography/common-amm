@@ -278,9 +278,7 @@ impl PSP22Metadata for Instance {
 }
 #[allow(dead_code)]
 pub fn upload() -> ink_wrapper_types::UploadCall {
-    let wasm = include_bytes!(
-        "/Users/gorskimateusz/projects/aleph/dex/amm/scripts/../../artifacts/wrapped_azero.wasm"
-    );
+    let wasm = include_bytes!("../../../artifacts/wrapped_azero.wasm");
     ink_wrapper_types::UploadCall::new(wasm.to_vec(), CODE_HASH)
 }
 impl Instance {

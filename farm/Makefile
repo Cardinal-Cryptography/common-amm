@@ -27,7 +27,7 @@ generate-farm-wrapper: build-farm ## Generates Rust wrappers for interacting wit
 		| rustfmt --edition 2021 > ./tests/src/farm/farm_contract.rs ; \
 
 .PHONY: setup-tests
-setup-tests: build-farm generate-wrappers ## Builds contracts and generates wrappers.
+setup-tests: build-farm generate-farm-wrapper ## Builds contracts and generates wrappers.
 
 .PHONY: drink-tests
 drink-tests: ## Runs tests for drink contract.
