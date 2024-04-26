@@ -1,9 +1,9 @@
 use scale::Encode as _;
 #[allow(dead_code)]
 pub const CODE_HASH: [u8; 32] = [
-    248u8, 137u8, 81u8, 138u8, 96u8, 170u8, 190u8, 198u8, 105u8, 205u8, 81u8, 39u8, 226u8, 21u8,
-    73u8, 128u8, 64u8, 175u8, 84u8, 99u8, 14u8, 131u8, 42u8, 69u8, 182u8, 180u8, 224u8, 203u8,
-    42u8, 94u8, 85u8, 41u8,
+    199u8, 212u8, 119u8, 36u8, 237u8, 68u8, 63u8, 201u8, 105u8, 219u8, 34u8, 167u8, 29u8, 234u8,
+    219u8, 244u8, 122u8, 163u8, 35u8, 173u8, 17u8, 240u8, 155u8, 153u8, 100u8, 203u8, 208u8, 62u8,
+    171u8, 176u8, 32u8, 190u8,
 ];
 #[derive(Debug, Clone, PartialEq, Eq, scale :: Encode, scale :: Decode)]
 pub enum PSP22Error {
@@ -243,7 +243,9 @@ impl PSP22 for Instance {
 }
 #[allow(dead_code)]
 pub fn upload() -> ink_wrapper_types::UploadCall {
-    let wasm = include_bytes!("../../../artifacts/psp22.wasm");
+    let wasm = include_bytes!(
+        "/Users/gorskimateusz/projects/aleph/dex/amm/scripts/../../artifacts/psp22.wasm"
+    );
     ink_wrapper_types::UploadCall::new(wasm.to_vec(), CODE_HASH)
 }
 impl Instance {

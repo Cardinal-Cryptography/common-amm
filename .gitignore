@@ -13,6 +13,8 @@ addresses.json
 
 # Ignore Rust contract wrappers.
 amm/drink-tests/src/*_contract.rs
+amm/drink-tests/src/psp22.rs
+amm/drink-tests/src/wrapped_azero.rs
 amm/drink-tests/resources/*.wasm
 farm/tests/src/farm/farm_contract.rs
 

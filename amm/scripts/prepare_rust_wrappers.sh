@@ -10,6 +10,8 @@ declare -a CONTRACTS=(
     "factory_contract" 
     "pair_contract" 
     "router_contract"
+    "wrapped_azero"
+    "psp22"
 )
 
 function wrap_contracts() {
