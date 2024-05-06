@@ -1,0 +1,33 @@
+[
+    {
+        "poolAddress": "5CeBqTSxjn7wuu9U7aZb3zpMi8B7EuKUFgeZbm6jXgBytp2f",
+        "rewards": [
+            {
+                "token": "5GbgQsUockA8cG6VV9AMesudFC5Z9HZBeGrgURsX2tarUynh",
+                "amount": 3139717425
+            },
+            {
+                "token": "5EFDb7mKbougLtr5dnwd5KDfZ3wK55JPGPLiryKq4uRMPR46",
+                "amount": "12500000000000000"
+            },
+            {
+                "token": "5GCESNyxspadqV267XA1jr1dUs5gQpM5fK8vWf2mbUCHrNcX",
+                "amount": 303030303030
+            },
+            {
+                "token": "5F4baaKHqbP9D3pzL82T8ETG8p5iSojaPnuAJmNk5rh7tiKs",
+                "amount": 10330578512
+            },
+            {
+                "token": "5F15fXseSeKtmjmUUrERV7rXwBQDmpS1RMepniiYLiMWEhkf",
+                "amount": 2512562814
+            },
+            {
+                "token": "5EgZssw2zdRNd6ptEm5RMvh4aJebLhdfsdFPECUrCWRMB4bJ",
+                "amount": 4662004662
+            }
+        ],
+        "startTimestamp": 1714132800000,
+        "endTimestamp": 1716624000000
+    }
+]

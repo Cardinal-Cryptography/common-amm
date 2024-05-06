@@ -1,8 +1,8 @@
 {
   "source": {
-    "hash": "0xf889518a60aabec669cd5127e215498040af54630e832a45b6b4e0cb2a5e5529",
+    "hash": "0x552da067af31e1e8f24c6b89accd9925c478058ca75e08f6eb8b6314ea93ec31",
     "language": "ink! 4.3.0",
-    "compiler": "rustc 1.72.1",
+    "compiler": "rustc 1.77.2",
     "build_info": {
       "build_mode": "Release",
       "cargo_contract_version": "3.2.0",
@@ -15,7 +15,7 @@
   },
   "contract": {
     "name": "psp22",
-    "version": "0.2.2",
+    "version": "1.0.0",
     "authors": [
       "Cardinal"
     ],

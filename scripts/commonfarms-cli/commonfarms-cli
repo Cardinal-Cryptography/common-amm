@@ -13,18 +13,23 @@ def argument_parser():
     parser = ArgumentParser(prog='commonfarms-cli', description='Command line tool for management of Common Farms')
     parser.add_argument('--chain', metavar='URL', default='local', help='WebSocker URL of the chain (possible shortcuts: mainnet, testnet, local)')
     parser.add_argument('--phrase', metavar='SEED', help='seed phrase of the farm admin account (if not supplied, an interactive prompt will ask for it)')
-    parser.add_argument('--metadata', metavar='PATH', default='../../artifacts/farm_contract.json', help='path to farm contract metadata file')
+    parser.add_argument('--farm-metadata', metavar='PATH', default='../../artifacts/farm_contract.json', help='path to farm contract metadata file')
+    parser.add_argument('--psp22-metadata', metavar='PATH', default='../../artifacts/psp22.json', help='path to PSP22 contract metadata file')
+
     commands = parser.add_subparsers(dest='command', required=True, metavar='COMMAND')
 
     create = commands.add_parser('create', help='create a new farm for given trading pool')
     create.add_argument('--pool', required=True, metavar='ACCOUNT_ID', help='contract address of the trading pool')
     create.add_argument('--rewards', required=True, nargs='+', metavar='ACCOUNT_ID', help='contract addresses of PSP22 tokens distributed as rewards')
 
+    details = commands.add_parser('details', help='get details of an existing farm')
+    details.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
+
     start = commands.add_parser('start', help='schedule a start of an existing farm')
     start.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
     start.add_argument('--start', required=True, metavar='TIMESTAMP', type=int, help='start time')
     start.add_argument('--end', required=True, metavar='TIMESTAMP', type=int, help='end time')
-    start.add_argument('--rewards', required=True, nargs='+', metavar='TIMESTAMP', type=int, help='end time')
+    start.add_argument('--rewards', required=True, nargs='+', metavar='AMOUNT', type=int, help='Reward tokens amounts')
 
     stop = commands.add_parser('stop', help='stop an existing farm')
     stop.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
@@ -33,9 +38,14 @@ def argument_parser():
     withdraw.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
     withdraw.add_argument('--token', required=True, metavar='ACCOUNT_ID', help='contract address of the token')
 
-    add_reward_token = commands.add_parser('add_reward_token', help='add a new reward token to an existing farm')
+    add_reward_token = commands.add_parser('add-reward-token', help='add a new reward token to an existing farm')
     add_reward_token.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
     add_reward_token.add_argument('--token', required=True, metavar='ACCOUNT_ID', help='contract address of the new reward token')
+
+    increase_allowance = commands.add_parser('increase-allowance', help='increase allowance for the farm to spend TOKEN')
+    increase_allowance.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
+    increase_allowance.add_argument('--token', required=True, metavar='ACCOUNT_ID', help='contract address of the token')
+    increase_allowance.add_argument('--amount', required=True, metavar='AMOUNT', type=int, help='amount to increase allowance')
 
     return parser
 
@@ -76,7 +86,7 @@ def deploy_contract(chain, keypair, metadata_file, constructor, **kwargs):
     metadata = ContractMetadata.create_from_file(metadata_file, chain)
     contract_name = metadata.metadata_dict['contract']['name']
     code_hash = metadata.metadata_dict['source']['hash']
-    print(f'*** Deploying contract {contract_name} with constructor:\n    {format_call(constructor, kwargs)}')
+    print(f'*** Deploying contract {contract_name} to {chain.url} with constructor:\n    {format_call(constructor, kwargs)}')
     code = ContractCode(code_hash=bytes.fromhex(code_hash[2:]), metadata=metadata, substrate=chain)
     contract = code.deploy(keypair=keypair, constructor=constructor, args=kwargs, deployment_salt=str(time()), gas_limit={'ref_time': 25990000000, 'proof_size': 119903})
     print(f'*** Contract deployment successful. Contract address: \n    {contract.contract_address}')
@@ -96,28 +106,50 @@ def call_contract(chain, keypair, contract_address, metadata_file, method, **kwa
     return receipt
 
 
+def read_contract(chain, contract_address, metadata_file, method, **kwargs):
+    contract = ContractInstance.create_from_address(
+        contract_address, metadata_file, chain)
+    print(f'*** Reading contract {contract_address} with method:\n    {format_call(method, kwargs)}')
+
+    # Read contract method with dummy keypair.
+    dummy_keypair = Keypair.create_from_mnemonic(Keypair.generate_mnemonic())
+    receipt = contract.read(method=method, keypair=dummy_keypair, args=kwargs)
+    if receipt.contract_result_data is not None:
+        print(f'*** Contract call successful:\n {receipt.contract_result_data[1]}')
+    return receipt
+
+
 if __name__ == "__main__":
     args = argument_parser().parse_args()
-    check_file(args.metadata)
+    check_file(args.farm_metadata)
+    check_file(args.psp22_metadata)
     chain = SubstrateInterface(url=check_address(args.chain), type_registry={"types": {"ContractExecResult": "ContractExecResultTo269"}})
-    if args.phrase is None:
+    if args.phrase is None and args.command != 'details':
         args.phrase = getpass('Please enter the seed phrase: ')
-    keypair = Keypair.create_from_uri(args.phrase)
+        keypair = Keypair.create_from_uri(args.phrase)
 
     if args.command == 'create':
         check_account_ids(chain, args.pool, *args.rewards)
-        deploy_contract(chain, keypair, args.metadata, constructor='new', pool_id=args.pool, reward_tokens=args.rewards)
+        deploy_contract(chain, keypair, args.farm_metadata, constructor='new',
+                        pool_id=args.pool, reward_tokens=args.rewards)
     elif args.command == 'start':
         check_account_ids(chain, args.farm)
-        call_contract(chain, keypair, args.farm, args.metadata, method='Farm::owner_start_new_farm', start=args.start, end=args.end, rewards=args.rewards)
+        call_contract(chain, keypair, args.farm, args.farm_metadata, method='Farm::owner_start_new_farm', start=args.start, end=args.end, rewards=args.rewards)
     elif args.command == 'stop':
         check_account_ids(chain, args.farm)
-        call_contract(chain, keypair, args.farm, args.metadata, method='Farm::owner_stop_farm')
+        call_contract(chain, keypair, args.farm, args.farm_metadata, method='Farm::owner_stop_farm')
     elif args.command == 'withdraw':
         check_account_ids(chain, args.farm, args.token)
-        call_contract(chain, keypair, args.farm, args.metadata, method='Farm::owner_withdraw_token', token=args.token)
-    elif args.command == 'add_reward_token':
+        call_contract(chain, keypair, args.farm, args.farm_metadata,
+                      method='Farm::owner_withdraw_token', token=args.token)
+    elif args.command == 'add-reward-token':
         check_account_ids(chain, args.farm, args.token)
-        call_contract(chain, keypair, args.farm, args.metadata, method='Farm::owner_add_reward_token', token=args.token)
+        call_contract(chain, keypair, args.farm, args.farm_metadata, method='Farm::owner_add_reward_token', token=args.token)
+    elif args.command == 'details':
+        check_account_ids(chain, args.farm)
+        read_contract(chain, args.farm, args.farm_metadata, method='Farm::view_farm_details')
+    elif args.command == 'increase-allowance':
+        check_account_ids(chain, args.farm, args.token)
+        call_contract(chain, keypair, args.token, args.psp22_metadata, method='PSP22::increase_allowance', spender=args.farm, delta_value=args.amount)
     else:
         raise ValueError(f'Unknown command: {args.command}')

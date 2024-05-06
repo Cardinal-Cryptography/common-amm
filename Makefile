@@ -63,6 +63,11 @@ format: ## Formats contract files.
 
 CONTRACT_DATA = ./target/ink
 
+.PHONY: wrap-all
+wrap-all: ## Generates Rust wrappers for interacting with AMM contracts.
+	@cd amm && make wrap-all && cd ..
+	@cd farm && make generate-farm-wrapper && cd ..
+
 .PHONY: build-and-wrap-all
 build-and-wrap-all: build-all wrap-all ## Builds all contracts and generates code for contract interaction.
 

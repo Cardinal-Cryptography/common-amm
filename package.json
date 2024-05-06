@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "compile": "source scripts/cp_contract_artifacts.sh && typechain-compiler --noCompile",
+    "compile": "rm -rf /types && typechain-compiler --noCompile",
     "deploy-local": "source scripts/local_env && ts-node scripts/amm/deploy.ts",
     "create-tokens-local": "source scripts/local_env && ts-node scripts/amm/create_tokens.ts",
     "add-liquidity-local": "source scripts/local_env && ts-node scripts/amm/add_liquidity.ts",
@@ -13,10 +13,10 @@
   "dependencies": {
     "@727-ventures/typechain-compiler": "^1.1.0",
     "@727-ventures/typechain-types": "^1.1.0",
-    "@typescript-eslint/eslint-plugin": "^4.8.2",
-    "@typescript-eslint/parser": "^4.8.2",
     "@polkadot/api": "^10.9.1",
     "@polkadot/api-contract": "^10.9.1",
+    "@typescript-eslint/eslint-plugin": "^4.8.2",
+    "@typescript-eslint/parser": "^4.8.2",
     "eslint": "^7.26.0",
     "eslint-config-prettier": "^8.6.0",
     "eslint-plugin-import": "^2.22.1",
