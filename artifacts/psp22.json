@@ -1,6 +1,6 @@
 {
   "source": {
-    "hash": "0xc7d47724ed443fc969db22a71deadbf47aa323ad11f09b9964cbd03eabb020be",
+    "hash": "0x552da067af31e1e8f24c6b89accd9925c478058ca75e08f6eb8b6314ea93ec31",
     "language": "ink! 4.3.0",
     "compiler": "rustc 1.77.2",
     "build_info": {
@@ -15,7 +15,7 @@
   },
   "contract": {
     "name": "psp22",
-    "version": "0.2.2",
+    "version": "1.0.0",
     "authors": [
       "Cardinal"
     ],

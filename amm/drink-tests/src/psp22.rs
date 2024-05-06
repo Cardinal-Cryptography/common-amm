@@ -1,9 +1,9 @@
 use scale::Encode as _;
 #[allow(dead_code)]
 pub const CODE_HASH: [u8; 32] = [
-    199u8, 212u8, 119u8, 36u8, 237u8, 68u8, 63u8, 201u8, 105u8, 219u8, 34u8, 167u8, 29u8, 234u8,
-    219u8, 244u8, 122u8, 163u8, 35u8, 173u8, 17u8, 240u8, 155u8, 153u8, 100u8, 203u8, 208u8, 62u8,
-    171u8, 176u8, 32u8, 190u8,
+    85u8, 45u8, 160u8, 103u8, 175u8, 49u8, 225u8, 232u8, 242u8, 76u8, 107u8, 137u8, 172u8, 205u8,
+    153u8, 37u8, 196u8, 120u8, 5u8, 140u8, 167u8, 94u8, 8u8, 246u8, 235u8, 139u8, 99u8, 20u8,
+    234u8, 147u8, 236u8, 49u8,
 ];
 #[derive(Debug, Clone, PartialEq, Eq, scale :: Encode, scale :: Decode)]
 pub enum PSP22Error {
