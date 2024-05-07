@@ -287,7 +287,7 @@ mod farm {
                     rr.0.checked_div(U256::from(SCALING_FACTOR))
                         .ok_or(MathError::DivByZero(4))?
                         .try_into()
-                        .map_err(|_| MathError::Overflow(3))?,
+                        .map_err(|_| MathError::CastOverflow(3))?,
                 );
             }
             Ok(rates)
@@ -523,11 +523,11 @@ mod farm {
 
         let time_delta = to_timestamp
             .checked_sub(from_timestamp)
-            .ok_or(MathError::Underflow)?;
+            .ok_or(MathError::SubUnderflow(1))?;
 
         reward_rate
             .checked_mul(U256::from(time_delta))
-            .ok_or(MathError::Overflow(1))?
+            .ok_or(MathError::MulOverflow(1))?
             .checked_div(U256::from(total_shares))
             .ok_or(MathError::DivByZero(1))
     }
@@ -540,11 +540,11 @@ mod farm {
     ) -> Result<u128, MathError> {
         rewards_per_share
             .checked_mul(U256::from(shares))
-            .ok_or(MathError::Overflow(2))?
+            .ok_or(MathError::MulOverflow(2))?
             .checked_div(U256::from(SCALING_FACTOR))
             .ok_or(MathError::DivByZero(2))?
             .try_into()
-            .map_err(|_| MathError::CastOverflow)
+            .map_err(|_| MathError::CastOverflow(1))
     }
 
     pub fn no_duplicates<A: Eq + PartialEq>(v: &[A]) -> bool {
