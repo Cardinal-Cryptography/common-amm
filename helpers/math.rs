@@ -7,8 +7,9 @@ pub fn casted_mul(a: u128, b: u128) -> U256 {
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum MathError {
-    Overflow(u8),
-    Underflow,
+    AddOverflow(u8),
+    CastOverflow(u8),
     DivByZero(u8),
-    CastOverflow,
+    MulOverflow(u8),
+    SubUnderflow(u8),
 }
