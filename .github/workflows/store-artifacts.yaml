@@ -1,0 +1,34 @@
+name: Store contract artifacts
+
+on:
+  push:
+    branches:
+    - add-workflow-to-store-artifacts
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: [self-hosted, Linux, X64, large]
+    steps:
+    - name: Checkout the source code
+      uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Cache Crates
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo 
+        key: ${{ runner.os }}-rust-${{ hashFiles('rust-toolchain.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-rust
+
+    - name: Build contracts
+      run: make build-amm
+
+    - name: Print out files
+      run: |
+        find artifacts
