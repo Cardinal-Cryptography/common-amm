@@ -31,8 +31,7 @@ jobs:
 
     - name: Build contracts
       run: |
-        cargo install cargo-contract
-        make build-amm
+        make build-dockerized
 
     - name: Print out files
       run: |
