@@ -30,7 +30,9 @@ jobs:
           ${{ runner.os }}-rust
 
     - name: Build contracts
-      run: make build-amm
+      run: |
+        cargo install contract
+        make build-amm
 
     - name: Print out files
       run: |
