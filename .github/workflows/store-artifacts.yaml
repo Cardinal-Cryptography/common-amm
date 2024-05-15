@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  store:
     runs-on: [self-hosted, Linux, X64, large]
     steps:
     - name: Checkout the source code
@@ -31,7 +31,7 @@ jobs:
 
     - name: Build contracts
       run: |
-        cargo install contract
+        cargo install cargo-contract
         make build-amm
 
     - name: Print out files
