@@ -18,6 +18,9 @@ jobs:
       with:
         submodules: true
 
+    - name: Install Rust toolchain
+      uses: Cardinal-Cryptography/github-actions/install-rust-toolchain@v6
+
     - name: Cache Crates
       uses: actions/cache@v3
       with:
@@ -32,3 +35,16 @@ jobs:
     - name: Print out files
       run: |
         find artifacts
+
+    #- name: Store artifact in S3 bucket
+    #  uses: Cardinal-Cryptography/github-actions/store-contract-artifact@v6
+    #  with:
+    #    aws-access-key-id: ${{ secrets.CONTRACTS_CMN_ARTIFACTS_RW_AWS_ACCESS_KEY_ID }}
+    #    aws-secret-access-key: ${{ secrets.CONTRACTS_CMN_ARTIFACTS_RW_AWS_SECRET_ACCESS_KEY }}
+    #    aws-region: ${{ secrets.CONTRACTS_S3BUCKET_REGION }}
+    #    s3-bucket: ${{ secrets.CONTRACTS_S3BUCKET_NAME }}
+    #    project: common
+    #    version: ${{ github.sha }}
+    #    contract: azero_router
+    #    src-artifact: artifacts/router
+    #    if-exist: overwrite
