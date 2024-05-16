@@ -12,12 +12,12 @@ jobs:
     runs-on: [self-hosted, Linux, X64, large]
     steps:
     - name: Checkout the source code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         submodules: true
 
     - name: Cache Crates
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo 
         key: ${{ runner.os }}-rust-${{ hashFiles('rust-toolchain.toml') }}
