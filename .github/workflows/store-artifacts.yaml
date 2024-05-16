@@ -3,7 +3,7 @@ name: Store contract artifacts
 on:
   push:
     branches:
-    - add-workflow-to-store-artifacts
+    - main
 
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -33,7 +33,7 @@ jobs:
       run: |
         make build-dockerized
 
-    - name: Print out files
+    - name: Prepare files to be uploaded
       run: |
         find artifacts
         mkdir tmp-artifacts-to-upload
