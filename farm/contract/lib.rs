@@ -5,7 +5,7 @@ mod farm {
     type TokenId = AccountId;
     type UserId = AccountId;
     use amm_helpers::{ensure, math::casted_mul, types::WrappedU256};
-    use farm_trait::{Farm, FarmDetails, FarmError};
+    use farm_trait::{Farm, FarmDetails, FarmError, Ownable};
     use ink::{codegen::EmitEvent, contract_ref, reflect::ContractEventBase, storage::Mapping};
 
     use ink::prelude::{vec, vec::Vec};
@@ -508,6 +508,21 @@ mod farm {
                 reward_tokens: self.reward_tokens.clone(),
                 reward_rates: self.reward_rates_to_u128().unwrap(),
             }
+        }
+    }
+
+    impl Ownable for FarmContract {
+        #[ink(message)]
+        fn owner(&self) -> AccountId {
+            self.owner
+        }
+
+        #[ink(message)]
+        fn set_owner(&mut self, new_owner: AccountId) -> Result<(), FarmError> {
+            ensure!(self.env().caller() == self.owner, FarmError::CallerNotOwner);
+            ensure!(!self.is_active, FarmError::FarmIsRunning);
+            self.owner = new_owner;
+            Ok(())
         }
     }
 

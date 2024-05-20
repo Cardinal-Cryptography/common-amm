@@ -133,3 +133,12 @@ pub trait Farm {
     #[ink(message)]
     fn view_farm_details(&self) -> FarmDetails;
 }
+
+#[ink::trait_definition]
+pub trait Ownable {
+    #[ink(message)]
+    fn set_owner(&mut self, new_owner: AccountId) -> Result<(), FarmError>;
+
+    #[ink(message)]
+    fn owner(&self) -> AccountId;
+}
