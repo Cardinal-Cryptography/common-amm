@@ -7,6 +7,8 @@ from time import time
 
 from substrateinterface import Keypair, SubstrateInterface, ContractCode, ContractInstance, ContractMetadata
 
+TESTNET_AZERO = '5EFDb7mKbougLtr5dnwd5KDfZ3wK55JPGPLiryKq4uRMPR46'
+MAINNET_AZERO = '5CtuFVgEUz13SFPVY6s2cZrnLDEkxQXc19aXrNARwEBeCXgg'
 
 def argument_parser():
     """Create command line arguments parser."""
@@ -15,12 +17,13 @@ def argument_parser():
     parser.add_argument('--phrase', metavar='SEED', help='seed phrase of the farm admin account (if not supplied, an interactive prompt will ask for it)')
     parser.add_argument('--farm-metadata', metavar='PATH', default='../../artifacts/farm_contract.json', help='path to farm contract metadata file')
     parser.add_argument('--psp22-metadata', metavar='PATH', default='../../artifacts/psp22.json', help='path to PSP22 contract metadata file')
+    parser.add_argument('--wazero-metadata', metavar='PATH', default='../../artifacts/wrapped_azero.json', help='path to wAZERO contract metadata file')
 
     commands = parser.add_subparsers(dest='command', required=True, metavar='COMMAND')
 
     create = commands.add_parser('create', help='create a new farm for given trading pool')
     create.add_argument('--pool', required=True, metavar='ACCOUNT_ID', help='contract address of the trading pool')
-    create.add_argument('--rewards', required=True, nargs='+', metavar='ACCOUNT_ID', help='contract addresses of PSP22 tokens distributed as rewards')
+    create.add_argument('--rewards', required=True, nargs='+', metavar='ACCOUNT_ID', help='contract addresses of PSP22 tokens distributed as rewards. Space separated.')
 
     details = commands.add_parser('details', help='get details of an existing farm')
     details.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
@@ -47,6 +50,10 @@ def argument_parser():
     increase_allowance.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
     increase_allowance.add_argument('--token', required=True, metavar='ACCOUNT_ID', help='contract address of the token')
     increase_allowance.add_argument('--amount', required=True, metavar='AMOUNT', type=int, help='amount to increase allowance')
+
+    wrap_azero = commands.add_parser('wrap-azero', help='wraps native A0 into wrapped AZERO representation')
+    wrap_azero.add_argument('--address', required=False, metavar='ACCOUNT_ID', help='contract address of the wrapped A0 token')
+    wrap_azero.add_argument('--amount', required=True, metavar='AMOUNT', type=int, help='amount of A0 to wrap')
 
     return parser
 
@@ -158,5 +165,14 @@ if __name__ == "__main__":
     elif args.command == 'increase-allowance':
         check_account_ids(chain, args.farm, args.token)
         call_contract(chain, keypair, args.token, args.psp22_metadata, method='PSP22::increase_allowance', spender=args.farm, delta_value=args.amount)
+    elif args.command == 'wrap-azero':
+        if not args.address and args.chain == 'mainnet':
+            args.address = MAINNET_AZERO
+        elif not args.address and args.chain == 'testnet':
+            args.address = TESTNET_AZERO
+        else:
+            raise ValueError('Wrapped A0 contract address must be provided for wrapping')
+        check_account_ids(chain, args.address)
+        call_contract(chain, keypair, args.address, args.wazero_metadata, method='WrappedAZERO::deposit', amount=args.amount)
     else:
         raise ValueError(f'Unknown command: {args.command}')
