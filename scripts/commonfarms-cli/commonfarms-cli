@@ -128,6 +128,8 @@ if __name__ == "__main__":
     if args.phrase is None and args.command != 'details':
         args.phrase = getpass('Please enter the seed phrase: ')
         keypair = Keypair.create_from_uri(args.phrase)
+    elif args.command != 'details':
+        keypair = Keypair.create_from_uri(args.phrase)
 
     if args.command == 'create':
         check_account_ids(chain, args.pool, *args.rewards)
