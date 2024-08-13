@@ -30,8 +30,8 @@ def argument_parser():
 
     start = commands.add_parser('start', help='schedule a start of an existing farm')
     start.add_argument('--farm', required=True, metavar='ACCOUNT_ID', help='contract address of the farm')
-    start.add_argument('--start', required=True, metavar='TIMESTAMP', type=int, help='start time')
-    start.add_argument('--end', required=True, metavar='TIMESTAMP', type=int, help='end time')
+    start.add_argument('--start', required=True, metavar='TIMESTAMP', type=int, help='start time, in unix timestamp, milliseconds')
+    start.add_argument('--end', required=True, metavar='TIMESTAMP', type=int, help='end time, in unix timestamp, milliseconds')
     start.add_argument('--tokens', required=True, nargs='+', metavar='ACCOUNT_ID', help='contract addresses of the reward tokens')
     start.add_argument('--rewards', required=True, nargs='+', metavar='AMOUNT', type=int, help='Reward tokens amounts. !!! NOTE !!! The amounts are "raw" numbers - i.e. do not account for token\'s decimals.')
 
@@ -51,7 +51,7 @@ def argument_parser():
     increase_allowance.add_argument('--token', required=True, metavar='ACCOUNT_ID', help='contract address of the token')
     increase_allowance.add_argument('--amount', required=True, metavar='AMOUNT', type=int, help='amount to increase allowance')
 
-    wrap_azero = commands.add_parser('wrap-azero', help='wraps native A0 into wrapped AZERO representation')
+    wrap_azero = commands.add_parser('wrap-azero', help='wraps native A0 into wrapped AZERO representation. !!! NOTE !!! The amounts are "raw" numbers, i.e. 1 AZERO = 10^12 raw')
     wrap_azero.add_argument('--address', required=False, metavar='ACCOUNT_ID', help='contract address of the wrapped A0 token')
     wrap_azero.add_argument('--amount', required=True, metavar='AMOUNT', type=int, help='amount of A0 to wrap')
 
@@ -101,10 +101,10 @@ def deploy_contract(chain, keypair, metadata_file, constructor, **kwargs):
     return contract
 
 
-def call_contract(chain, keypair, contract_address, metadata_file, method, **kwargs):
+def call_contract(chain, keypair, contract_address, metadata_file, method, value=0, **kwargs):
     contract = ContractInstance.create_from_address(contract_address, metadata_file, chain)
     print(f'*** Calling contract {contract_address} with method:\n    {format_call(method, kwargs)}')
-    receipt = contract.exec(keypair=keypair, method=method, args=kwargs)
+    receipt = contract.exec(keypair=keypair, method=method, args=kwargs, value=value)
     if receipt.is_success:
         print(f'*** Contract call successful. Extrinsic identifier {receipt.get_extrinsic_identifier()}')
     else:
@@ -173,9 +173,9 @@ if __name__ == "__main__":
             args.address = MAINNET_AZERO
         elif not args.address and args.chain == 'testnet':
             args.address = TESTNET_AZERO
-        else:
+        elif not args.address:
             raise ValueError('Wrapped A0 contract address must be provided for wrapping')
         check_account_ids(chain, args.address)
-        call_contract(chain, keypair, args.address, args.wazero_metadata, method='WrappedAZERO::deposit', amount=args.amount)
+        call_contract(chain, keypair, args.address, args.wazero_metadata, method='WrappedAZERO::deposit', value=args.amount)
     else:
         raise ValueError(f'Unknown command: {args.command}')
