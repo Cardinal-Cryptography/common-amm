@@ -51,9 +51,9 @@ def argument_parser():
     increase_allowance.add_argument('--token', required=True, metavar='ACCOUNT_ID', help='contract address of the token')
     increase_allowance.add_argument('--amount', required=True, metavar='AMOUNT', type=int, help='amount to increase allowance')
 
-    wrap_azero = commands.add_parser('wrap-azero', help='wraps native A0 into wrapped AZERO representation. !!! NOTE !!! The amounts are "raw" numbers, i.e. 1 AZERO = 10^12 raw')
-    wrap_azero.add_argument('--address', required=False, metavar='ACCOUNT_ID', help='contract address of the wrapped A0 token')
-    wrap_azero.add_argument('--amount', required=True, metavar='AMOUNT', type=int, help='amount of A0 to wrap')
+    wrap_azero = commands.add_parser('wrap-azero', help='wraps native A0 into wrapped AZERO representation')
+    wrap_azero.add_argument('--address', required=False, metavar='ACCOUNT_ID', help='Contract address of the wrapped A0 token. If not provided, the wrapped azero address for `--chain` will be used.')
+    wrap_azero.add_argument('--amount', required=True, metavar='AMOUNT', type=int, help='Amount of A0 to wrap.  !!! NOTE !!! The amounts are "raw" numbers, i.e. 1 AZERO = 10^12 raw.')
 
     return parser
 
@@ -104,6 +104,12 @@ def deploy_contract(chain, keypair, metadata_file, constructor, **kwargs):
 def call_contract(chain, keypair, contract_address, metadata_file, method, value=0, **kwargs):
     contract = ContractInstance.create_from_address(contract_address, metadata_file, chain)
     print(f'*** Calling contract {contract_address} with method:\n    {format_call(method, kwargs)}')
+    if value > 0:
+        print(f'*** {value / 10**12:.12f} AZERO will be sent with the call as `value` to the contract. Continue? [y/N]')
+        if input().strip() != 'y':
+            print('Operation cancelled by user')
+            return
+
     receipt = contract.exec(keypair=keypair, method=method, args=kwargs, value=value)
     if receipt.is_success:
         print(f'*** Contract call successful. Extrinsic identifier {receipt.get_extrinsic_identifier()}')
