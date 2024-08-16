@@ -5,6 +5,9 @@ artifacts/*
 !/artifacts/psp22*
 !/artifacts/wrapped_azero*
 
+# Commit also farms artifact.
+!/artifacts/farm_contract*
+
 # Ignore TypeScript contract wrappers.
 types/
 
