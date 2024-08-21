@@ -12,4 +12,5 @@ pub enum MathError {
     DivByZero(u8),
     MulOverflow(u8),
     SubUnderflow(u8),
+    Precision(u8),
 }
