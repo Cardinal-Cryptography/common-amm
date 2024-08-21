@@ -1065,6 +1065,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ed09ef1760e8be9b64b7f739f1cf9a94528130be475d8e4f2d1be1e690c9f9c"
 
 [[package]]
+name = "stable_pool_contract"
+version = "0.1.0"
+dependencies = [
+ "amm-helpers",
+ "ink",
+ "parity-scale-codec",
+ "psp22",
+ "scale-info",
+ "traits",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
