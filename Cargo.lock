@@ -23,6 +23,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "amm-helpers"
+version = "0.2.0"
+source = "git+https://github.com/Cardinal-Cryptography/common-amm-stable-swap.git#cb8a8bd9b03dd1061a9a2a97142f07cf1b04d800"
+dependencies = [
+ "ink",
+ "ink_metadata",
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
+]
+
+[[package]]
 name = "array-init"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -230,19 +242,19 @@ dependencies = [
 name = "factory_contract"
 version = "0.1.0"
 dependencies = [
- "amm-helpers",
+ "amm-helpers 0.2.0",
  "ink",
  "pair_contract",
  "parity-scale-codec",
  "scale-info",
- "traits",
+ "traits 0.2.0",
 ]
 
 [[package]]
 name = "farm-trait"
 version = "0.1.0"
 dependencies = [
- "amm-helpers",
+ "amm-helpers 0.2.0",
  "ink",
  "parity-scale-codec",
  "psp22",
@@ -253,7 +265,7 @@ dependencies = [
 name = "farm_contract"
 version = "0.1.0"
 dependencies = [
- "amm-helpers",
+ "amm-helpers 0.2.0",
  "farm-trait",
  "ink",
  "parity-scale-codec",
@@ -660,14 +672,14 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 name = "pair_contract"
 version = "0.1.0"
 dependencies = [
- "amm-helpers",
+ "amm-helpers 0.2.0",
  "ink",
  "parity-scale-codec",
  "primitive-types",
  "psp22",
  "scale-info",
  "sp-arithmetic",
- "traits",
+ "traits 0.2.0",
 ]
 
 [[package]]
@@ -844,12 +856,12 @@ checksum = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
 name = "router_contract"
 version = "0.1.0"
 dependencies = [
- "amm-helpers",
+ "amm-helpers 0.2.0",
  "ink",
  "parity-scale-codec",
  "psp22",
  "scale-info",
- "traits",
+ "traits 0.2.0",
  "wrapped-azero",
 ]
 
@@ -1162,7 +1174,23 @@ dependencies = [
 name = "traits"
 version = "0.2.0"
 dependencies = [
- "amm-helpers",
+ "amm-helpers 0.2.0",
+ "ink",
+ "ink_metadata",
+ "parity-scale-codec",
+ "primitive-types",
+ "psp22",
+ "scale-info",
+ "sp-arithmetic",
+ "traits 0.2.0 (git+https://github.com/Cardinal-Cryptography/common-amm-stable-swap.git)",
+]
+
+[[package]]
+name = "traits"
+version = "0.2.0"
+source = "git+https://github.com/Cardinal-Cryptography/common-amm-stable-swap.git#cb8a8bd9b03dd1061a9a2a97142f07cf1b04d800"
+dependencies = [
+ "amm-helpers 0.2.0 (git+https://github.com/Cardinal-Cryptography/common-amm-stable-swap.git)",
  "ink",
  "ink_metadata",
  "parity-scale-codec",

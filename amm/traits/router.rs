@@ -1,4 +1,4 @@
-use crate::{Balance, FactoryError, MathError, PairError};
+use crate::{Balance, FactoryError, PairError, StablePoolError, MathError};
 use ink::{
     prelude::{string::String, vec::Vec},
     primitives::AccountId,
@@ -6,11 +6,16 @@ use ink::{
 };
 use psp22::PSP22Error;
 
+pub type PoolId = AccountId;
+pub type TokenId = AccountId;
+
+pub type Step = (PoolId, TokenId);
+
 #[ink::trait_definition]
 pub trait Router {
     /// Returns address of the `Factory` contract for this `Router` instance.
     #[ink(message)]
-    fn factory(&self) -> AccountId;
+    fn pair_factory(&self) -> AccountId;
 
     /// Returns address of the `WrappedNative` contract for this `Router` instance.
     #[ink(message)]
@@ -87,7 +92,7 @@ pub trait Router {
         deadline: u64,
     ) -> Result<(u128, Balance), RouterError>;
 
-    /// Exchanges tokens along `path` tokens.
+    /// Exchanges tokens along `path` pools and tokens.
     /// Starts with `amount_in` and pair under `(path[0], path[1])` address.
     /// Fails if output amount is less than `amount_out_min`.
     /// Transfers tokens to account under `to` address.
@@ -96,12 +101,12 @@ pub trait Router {
         &mut self,
         amount_in: u128,
         amount_out_min: u128,
-        path: Vec<AccountId>,
+        path: Vec<Step>,
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<u128>, RouterError>;
 
-    /// Exchanges tokens along `path` token pairs
+    /// Exchanges tokens along `path` pools and tokens
     /// so that at the end caller receives `amount_out`
     /// worth of tokens and pays no more than `amount_in_max`
     /// of the starting token. Fails if any of these conditions
@@ -112,13 +117,13 @@ pub trait Router {
         &mut self,
         amount_out: u128,
         amount_in_max: u128,
-        path: Vec<AccountId>,
+        path: Vec<Step>,
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<u128>, RouterError>;
 
     /// Exchanges exact amount of native token,
-    /// along the `path` token pairs, and expects
+    /// along the `path` pools and tokens, and expects
     /// to receive at least `amount_out_min` of tokens
     /// at the end of execution. Fails if the output
     /// amount is less than `amount_out_min`.
@@ -127,12 +132,12 @@ pub trait Router {
     fn swap_exact_native_for_tokens(
         &mut self,
         amount_out_min: u128,
-        path: Vec<AccountId>,
+        path: Vec<Step>,
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<u128>, RouterError>;
 
-    /// Exchanges tokens along `path` token pairs
+    /// Exchanges tokens along `path` pools and token
     /// so that at the end caller receives `amount_out`
     /// worth of native tokens and pays no more than `amount_in_max`
     /// of the starting token. Fails if any of these conditions
@@ -143,13 +148,13 @@ pub trait Router {
         &mut self,
         amount_out: Balance,
         amount_in_max: u128,
-        path: Vec<AccountId>,
+        path: Vec<Step>,
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<u128>, RouterError>;
 
     /// Exchanges exact amount of token,
-    /// along the `path` token pairs, and expects
+    /// along the `path` pools and tokens, and expects
     /// to receive at least `amount_out_min` of native tokens
     /// at the end of execution. Fails if the output
     /// amount is less than `amount_out_min`.
@@ -159,12 +164,12 @@ pub trait Router {
         &mut self,
         amount_in: u128,
         amount_out_min: Balance,
-        path: Vec<AccountId>,
+        path: Vec<Step>,
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<u128>, RouterError>;
 
-    /// Exchanges tokens along `path` token pairs
+    /// Exchanges tokens along `path` pools and tokens
     /// so that at the end caller receives `amount_out`
     /// worth of tokens and pays no more than `amount_in_max`
     /// of the native token. Fails if any of these conditions
@@ -174,7 +179,7 @@ pub trait Router {
     fn swap_native_for_exact_tokens(
         &mut self,
         amount_out: u128,
-        path: Vec<AccountId>,
+        path: Vec<Step>,
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<u128>, RouterError>;
@@ -185,45 +190,13 @@ pub trait Router {
     #[ink(message)]
     fn quote(&self, amount_0: u128, reserve_0: u128, reserve_1: u128) -> Result<u128, RouterError>;
 
-    /// Returns amount of `B` tokens received
-    /// for `amount_in` of `A` tokens that maintains
-    /// the constant ratio of `reserve_0 / reserve_1`.
-    #[ink(message)]
-    fn get_amount_out(
-        &self,
-        amount_in: u128,
-        reserve_0: u128,
-        reserve_1: u128,
-        fee: u8,
-    ) -> Result<u128, RouterError>;
-
-    /// Returns amount of `A` tokens user has to supply
-    /// to get exactly `amount_out` of `B` token while maintaining
-    /// pool's constant ratio.
-    #[ink(message)]
-    fn get_amount_in(
-        &self,
-        amount_out: u128,
-        reserve_0: u128,
-        reserve_1: u128,
-        fee: u8,
-    ) -> Result<u128, RouterError>;
-
     /// Returns amounts of tokens received for `amount_in`.
     #[ink(message)]
-    fn get_amounts_out(
-        &self,
-        amount_in: u128,
-        path: Vec<AccountId>,
-    ) -> Result<Vec<u128>, RouterError>;
+    fn get_amounts_out(&self, amount_in: u128, path: Vec<Step>) -> Result<Vec<u128>, RouterError>;
 
     /// Returns amounts of tokens user has to supply.
     #[ink(message)]
-    fn get_amounts_in(
-        &self,
-        amount_out: u128,
-        path: Vec<AccountId>,
-    ) -> Result<Vec<u128>, RouterError>;
+    fn get_amounts_in(&self, amount_out: u128, path: Vec<Step>) -> Result<Vec<u128>, RouterError>;
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -234,12 +207,14 @@ pub enum RouterError {
     PairError(PairError),
     LangError(LangError),
     MathError(MathError),
+    StablePoolError(StablePoolError),
 
     CrossContractCallFailed(String),
     Expired,
     IdenticalAddresses,
     InvalidPath,
     PairNotFound,
+    PoolNotFound,
     TransferError,
 
     ExcessiveInputAmount,
@@ -262,4 +237,11 @@ macro_rules! impl_froms {
     };
 }
 
-impl_froms!(PSP22Error, FactoryError, PairError, LangError, MathError);
+impl_froms!(
+    PSP22Error,
+    FactoryError,
+    PairError,
+    LangError,
+    MathError,
+    StablePoolError
+);
