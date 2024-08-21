@@ -16,5 +16,9 @@ scale = { package = "parity-scale-codec", version = "3", default-features = fals
     "derive",
 ] }
 
+primitive-types = { version = "0.12.1", default-features = false, features = [
+    "codec",
+] }
+
 anyhow = "1.0.69"
 assert2 = "0.3.10"

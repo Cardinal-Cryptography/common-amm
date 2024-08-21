@@ -10,6 +10,7 @@ declare -a CONTRACTS=(
     "factory_contract" 
     "pair_contract" 
     "stable_pool_contract" 
+    "mock_rate_provider_contract" 
     "router_contract"
 )
 
