@@ -9,6 +9,7 @@ readonly SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null 
 declare -a CONTRACTS=(
     "factory_contract" 
     "pair_contract" 
+    "stable_pool_contract" 
     "router_contract"
 )
 
