@@ -23,18 +23,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amm-helpers"
-version = "0.2.0"
-source = "git+https://github.com/Cardinal-Cryptography/common-amm-stable-swap.git#cb8a8bd9b03dd1061a9a2a97142f07cf1b04d800"
-dependencies = [
- "ink",
- "ink_metadata",
- "parity-scale-codec",
- "primitive-types",
- "scale-info",
-]
-
-[[package]]
 name = "array-init"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -242,19 +230,19 @@ dependencies = [
 name = "factory_contract"
 version = "0.1.0"
 dependencies = [
- "amm-helpers 0.2.0",
+ "amm-helpers",
  "ink",
  "pair_contract",
  "parity-scale-codec",
  "scale-info",
- "traits 0.2.0",
+ "traits",
 ]
 
 [[package]]
 name = "farm-trait"
 version = "0.1.0"
 dependencies = [
- "amm-helpers 0.2.0",
+ "amm-helpers",
  "ink",
  "parity-scale-codec",
  "psp22",
@@ -265,7 +253,7 @@ dependencies = [
 name = "farm_contract"
 version = "0.1.0"
 dependencies = [
- "amm-helpers 0.2.0",
+ "amm-helpers",
  "farm-trait",
  "ink",
  "parity-scale-codec",
@@ -654,6 +642,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
 
 [[package]]
+name = "mock_rate_provider_contract"
+version = "0.1.0"
+dependencies = [
+ "ink",
+ "parity-scale-codec",
+ "scale-info",
+ "traits",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -672,14 +670,14 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 name = "pair_contract"
 version = "0.1.0"
 dependencies = [
- "amm-helpers 0.2.0",
+ "amm-helpers",
  "ink",
  "parity-scale-codec",
  "primitive-types",
  "psp22",
  "scale-info",
  "sp-arithmetic",
- "traits 0.2.0",
+ "traits",
 ]
 
 [[package]]
@@ -856,12 +854,12 @@ checksum = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
 name = "router_contract"
 version = "0.1.0"
 dependencies = [
- "amm-helpers 0.2.0",
+ "amm-helpers",
  "ink",
  "parity-scale-codec",
  "psp22",
  "scale-info",
- "traits 0.2.0",
+ "traits",
  "wrapped-azero",
 ]
 
@@ -1077,6 +1075,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ed09ef1760e8be9b64b7f739f1cf9a94528130be475d8e4f2d1be1e690c9f9c"
 
 [[package]]
+name = "stable_pool_contract"
+version = "0.1.0"
+dependencies = [
+ "amm-helpers",
+ "ink",
+ "parity-scale-codec",
+ "psp22",
+ "scale-info",
+ "traits",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1174,23 +1184,7 @@ dependencies = [
 name = "traits"
 version = "0.2.0"
 dependencies = [
- "amm-helpers 0.2.0",
- "ink",
- "ink_metadata",
- "parity-scale-codec",
- "primitive-types",
- "psp22",
- "scale-info",
- "sp-arithmetic",
- "traits 0.2.0 (git+https://github.com/Cardinal-Cryptography/common-amm-stable-swap.git)",
-]
-
-[[package]]
-name = "traits"
-version = "0.2.0"
-source = "git+https://github.com/Cardinal-Cryptography/common-amm-stable-swap.git#cb8a8bd9b03dd1061a9a2a97142f07cf1b04d800"
-dependencies = [
- "amm-helpers 0.2.0 (git+https://github.com/Cardinal-Cryptography/common-amm-stable-swap.git)",
+ "amm-helpers",
  "ink",
  "ink_metadata",
  "parity-scale-codec",

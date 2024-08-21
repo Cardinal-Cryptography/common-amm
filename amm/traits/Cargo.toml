@@ -17,9 +17,6 @@ scale-info = { version = "2.9", default-features = false, features = [
 
 psp22 = { version = "=0.2.2", default-features = false }
 
-# needed to import stableswap trait for new router
-traits = { git = "https://github.com/Cardinal-Cryptography/common-amm-stable-swap.git", default-features = false }
-
 primitive-types = { version = "0.12.1", default-features = false, features = [
     "codec",
 ] }
@@ -40,7 +37,6 @@ std = [
     "scale/std",
     "scale-info/std",
     "psp22/std",
-    "traits/std",
     "primitive-types/std",
     "primitive-types/scale-info",
     "sp-arithmetic/std",
