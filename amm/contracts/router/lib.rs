@@ -290,7 +290,7 @@ pub mod router {
             amounts[path.len() - 1] = amount_out;
             for i in (0..path.len() - 1).rev() {
                 let pool = self.get_pool(path[i].0, (path[i].1, path[i + 1].1))?;
-                amounts[i] = pool.get_amount_in(path[i].1, path[i + 1].1, amounts[i])?;
+                amounts[i] = pool.get_amount_in(path[i].1, path[i + 1].1, amounts[i + 1])?;
             }
 
             Ok(amounts)
