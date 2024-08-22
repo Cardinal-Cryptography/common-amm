@@ -220,7 +220,10 @@ fn test_fees(mut session: Session) {
         .execute(router.swap_exact_tokens_for_tokens(
             swap_amount,
             0,
-            vec![ice.into(), wood.into()],
+            vec![
+                (ice_wood_pair.into(), ice.into()),
+                (ice_wood_pair.into(), wood.into()),
+            ],
             bob(),
             deadline,
         ))
@@ -381,7 +384,10 @@ fn test_custom_fee(mut session: Session) {
         .execute(router.swap_exact_tokens_for_tokens(
             swap_amount,
             0,
-            vec![ice.into(), wood.into()],
+            vec![
+                (ice_wood_pair.into(), ice.into()),
+                (ice_wood_pair.into(), wood.into()),
+            ],
             bob(),
             deadline,
         ))

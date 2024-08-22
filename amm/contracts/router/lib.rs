@@ -172,11 +172,25 @@ pub mod router {
             Ok(self.get_pair_and_fee(token_0, token_1)?.0)
         }
 
+        /// Returns `Pool` for given `pool_id`.
+        /// Checks in the following order:
+        /// 1. Check if there's cached `Pool` under `pool_id`
+        /// 2. Check if there's cached pair under `pair` tokens
+        /// 3. Check if there's pair in the Factory contract inder the `pair` tokens  
         #[inline]
-        fn get_pool(&self, pool_id: PoolId) -> Result<Pool, RouterError> {
-            self.cached_pools
-                .get(pool_id)
-                .ok_or(RouterError::PoolNotFound)
+        fn get_pool(
+            &self,
+            pool_id: PoolId,
+            pair: (AccountId, AccountId),
+        ) -> Result<Pool, RouterError> {
+            if let Some(pool) = self.cached_pools.get(pool_id) {
+                Ok(pool)
+            } else {
+                let (pair_address, fee) = self
+                    .get_pair_and_fee(pair.0, pair.1)
+                    .map_err(|_| RouterError::PoolNotFound)?;
+                Ok(Pool::Pair(pair, pair_address, fee))
+            }
         }
 
         #[inline]
@@ -256,7 +270,7 @@ pub mod router {
                 } else {
                     _to
                 };
-                let pool = self.get_pool(path[i].0)?;
+                let pool = self.get_pool(path[i].0, (path[i].1, path[i + 1].1))?;
                 pool.swap(path[i].1, path[i + 1].1, amounts[i + 1], to)?;
             }
             Ok(())
@@ -275,7 +289,7 @@ pub mod router {
             let mut amounts = vec![0; path.len()];
             amounts[path.len() - 1] = amount_out;
             for i in (0..path.len() - 1).rev() {
-                let pool = self.get_pool(path[i].0)?;
+                let pool = self.get_pool(path[i].0, (path[i].1, path[i + 1].1))?;
                 amounts[i] = pool.get_amount_in(path[i].1, path[i + 1].1, amounts[i])?;
             }
 
@@ -295,8 +309,8 @@ pub mod router {
             let mut amounts = Vec::with_capacity(path.len());
             amounts.push(amount_in);
             for i in 0..path.len() - 1 {
-                let pool = self.get_pool(path[i].0)?;
-                amounts[i] = pool.get_amount_out(path[i].1, path[i + 1].1, amounts[i])?;
+                let pool = self.get_pool(path[i].0, (path[i].1, path[i + 1].1))?;
+                amounts.push(pool.get_amount_out(path[i].1, path[i + 1].1, amounts[i])?);
             }
 
             Ok(amounts)

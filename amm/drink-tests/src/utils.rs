@@ -197,7 +197,7 @@ pub mod router {
         token1: AccountId,
     ) -> AccountId {
         session
-            .query(router_contract::Instance::from(router).read_cache(token0, token1))
+            .query(router_contract::Instance::from(router).read_cached_pair(token0, token1))
             .unwrap()
             .result
             .unwrap()
