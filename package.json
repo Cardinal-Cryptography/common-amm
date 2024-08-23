@@ -5,6 +5,7 @@
   "scripts": {
     "compile": "rm -rf /types && typechain-compiler --noCompile",
     "deploy-local": "source scripts/local_env && ts-node scripts/amm/deploy.ts",
+    "deploy-stable": "ts-node ./scripts/amm/stablepool/deploy.ts",
     "create-tokens-local": "source scripts/local_env && ts-node scripts/amm/create_tokens.ts",
     "add-liquidity-local": "source scripts/local_env && ts-node scripts/amm/add_liquidity.ts",
     "spawn-dex-data": "source scripts/local_env && ts-node scripts/amm/spawn_dex_data.ts",

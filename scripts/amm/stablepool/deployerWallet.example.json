@@ -1,0 +1,16 @@
+{
+  "encoded": "8L0sgvuTHWmPyOKPtKL6rVA0heE7o9G/98SKPoy2QzcAgAAAAQAAAAgAAAAUDBRtzqvDnzlXLjNzPvNfrGHcddyEi2x6RLIg/pmwcv/DU3CZbErD1eG2tm5jnIrx02mGrlO4eN6gAcn9J81zxzyahc1BeRoavLrj6UTeTFs8yZNYSprgLUlctHJ9vrOUTOV8q2INjF9LBJPli8vWatAy6XcQ9fdWk8hoWKAglcIZy06PBo16hi2kT6f6D5+tBDpTzuRkqm5ZmKoY",
+  "encoding": {
+    "content": ["pkcs8", "sr25519"],
+    "type": ["scrypt", "xsalsa20-poly1305"],
+    "version": "3"
+  },
+  "address": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+  "meta": {
+    "genesisHash": null,
+    "name": "Alice",
+    "parentAddress": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
+    "suri": "//Alice",
+    "whenCreated": 1714649021296
+  }
+}

@@ -42,3 +42,9 @@ target/
 
 # Pyenv directory
 env/
+
+# Ignore setup files used for the stablepool deployments
+scripts/amm/stablepool/secrets.json
+scripts/amm/stablepool/deployerWallet.json
+scripts/amm/stablepool/deploymentPoolsParams.json
+scripts/amm/stablepool/deployedPools.json
