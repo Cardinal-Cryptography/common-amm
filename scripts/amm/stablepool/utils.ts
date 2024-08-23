@@ -1,9 +1,9 @@
-import fs from "fs";
-import { KeyringPair$Json } from "@polkadot/keyring/types";
+import fs from 'fs';
+import { config } from 'dotenv';
 
 export enum PoolType {
-  Stable = "Stable",
-  Rated = "Rated",
+  Stable = 'Stable',
+  Rated = 'Rated',
 }
 
 export interface PoolDeploymentParams {
@@ -19,35 +19,41 @@ export interface PoolDeploymentParams {
   owner: string | undefined;
 }
 
-export interface Secrets {
-  deploymentWalletPassword: string;
-  RPC_URL: string;
+/**
+ * @returns Path to the file
+ * @throws If file does not exist.
+ */
+function getPathToFile(fileName: string): string {
+  const path = __dirname + '/' + fileName;
+  if (!fs.existsSync(path)) {
+    throw `Could not find "${fileName}" file.`;
+  }
+  return path;
 }
 
-export function readDeploymentParams(example?: boolean): {
-  secrets: Secrets;
-  deployerWallet: KeyringPair$Json;
-  deploymentParams: PoolDeploymentParams[];
-} {
-  let secrets: Secrets,
-    deployerWallet: KeyringPair$Json,
-    deploymentParams: PoolDeploymentParams[];
+/**
+ * Load env file
+ */
+export function loadEnv() {
+  const isExampleDeployment = process.argv[2] == 'example';
+  const fileName = isExampleDeployment ? '.env.example' : '.env';
 
-  const extension = example ? ".example.json" : ".json";
+  config({
+    path: getPathToFile(fileName),
+  });
+}
 
-  secrets = JSON.parse(
-    fs.readFileSync(__dirname + "/secrets" + extension).toString()
-  );
+/**
+ * Loads list of pool deployment parameters from JSON file.
+ * @returns List of deployment parameters for each pool.
+ */
+export function loadDeploymentParams(): PoolDeploymentParams[] {
+  const isExampleDeployment = process.argv[2] == 'example';
+  const fileName =
+    'deploymentPoolsParams' + (isExampleDeployment ? '.example.json' : '.json');
+  const path = getPathToFile(fileName);
 
-  deployerWallet = JSON.parse(
-    fs.readFileSync(__dirname + "/deployerWallet" + extension).toString()
-  );
-
-  deploymentParams = JSON.parse(
-    fs.readFileSync(__dirname + "/deploymentPoolsParams" + extension).toString()
-  );
-
-  return { secrets, deployerWallet, deploymentParams };
+  return JSON.parse(fs.readFileSync(path).toString());
 }
 
 /**
@@ -55,10 +61,10 @@ export function readDeploymentParams(example?: boolean): {
  * @param pools - The pools to store.
  */
 export function storeDeployedPools(
-  pools: ({ address: string } & PoolDeploymentParams)[]
+  pools: ({ address: string } & PoolDeploymentParams)[],
 ): void {
   let toSave = [];
-  const filePath = __dirname + "/deployedPools.json";
+  const filePath = __dirname + '/deployedPools.json';
   if (fs.existsSync(filePath)) {
     const rawData = fs.readFileSync(filePath);
     toSave = JSON.parse(rawData.toString());

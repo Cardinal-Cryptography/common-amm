@@ -1,24 +1,29 @@
-import { WsProvider, Keyring, ApiPromise } from "@polkadot/api";
-import StablePoolConstructors from "../../../types/constructors/stable_pool_contract";
+import { cryptoWaitReady } from '@polkadot/util-crypto';
+import { WsProvider, Keyring, ApiPromise } from '@polkadot/api';
+import StablePoolConstructors from '../../../types/constructors/stable_pool_contract';
 
 import {
-  readDeploymentParams,
+  loadDeploymentParams,
   PoolType,
   storeDeployedPools,
   PoolDeploymentParams,
-} from "./utils";
+  loadEnv,
+} from './utils';
+
+// load env file
+loadEnv()
+
+// load deployment parameters
+const deploymentParams = loadDeploymentParams();
+
+const wsProvider = new WsProvider(process.env.WS_NODE);
+const keyring = new Keyring({ type: 'sr25519' });
 
 async function main(): Promise<void> {
-  const { secrets, deployerWallet, deploymentParams } = readDeploymentParams(
-    process.argv[2] == "example"
-  );
-  const wsProvider = new WsProvider(secrets.RPC_URL);
-  const keyring = new Keyring({ type: "sr25519" });
-
+  await cryptoWaitReady();
+  const deployer = keyring.addFromUri(process.env.AUTHORITY_SEED);
   const api = await ApiPromise.create({ provider: wsProvider });
-  const deployer = keyring.createFromJson(deployerWallet as any);
-  deployer.unlock(secrets.deploymentWalletPassword);
-  console.log("Using", deployer.address, "as the deployer");
+  console.log('Using', deployer.address, 'as the deployer');
 
   const stablePoolConstructors = new StablePoolConstructors(api, deployer);
 
@@ -37,7 +42,7 @@ async function main(): Promise<void> {
       owner,
     } = deploymentParams[i];
 
-    let address = "";
+    let address = '';
     switch (poolType) {
       case PoolType.Stable:
         address = await stablePoolConstructors
@@ -48,7 +53,7 @@ async function main(): Promise<void> {
             owner ?? deployer.address,
             tradeFee,
             protocolFee,
-            protocolFeeReceiver
+            protocolFeeReceiver,
           )
           .then((res) => res.address);
         break;
@@ -62,7 +67,7 @@ async function main(): Promise<void> {
             owner ?? deployer.address,
             tradeFee,
             protocolFee,
-            protocolFeeReceiver
+            protocolFeeReceiver,
           )
           .then((res) => res.address);
         break;
@@ -74,12 +79,13 @@ async function main(): Promise<void> {
     });
   }
 
-  console.log("Deployed pools:", deployedPools);
+  console.log('Deployed pools:', deployedPools);
 
   storeDeployedPools(deployedPools);
 
   await api.disconnect();
-  console.log("Done");
+  console.log('Done');
+  process.exit(0);
 }
 
 main().catch((error) => {
