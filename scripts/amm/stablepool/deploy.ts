@@ -8,10 +8,11 @@ import {
   storeDeployedPools,
   PoolDeploymentParams,
   loadEnv,
+  estimateStablePoolInit,
 } from './utils';
 
 // load env file
-loadEnv()
+loadEnv();
 
 // load deployment parameters
 const deploymentParams = loadDeploymentParams();
@@ -42,6 +43,12 @@ async function main(): Promise<void> {
       owner,
     } = deploymentParams[i];
 
+    const gasInit = await estimateStablePoolInit(
+      api,
+      deployer,
+      deploymentParams[i],
+    );
+
     let address = '';
     switch (poolType) {
       case PoolType.Stable:
@@ -54,6 +61,7 @@ async function main(): Promise<void> {
             tradeFee,
             protocolFee,
             protocolFeeReceiver,
+            { gasLimit: gasInit },
           )
           .then((res) => res.address);
         break;
@@ -68,6 +76,7 @@ async function main(): Promise<void> {
             tradeFee,
             protocolFee,
             protocolFeeReceiver,
+            { gasLimit: gasInit },
           )
           .then((res) => res.address);
         break;

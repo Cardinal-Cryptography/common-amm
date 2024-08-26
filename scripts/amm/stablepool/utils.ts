@@ -1,5 +1,12 @@
 import fs from 'fs';
 import { config } from 'dotenv';
+import { ApiPromise } from '@polkadot/api';
+import { KeyringPair } from '@polkadot/keyring/types';
+import {
+  ContractInstantiateResult,
+  WeightV2,
+} from '@polkadot/types/interfaces';
+import { Abi } from '@polkadot/api-contract';
 
 export enum PoolType {
   Stable = 'Stable',
@@ -70,4 +77,62 @@ export function storeDeployedPools(
     toSave = JSON.parse(rawData.toString());
   }
   fs.writeFileSync(filePath, JSON.stringify(toSave.concat(pools), null, 2));
+}
+
+/**
+ * Estimates gas required to create a new instance of the StablePool contract.
+ *
+ * NOTE: This shouldn't be necessary but `Contract::new()` doesn't estimate gas and uses a hardcoded value.
+ */
+export async function estimateStablePoolInit(
+  api: ApiPromise,
+  deployer: KeyringPair,
+  params: PoolDeploymentParams,
+): Promise<WeightV2> {
+  const contractRaw = JSON.parse(
+    fs.readFileSync(
+      __dirname + `/../../../artifacts/stable_pool_contract.contract`,
+      'utf8',
+    ),
+  );
+  const contractAbi = new Abi(contractRaw);
+  let sampleArgs = [];
+  let constructorId = 0;
+  switch (params.poolType) {
+    case PoolType.Stable:
+      constructorId = 0;
+      sampleArgs = [
+        params.tokens,
+        params.decimals,
+        params.A,
+        params.owner ?? deployer.address,
+        params.tradeFee,
+        params.protocolFee,
+        params.protocolFeeReceiver,
+      ];
+      break;
+    case PoolType.Rated:
+      constructorId = 1;
+      sampleArgs = [
+        params.tokens,
+        params.decimals,
+        params.rateProviders,
+        params.A,
+        params.owner ?? deployer.address,
+        params.tradeFee,
+        params.protocolFee,
+        params.protocolFeeReceiver,
+      ];
+      break;
+  }
+  const { gasRequired } = (await api.call.contractsApi.instantiate(
+    deployer.address,
+    0,
+    null,
+    null,
+    { Upload: contractAbi.info.source.wasm },
+    contractAbi.constructors[constructorId].toU8a(sampleArgs),
+    '',
+  )) as unknown as ContractInstantiateResult;
+  return gasRequired;
 }

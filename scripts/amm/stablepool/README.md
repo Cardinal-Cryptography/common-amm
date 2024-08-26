@@ -11,4 +11,4 @@ The scripts use typechain-generated types for contract deployment and interactio
 2. Create `deploymentPoolsParams.json` and add deployment parameters as shown in `deploymentPoolsParams.example.json`.
 3. Execute `npm run deploy-stable` in the root directory.
 
-To run the script with the `*.example` files, execute `npm run deploy-stable example` in the root directory.
+To test deployment script locally with the `*.example` files, start a local node with `make start-node` and execute `npm run deploy-stable example` in the root directory.
