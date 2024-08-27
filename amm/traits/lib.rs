@@ -5,6 +5,7 @@ mod ownable2step;
 mod pair;
 mod rate_provider;
 mod router;
+mod router_v2;
 mod stable_pool;
 mod swap_callee;
 
@@ -16,5 +17,6 @@ pub use ownable2step::{Ownable2Step, Ownable2StepData, Ownable2StepError, Ownabl
 pub use pair::{Pair, PairError};
 pub use rate_provider::RateProvider;
 pub use router::{Router, RouterError};
+pub use router_v2::{PoolId, RouterV2, RouterV2Error, Step};
 pub use stable_pool::{StablePool, StablePoolError};
 pub use swap_callee::SwapCallee;
