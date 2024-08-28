@@ -9,9 +9,7 @@ use psp22::PSP22Error;
 pub type PoolId = AccountId;
 pub type TokenId = AccountId;
 
-pub type Step = (PoolId, TokenId);
-
-// pub type Path = (Vec<Step>, TokenId)
+pub type Step = (Option<PoolId>, TokenId);
 
 #[ink::trait_definition]
 pub trait RouterV2 {

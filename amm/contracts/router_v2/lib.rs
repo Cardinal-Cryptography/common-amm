@@ -84,10 +84,12 @@ pub mod router_v2 {
         #[ink(message)]
         pub fn add_stable_pool_to_cache(
             &mut self,
-            pool: AccountId,
+            pool_id: AccountId,
         ) -> Result<(), CallerIsNotOwner> {
             ensure!(self.env().caller() == self.owner, CallerIsNotOwner);
-            self.cache_stable_pool(pool);
+            let pool_ref: contract_ref!(StablePool) = pool_id.into();
+            let tokens = pool_ref.tokens();
+            self.cached_stable_pools.insert(pool_id, &tokens);
             Ok(())
         }
 
@@ -125,12 +127,7 @@ pub mod router_v2 {
             self.cached_pairs.insert((token_1, token_0), &(pair, fee));
         }
 
-        #[inline]
-        fn cache_stable_pool(&mut self, pool_id: AccountId) {
-            let pool_ref: contract_ref!(StablePool) = pool_id.into();
-            let tokens = pool_ref.tokens();
-            self.cached_stable_pools.insert(pool_id, &tokens);
-        }
+        // ----------- HELPER METHODS ----------- //
 
         #[inline]
         fn get_pair(
@@ -147,6 +144,49 @@ pub mod router_v2 {
             }
         }
 
+        /// Returns
+        /// 1. `Pool::StablePool` for given `pool_id` if one exists in the cache,
+        /// 2. `Pool::Pair` for given `pair` tokens if pair exists in the cache
+        /// 3. `Pool::Pair` for given `pair` tokens if pair was deployed with the Factory contract.
+        /// 4. `RouterV2Error::PoolNotFound` error if the pool was not found.
+        #[inline]
+        fn get_pool(
+            &self,
+            pool_id: Option<PoolId>,
+            pair: (AccountId, AccountId),
+        ) -> Result<Pool, RouterV2Error> {
+            if let Some(pool_id) = pool_id {
+                if self.cached_stable_pools.get(pool_id).is_some() {
+                    return Ok(Pool::StablePool(pool_id));
+                }
+            }
+            match self.get_pair(pair.0, pair.1) {
+                Ok(pair_contract) => {
+                    let fee = pair_ref(pair_contract).get_fee();
+                    Ok(Pool::Pair(pair_contract, fee))
+                }
+                Err(_) => Err(RouterV2Error::PoolNotFound),
+            }
+        }
+
+        #[inline]
+        fn get_and_cache_pair(
+            &mut self,
+            token_0: AccountId,
+            token_1: AccountId,
+        ) -> Result<AccountId, RouterV2Error> {
+            if let Some((pair, _)) = self.cached_pairs.get((token_0, token_1)) {
+                Ok(pair)
+            } else {
+                let pair = self
+                    .pair_factory_ref()
+                    .get_pair(token_0, token_1)
+                    .ok_or(RouterV2Error::PairNotFound)?;
+                self.cache_pair(pair);
+                Ok(pair)
+            }
+        }
+
         /// Returns cached Pair or Pair created with the Factory contract for `(token_0, token_1)` tokens.
         ///
         /// If Pair does not exist, it creates one and adds it to the cache.
@@ -156,7 +196,7 @@ pub mod router_v2 {
             token_0: AccountId,
             token_1: AccountId,
         ) -> Result<AccountId, RouterV2Error> {
-            match self.get_pair(token_0, token_1) {
+            match self.get_and_cache_pair(token_0, token_1) {
                 Ok(pair) => Ok(pair),
                 Err(_) => {
                     let new_pair = self.pair_factory_ref().create_pair(token_0, token_1)?;
@@ -166,32 +206,8 @@ pub mod router_v2 {
             }
         }
 
-        /// Returns
-        /// 1. `Pool::StablePool` for given `pool_id` if one exists in the cache,
-        /// 2. `Pool::Pair` for given `pair` tokens if pair exists in the cache
-        /// 3. `Pool::Pair` for given `pair` tokens if pair was deployed with the Factory contract.
-        /// 4. `RouterV2Error::PoolNotFound` error if the pool was not found.
-        #[inline]
-        fn get_pool(
-            &self,
-            pool_id: PoolId,
-            pair: (AccountId, AccountId),
-        ) -> Result<Pool, RouterV2Error> {
-            if let Some(_) = self.cached_stable_pools.get(pool_id) {
-                Ok(Pool::StablePool(pool_id))
-            } else {
-                match self.get_pair(pair.0, pair.1) {
-                    Ok(pair_contract) => {
-                        let fee = pair_ref(pair_contract).get_fee();
-                        Ok(Pool::Pair(pair_contract, fee))
-                    }
-                    Err(_) => Err(RouterV2Error::PoolNotFound),
-                }
-            }
-        }
-
         fn swap(
-            &self,
+            &mut self,
             amounts: &[u128],
             path: &[Step],
             _to: AccountId,
@@ -200,7 +216,9 @@ pub mod router_v2 {
                 // If last pool in the path, transfer tokens to the `_to` recipient.
                 // Otherwise, transfer to the next Pair or StablePool.
                 let to = if i < path.len() - 2 {
-                    path[i + 1].0
+                    path[i + 1]
+                        .0
+                        .unwrap_or(self.get_pair(path[i + 1].1, path[i + 2].1)?)
                 } else {
                     _to
                 };
@@ -248,6 +266,15 @@ pub mod router_v2 {
             }
 
             Ok(amounts)
+        }
+
+        fn validate_path(&self, path: Vec<Step>) -> Result<(Vec<(Pool, AccountId)>, AccountId), RouterV2Error> {
+            let mut pool_path = Vec::with_capacity(path.len());
+            pool_path.push((self.get_pool(path[0].0, (path[0].1, path[1].1))?, path[0].1));
+            for i in 1..(path.len() - 1) {
+                pool_path.push((self.get_pool(path[i].0, (path[i].1, path[i + 1].1))? , path[i].1));
+            }
+            Ok((pool_path, path[path.len() - 1].1))
         }
 
         #[inline]
@@ -312,7 +339,10 @@ pub mod router_v2 {
                 amounts[amounts.len() - 1] >= amount_out_min,
                 RouterV2Error::InsufficientOutputAmount
             );
-            psp22_transfer_from(path[0].1, self.env().caller(), path[0].0, amounts[0])?;
+            let first_pool_id = self
+                .get_pool(path[0].0, (path[0].1, path[1].1))?
+                .account_id();
+            psp22_transfer_from(path[0].1, self.env().caller(), first_pool_id, amounts[0])?;
             self.swap(&amounts, &path, to)?;
             Ok(amounts)
         }
@@ -332,7 +362,10 @@ pub mod router_v2 {
                 amounts[0] <= amount_in_max,
                 RouterV2Error::ExcessiveInputAmount
             );
-            psp22_transfer_from(path[0].1, self.env().caller(), path[0].0, amounts[0])?;
+            let first_pool_id = self
+                .get_pool(path[0].0, (path[0].1, path[1].1))?
+                .account_id();
+            psp22_transfer_from(path[0].1, self.env().caller(), first_pool_id, amounts[0])?;
             self.swap(&amounts, &path, to)?;
             Ok(amounts)
         }
@@ -355,7 +388,10 @@ pub mod router_v2 {
                 RouterV2Error::InsufficientOutputAmount
             );
             self.wrap(received_value)?;
-            psp22_transfer(wnative, path[0].0, amounts[0])?;
+            let first_pool_id = self
+                .get_pool(path[0].0, (path[0].1, path[1].1))?
+                .account_id();
+            psp22_transfer(wnative, first_pool_id, amounts[0])?;
             self.swap(&amounts, &path, to)?;
             Ok(amounts)
         }
@@ -380,7 +416,10 @@ pub mod router_v2 {
                 amounts[0] <= amount_in_max,
                 RouterV2Error::ExcessiveInputAmount
             );
-            psp22_transfer_from(path[0].1, self.env().caller(), path[0].0, amounts[0])?;
+            let first_pool_id = self
+                .get_pool(path[0].0, (path[0].1, path[1].1))?
+                .account_id();
+            psp22_transfer_from(path[0].1, self.env().caller(), first_pool_id, amounts[0])?;
             self.swap(&amounts, &path, self.env().account_id())?;
             let native_out = amounts[amounts.len() - 1];
             self.wnative_ref().withdraw(native_out)?;
@@ -410,7 +449,10 @@ pub mod router_v2 {
                 native_out >= amount_out_min,
                 RouterV2Error::InsufficientOutputAmount
             );
-            psp22_transfer_from(path[0].1, self.env().caller(), path[0].0, amounts[0])?;
+            let first_pool_id = self
+                .get_pool(path[0].0, (path[0].1, path[1].1))?
+                .account_id();
+            psp22_transfer_from(path[0].1, self.env().caller(), first_pool_id, amounts[0])?;
             self.swap(&amounts, &path, self.env().account_id())?;
             self.wnative_ref().withdraw(native_out)?;
             self.env()
@@ -438,7 +480,10 @@ pub mod router_v2 {
                 RouterV2Error::ExcessiveInputAmount
             );
             self.wrap(native_in)?;
-            psp22_transfer(wnative, path[0].0, native_in)?;
+            let first_pool_id = self
+                .get_pool(path[0].0, (path[0].1, path[1].1))?
+                .account_id();
+            psp22_transfer(wnative, first_pool_id, native_in)?;
             self.swap(&amounts, &path, to)?;
             if received_native > native_in {
                 self.env()

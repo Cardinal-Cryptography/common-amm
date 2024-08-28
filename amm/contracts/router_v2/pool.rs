@@ -130,6 +130,13 @@ impl Pool {
         }
         Ok(())
     }
+
+    pub fn account_id(&self) -> AccountId {
+        match self {
+            Pool::Pair(account_id, _) => *account_id,
+            Pool::StablePool(account_id) => *account_id,
+        }
+    }
 }
 
 /// Calculates `X` so `X / reserve_1 == amount_0 / reserve_0`
