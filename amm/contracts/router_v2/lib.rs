@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
 mod pool;
+mod pair;
+mod stable_pool;
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -9,7 +11,7 @@ pub struct CallerIsNotOwner;
 #[ink::contract]
 pub mod router_v2 {
     use crate::{
-        pool::{calculate_pair_liquidity, pair_ref, Pool},
+        pool::{Pair, Pool, StablePool},
         CallerIsNotOwner,
     };
     use amm_helpers::ensure;
@@ -20,18 +22,23 @@ pub mod router_v2 {
         storage::Mapping,
     };
     use psp22::{PSP22Error, PSP22};
-    use traits::{Factory, Pair, PoolId, RouterV2, RouterV2Error, StablePool, Step};
+    use traits::{Factory, Pair as _, PoolId, RouterV2, RouterV2Error, Step};
     use wrapped_azero::WrappedAZERO;
+
+    struct ValidStep {
+        token_in: AccountId,
+        pool: Pool,
+    }
 
     #[ink(storage)]
     pub struct RouterV2Contract {
         pair_factory: AccountId,
         wnative: AccountId,
         owner: AccountId,
-        /// Mapping of cached Pairs. Maps `(token_0, token_1) => (pair_id, fee)`
-        cached_pairs: Mapping<(AccountId, AccountId), (AccountId, u8)>,
-        /// Mapping of cached StablePools, Maps `pool_id => tokens[]`
-        cached_stable_pools: Mapping<AccountId, Vec<AccountId>>,
+        /// Mapping of cached Pairs. Maps `(token_0, token_1) => Pair`
+        cached_pairs: Mapping<(AccountId, AccountId), Pair>,
+        /// Mapping of cached StablePools, Maps `pool_id => StablePool`
+        cached_stable_pools: Mapping<AccountId, StablePool>,
     }
 
     impl RouterV2Contract {
@@ -59,25 +66,19 @@ pub mod router_v2 {
         }
 
         #[ink(message)]
-        pub fn read_cached_pair(
-            &self,
-            token_0: AccountId,
-            token_1: AccountId,
-        ) -> Option<(AccountId, u8)> {
+        pub fn read_cached_pair(&self, token_0: AccountId, token_1: AccountId) -> Option<Pair> {
             self.cached_pairs.get((token_0, token_1))
         }
 
         #[ink(message)]
-        pub fn read_cached_stable_pool(&self, pool_id: AccountId) -> Option<Pool> {
-            self.cached_stable_pools
-                .get(pool_id)
-                .map(|_| Pool::StablePool(pool_id))
+        pub fn read_cached_stable_pool(&self, pool_id: AccountId) -> Option<StablePool> {
+            self.cached_stable_pools.get(pool_id)
         }
 
         #[ink(message)]
         pub fn add_pair_to_cache(&mut self, pair: AccountId) -> Result<(), CallerIsNotOwner> {
             ensure!(self.env().caller() == self.owner, CallerIsNotOwner);
-            self.cache_pair(pair);
+            _ = self.cache_pair(pair);
             Ok(())
         }
 
@@ -87,9 +88,8 @@ pub mod router_v2 {
             pool_id: AccountId,
         ) -> Result<(), CallerIsNotOwner> {
             ensure!(self.env().caller() == self.owner, CallerIsNotOwner);
-            let pool_ref: contract_ref!(StablePool) = pool_id.into();
-            let tokens = pool_ref.tokens();
-            self.cached_stable_pools.insert(pool_id, &tokens);
+            self.cached_stable_pools
+                .insert(pool_id, &StablePool::new(pool_id));
             Ok(())
         }
 
@@ -100,9 +100,7 @@ pub mod router_v2 {
             token_1: AccountId,
         ) -> Result<(), CallerIsNotOwner> {
             ensure!(self.env().caller() == self.owner, CallerIsNotOwner);
-            if let Some((pair, _)) = self.cached_pairs.take((token_0, token_1)) {
-                self.cached_stable_pools.remove(pair);
-            }
+            self.cached_pairs.remove((token_0, token_1));
             self.cached_pairs.remove((token_1, token_0));
             Ok(())
         }
@@ -118,29 +116,27 @@ pub mod router_v2 {
         }
 
         #[inline]
-        fn cache_pair(&mut self, pair: AccountId) {
-            let pair_ref = pair_ref(pair);
-            let token_0 = pair_ref.get_token_0();
-            let token_1 = pair_ref.get_token_1();
-            let fee = pair_ref.get_fee();
-            self.cached_pairs.insert((token_0, token_1), &(pair, fee));
-            self.cached_pairs.insert((token_1, token_0), &(pair, fee));
+        fn cache_pair(&mut self, pair: AccountId) -> Pair {
+            let pair = Pair::new(pair);
+            let token_0 = pair.contract_ref().get_token_0();
+            let token_1 = pair.contract_ref().get_token_1();
+            self.cached_pairs.insert((token_0, token_1), &pair);
+            self.cached_pairs.insert((token_1, token_0), &pair);
+            pair
         }
 
         // ----------- HELPER METHODS ----------- //
 
         #[inline]
-        fn get_pair(
-            &self,
-            token_0: AccountId,
-            token_1: AccountId,
-        ) -> Result<AccountId, RouterV2Error> {
-            if let Some((pair, _)) = self.cached_pairs.get((token_0, token_1)) {
+        fn get_pair(&self, token_0: AccountId, token_1: AccountId) -> Result<Pair, RouterV2Error> {
+            if let Some(pair) = self.cached_pairs.get((token_0, token_1)) {
                 Ok(pair)
             } else {
-                self.pair_factory_ref()
+                let pair_id = self
+                    .pair_factory_ref()
                     .get_pair(token_0, token_1)
-                    .ok_or(RouterV2Error::PairNotFound)
+                    .ok_or(RouterV2Error::PairNotFound)?;
+                Ok(Pair::new(pair_id))
             }
         }
 
@@ -156,34 +152,33 @@ pub mod router_v2 {
             pair: (AccountId, AccountId),
         ) -> Result<Pool, RouterV2Error> {
             if let Some(pool_id) = pool_id {
-                if self.cached_stable_pools.get(pool_id).is_some() {
-                    return Ok(Pool::StablePool(pool_id));
+                if let Some(pool) = self.cached_stable_pools.get(pool_id) {
+                    return Ok(Pool::StablePool(pool));
                 }
             }
             match self.get_pair(pair.0, pair.1) {
-                Ok(pair_contract) => {
-                    let fee = pair_ref(pair_contract).get_fee();
-                    Ok(Pool::Pair(pair_contract, fee))
-                }
+                Ok(pair) => Ok(Pool::Pair(pair)),
                 Err(_) => Err(RouterV2Error::PoolNotFound),
             }
         }
 
+         /// Returns cached Pair or Pair created with the Factory contract for `(token_0, token_1)` tokens.
+        ///
+        /// If Pair exists but was not cached, it adds the Pair to the cache.
         #[inline]
         fn get_and_cache_pair(
             &mut self,
             token_0: AccountId,
             token_1: AccountId,
-        ) -> Result<AccountId, RouterV2Error> {
-            if let Some((pair, _)) = self.cached_pairs.get((token_0, token_1)) {
+        ) -> Result<Pair, RouterV2Error> {
+            if let Some(pair) = self.cached_pairs.get((token_0, token_1)) {
                 Ok(pair)
             } else {
                 let pair = self
                     .pair_factory_ref()
                     .get_pair(token_0, token_1)
                     .ok_or(RouterV2Error::PairNotFound)?;
-                self.cache_pair(pair);
-                Ok(pair)
+                Ok(self.cache_pair(pair))
             }
         }
 
@@ -195,13 +190,12 @@ pub mod router_v2 {
             &mut self,
             token_0: AccountId,
             token_1: AccountId,
-        ) -> Result<AccountId, RouterV2Error> {
+        ) -> Result<Pair, RouterV2Error> {
             match self.get_and_cache_pair(token_0, token_1) {
                 Ok(pair) => Ok(pair),
                 Err(_) => {
                     let new_pair = self.pair_factory_ref().create_pair(token_0, token_1)?;
-                    self.cache_pair(new_pair);
-                    Ok(new_pair)
+                    Ok(self.cache_pair(new_pair))
                 }
             }
         }
@@ -209,72 +203,115 @@ pub mod router_v2 {
         fn swap(
             &mut self,
             amounts: &[u128],
-            path: &[Step],
-            _to: AccountId,
+            valid_path: &[ValidStep],
+            token_out: AccountId,
+            to: AccountId,
         ) -> Result<(), RouterV2Error> {
-            for i in 0..path.len() - 1 {
-                // If last pool in the path, transfer tokens to the `_to` recipient.
-                // Otherwise, transfer to the next Pair or StablePool.
-                let to = if i < path.len() - 2 {
-                    path[i + 1]
-                        .0
-                        .unwrap_or(self.get_pair(path[i + 1].1, path[i + 2].1)?)
-                } else {
-                    _to
-                };
-                let pool = self.get_pool(path[i].0, (path[i].1, path[i + 1].1))?;
-                pool.swap(path[i].1, path[i + 1].1, amounts[i + 1], to)?;
+            for i in 0..valid_path.len() - 1 {
+                valid_path[i].pool.swap(
+                    valid_path[i].token_in,
+                    valid_path[i + 1].token_in,
+                    amounts[i + 1],
+                    valid_path[i + 1].pool.pool_id(),
+                )?;
             }
+            // If last pool in the path, transfer tokens to the `to` recipient.
+            valid_path[valid_path.len() - 1].pool.swap(
+                valid_path[valid_path.len() - 1].token_in,
+                token_out,
+                amounts[valid_path.len()],
+                to,
+            )?;
             Ok(())
         }
 
         /// Computes the amounts of tokens that have to be supplied
-        /// at each step of the exchange `path`, to get exactly `amount_out`
+        /// at each step of the exchange `path`, to get exactly `amount_out` of `token_out`
         /// tokens at the end of the swaps.
         fn calculate_amounts_in(
             &self,
             amount_out: u128,
-            path: &[Step],
+            valid_path: &[ValidStep],
+            token_out: AccountId,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            ensure!(path.len() >= 2, RouterV2Error::InvalidPath);
-
-            let mut amounts = vec![0; path.len()];
-            amounts[path.len() - 1] = amount_out;
-            for i in (0..path.len() - 1).rev() {
-                let pool = self.get_pool(path[i].0, (path[i].1, path[i + 1].1))?;
-                amounts[i] = pool.get_amount_in(path[i].1, path[i + 1].1, amounts[i + 1])?;
+            let mut amounts = vec![0; valid_path.len() + 1];
+            amounts[valid_path.len() - 1] = amount_out;
+            amounts[valid_path.len() - 2] = valid_path[valid_path.len() - 2].pool.get_amount_in(
+                valid_path[valid_path.len() - 2].token_in,
+                token_out,
+                amount_out,
+            )?;
+            for i in (0..valid_path.len() - 1).rev() {
+                amounts[i] = valid_path[i].pool.get_amount_in(
+                    valid_path[i].token_in,
+                    valid_path[i + 1].token_in,
+                    amounts[i + 1],
+                )?;
             }
 
             Ok(amounts)
         }
 
-        /// Computes swap token amounts over the given path of pools and tokens.
+        /// Computes swap token amounts over the given path.
         ///
         /// Returns list of swap outcomes along the path.
         fn calculate_amounts_out(
             &self,
             amount_in: u128,
-            path: &[Step],
+            valid_path: &[ValidStep],
+            token_out: AccountId,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            ensure!(path.len() >= 2, RouterV2Error::InvalidPath);
-
-            let mut amounts = Vec::with_capacity(path.len());
+            let mut amounts = Vec::with_capacity(valid_path.len() + 1);
             amounts.push(amount_in);
-            for i in 0..path.len() - 1 {
-                let pool = self.get_pool(path[i].0, (path[i].1, path[i + 1].1))?;
-                amounts.push(pool.get_amount_out(path[i].1, path[i + 1].1, amounts[i])?);
+            for i in 0..valid_path.len() - 1 {
+                amounts.push(valid_path[i].pool.get_amount_out(
+                    valid_path[i].token_in,
+                    valid_path[i + 1].token_in,
+                    amounts[i],
+                )?);
             }
+            amounts.push(valid_path[valid_path.len() - 1].pool.get_amount_out(
+                valid_path[valid_path.len() - 1].token_in,
+                token_out,
+                amounts[valid_path.len() - 1],
+            )?);
 
             Ok(amounts)
         }
 
-        fn validate_path(&self, path: Vec<Step>) -> Result<(Vec<(Pool, AccountId)>, AccountId), RouterV2Error> {
-            let mut pool_path = Vec::with_capacity(path.len());
-            pool_path.push((self.get_pool(path[0].0, (path[0].1, path[1].1))?, path[0].1));
-            for i in 1..(path.len() - 1) {
-                pool_path.push((self.get_pool(path[i].0, (path[i].1, path[i + 1].1))? , path[i].1));
+        /// Checks if the path is valid.
+        ///
+        /// Returns valid path
+        fn validate_path(
+            &self,
+            path: &[Step],
+            token_out: AccountId,
+        ) -> Result<Vec<ValidStep>, RouterV2Error> {
+            ensure!(path.len() >= 1, RouterV2Error::InvalidPath);
+            let mut valid_path = Vec::with_capacity(path.len());
+            for i in 0..(path.len() - 1) {
+                ensure!(
+                    path[i].token_in != path[i + 1].token_in,
+                    RouterV2Error::IdenticalAddresses
+                );
+                valid_path.push(ValidStep {
+                    token_in: path[i].token_in,
+                    pool: self
+                        .get_pool(path[i].pool_id, (path[i].token_in, path[i + 1].token_in))?,
+                });
             }
-            Ok((pool_path, path[path.len() - 1].1))
+            ensure!(
+                path[path.len() - 1].token_in != token_out,
+                RouterV2Error::IdenticalAddresses
+            );
+            valid_path.push(ValidStep {
+                token_in: path[path.len() - 1].token_in,
+                pool: self.get_pool(
+                    path[path.len() - 1].pool_id,
+                    (path[path.len() - 1].token_in, token_out),
+                )?,
+            });
+            Ok(valid_path)
         }
 
         #[inline]
@@ -330,20 +367,24 @@ pub mod router_v2 {
             amount_in: u128,
             amount_out_min: u128,
             path: Vec<Step>,
+            token_out: AccountId,
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             self.check_timestamp(deadline)?;
-            let amounts = self.calculate_amounts_out(amount_in, &path)?;
+            let valid_path = self.validate_path(&path, token_out)?;
+            let amounts = self.calculate_amounts_out(amount_in, &valid_path, token_out)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
                 RouterV2Error::InsufficientOutputAmount
             );
-            let first_pool_id = self
-                .get_pool(path[0].0, (path[0].1, path[1].1))?
-                .account_id();
-            psp22_transfer_from(path[0].1, self.env().caller(), first_pool_id, amounts[0])?;
-            self.swap(&amounts, &path, to)?;
+            psp22_transfer_from(
+                valid_path[0].token_in,
+                self.env().caller(),
+                valid_path[0].pool.pool_id(),
+                amounts[0],
+            )?;
+            self.swap(&amounts, &valid_path, token_out, to)?;
             Ok(amounts)
         }
 
@@ -353,20 +394,24 @@ pub mod router_v2 {
             amount_out: u128,
             amount_in_max: u128,
             path: Vec<Step>,
+            token_out: AccountId,
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             self.check_timestamp(deadline)?;
-            let amounts = self.calculate_amounts_in(amount_out, &path)?;
+            let valid_path = self.validate_path(&path, token_out)?;
+            let amounts = self.calculate_amounts_in(amount_out, &valid_path, token_out)?;
             ensure!(
                 amounts[0] <= amount_in_max,
                 RouterV2Error::ExcessiveInputAmount
             );
-            let first_pool_id = self
-                .get_pool(path[0].0, (path[0].1, path[1].1))?
-                .account_id();
-            psp22_transfer_from(path[0].1, self.env().caller(), first_pool_id, amounts[0])?;
-            self.swap(&amounts, &path, to)?;
+            psp22_transfer_from(
+                valid_path[0].token_in,
+                self.env().caller(),
+                valid_path[0].pool.pool_id(),
+                amounts[0],
+            )?;
+            self.swap(&amounts, &valid_path, token_out, to)?;
             Ok(amounts)
         }
 
@@ -375,24 +420,23 @@ pub mod router_v2 {
             &mut self,
             amount_out_min: u128,
             path: Vec<Step>,
+            token_out: AccountId,
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             self.check_timestamp(deadline)?;
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
-            ensure!(path[0].1 == wnative, RouterV2Error::InvalidPath);
-            let amounts = self.calculate_amounts_out(received_value, &path)?;
+            ensure!(path[0].token_in == wnative, RouterV2Error::InvalidPath);
+            let valid_path = self.validate_path(&path, token_out)?;
+            let amounts = self.calculate_amounts_out(received_value, &valid_path, token_out)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
                 RouterV2Error::InsufficientOutputAmount
             );
             self.wrap(received_value)?;
-            let first_pool_id = self
-                .get_pool(path[0].0, (path[0].1, path[1].1))?
-                .account_id();
-            psp22_transfer(wnative, first_pool_id, amounts[0])?;
-            self.swap(&amounts, &path, to)?;
+            psp22_transfer(wnative, valid_path[0].pool.pool_id(), amounts[0])?;
+            self.swap(&amounts, &valid_path, token_out, to)?;
             Ok(amounts)
         }
 
@@ -407,20 +451,19 @@ pub mod router_v2 {
         ) -> Result<Vec<u128>, RouterV2Error> {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
-            ensure!(
-                path[path.len() - 1].1 == wnative,
-                RouterV2Error::InvalidPath
-            );
-            let amounts = self.calculate_amounts_in(amount_out, &path)?;
+            let valid_path = self.validate_path(&path, wnative)?;
+            let amounts = self.calculate_amounts_in(amount_out, &valid_path, wnative)?;
             ensure!(
                 amounts[0] <= amount_in_max,
                 RouterV2Error::ExcessiveInputAmount
             );
-            let first_pool_id = self
-                .get_pool(path[0].0, (path[0].1, path[1].1))?
-                .account_id();
-            psp22_transfer_from(path[0].1, self.env().caller(), first_pool_id, amounts[0])?;
-            self.swap(&amounts, &path, self.env().account_id())?;
+            psp22_transfer_from(
+                valid_path[0].token_in,
+                self.env().caller(),
+                valid_path[0].pool.pool_id(),
+                amounts[0],
+            )?;
+            self.swap(&amounts, &valid_path, wnative, self.env().account_id())?;
             let native_out = amounts[amounts.len() - 1];
             self.wnative_ref().withdraw(native_out)?;
             self.env()
@@ -439,21 +482,21 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             self.check_timestamp(deadline)?;
-            ensure!(
-                path[path.len() - 1].1 == self.wnative,
-                RouterV2Error::InvalidPath
-            );
-            let amounts = self.calculate_amounts_out(amount_in, &path)?;
+            let wnative = self.wnative;
+            let valid_path = self.validate_path(&path, wnative)?;
+            let amounts = self.calculate_amounts_out(amount_in, &valid_path, wnative)?;
             let native_out = amounts[amounts.len() - 1];
             ensure!(
                 native_out >= amount_out_min,
                 RouterV2Error::InsufficientOutputAmount
             );
-            let first_pool_id = self
-                .get_pool(path[0].0, (path[0].1, path[1].1))?
-                .account_id();
-            psp22_transfer_from(path[0].1, self.env().caller(), first_pool_id, amounts[0])?;
-            self.swap(&amounts, &path, self.env().account_id())?;
+            psp22_transfer_from(
+                valid_path[0].token_in,
+                self.env().caller(),
+                valid_path[0].pool.pool_id(),
+                amounts[0],
+            )?;
+            self.swap(&amounts, &valid_path, wnative, self.env().account_id())?;
             self.wnative_ref().withdraw(native_out)?;
             self.env()
                 .transfer(to, native_out)
@@ -466,25 +509,24 @@ pub mod router_v2 {
             &mut self,
             amount_out: u128,
             path: Vec<Step>,
+            token_out: AccountId,
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             self.check_timestamp(deadline)?;
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
-            ensure!(path[0].1 == wnative, RouterV2Error::InvalidPath);
-            let amounts = self.calculate_amounts_in(amount_out, &path)?;
+            ensure!(path[0].token_in == wnative, RouterV2Error::InvalidPath);
+            let valid_path = self.validate_path(&path, token_out)?;
+            let amounts = self.calculate_amounts_in(amount_out, &valid_path, token_out)?;
             let native_in: Balance = amounts[0];
             ensure!(
                 native_in <= received_native,
                 RouterV2Error::ExcessiveInputAmount
             );
             self.wrap(native_in)?;
-            let first_pool_id = self
-                .get_pool(path[0].0, (path[0].1, path[1].1))?
-                .account_id();
-            psp22_transfer(wnative, first_pool_id, native_in)?;
-            self.swap(&amounts, &path, to)?;
+            psp22_transfer(wnative, path[0].token_in, native_in)?;
+            self.swap(&amounts, &valid_path, token_out, to)?;
             if received_native > native_in {
                 self.env()
                     .transfer(self.env().caller(), received_native - native_in)
@@ -498,8 +540,10 @@ pub mod router_v2 {
             &self,
             amount_in: u128,
             path: Vec<Step>,
+            token_out: AccountId,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            self.calculate_amounts_out(amount_in, &path)
+            let valid_path = self.validate_path(&path, token_out)?;
+            self.calculate_amounts_out(amount_in, &valid_path, token_out)
         }
 
         #[ink(message)]
@@ -507,8 +551,10 @@ pub mod router_v2 {
             &self,
             amount_out: u128,
             path: Vec<Step>,
+            token_out: AccountId,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            self.calculate_amounts_in(amount_out, &path)
+            let valid_path = self.validate_path(&path, token_out)?;
+            self.calculate_amounts_in(amount_out, &valid_path, token_out)
         }
 
         // ----------- PAIR LIQUIDITY METHODS ----------- //
@@ -526,9 +572,8 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<(u128, u128, u128), RouterV2Error> {
             self.check_timestamp(deadline)?;
-            let pair_contract = self.get_or_create_pair(token_0, token_1)?;
-            let (amount_0, amount_1) = calculate_pair_liquidity(
-                pair_contract,
+            let pair = self.get_or_create_pair(token_0, token_1)?;
+            let (amount_0, amount_1) = pair.calculate_liquidity(
                 token_0,
                 token_1,
                 amount_0_desired,
@@ -538,10 +583,10 @@ pub mod router_v2 {
             )?;
 
             let caller = self.env().caller();
-            psp22_transfer_from(token_0, caller, pair_contract, amount_0)?;
-            psp22_transfer_from(token_1, caller, pair_contract, amount_1)?;
+            psp22_transfer_from(token_0, caller, pair.pool_id(), amount_0)?;
+            psp22_transfer_from(token_1, caller, pair.pool_id(), amount_1)?;
 
-            let liquidity = pair_ref(pair_contract).mint(to)?;
+            let liquidity = pair.contract_ref().mint(to)?;
 
             Ok((amount_0, amount_1, liquidity))
         }
@@ -560,9 +605,8 @@ pub mod router_v2 {
             let wnative = self.wnative;
             let received_value = self.env().transferred_value();
 
-            let pair_contract = self.get_or_create_pair(token, wnative)?;
-            let (amount_0, amount_native) = calculate_pair_liquidity(
-                pair_contract,
+            let pair = self.get_or_create_pair(token, wnative)?;
+            let (amount_0, amount_native) = pair.calculate_liquidity(
                 token,
                 wnative,
                 amount_token_desired,
@@ -572,11 +616,11 @@ pub mod router_v2 {
             )?;
 
             let caller = self.env().caller();
-            psp22_transfer_from(token, caller, pair_contract, amount_0)?;
+            psp22_transfer_from(token, caller, pair.pool_id(), amount_0)?;
             self.wrap(amount_native)?;
-            psp22_transfer(wnative, pair_contract, amount_native)?;
+            psp22_transfer(wnative, pair.pool_id(), amount_native)?;
 
-            let liquidity = pair_ref(pair_contract).mint(to)?;
+            let liquidity = pair.contract_ref().mint(to)?;
 
             if received_value > amount_native {
                 self.env()
@@ -602,12 +646,10 @@ pub mod router_v2 {
             ensure!(token_0 != token_1, RouterV2Error::IdenticalAddresses);
             let pair = self.get_pair(token_0, token_1)?;
 
-            psp22_transfer_from(pair, self.env().caller(), pair, liquidity)?;
-
-            let mut pair = pair_ref(pair);
+            psp22_transfer_from(pair.pool_id(), self.env().caller(), pair.pool_id(), liquidity)?;
 
             let (amount_0, amount_1) =
-                pair.call_mut().burn(to).try_invoke().map_err(|_| {
+                pair.contract_ref().call_mut().burn(to).try_invoke().map_err(|_| {
                     RouterV2Error::CrossContractCallFailed(String::from("Pair:burn"))
                 })???;
             let (amount_0, amount_1) = if token_0 < token_1 {

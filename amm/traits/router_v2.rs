@@ -7,9 +7,14 @@ use ink::{
 use psp22::PSP22Error;
 
 pub type PoolId = AccountId;
-pub type TokenId = AccountId;
 
-pub type Step = (Option<PoolId>, TokenId);
+/// Specifies the pool for the trade and the input token of this trade (token to sell).
+#[derive(scale::Decode, scale::Encode)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub struct Step {
+    pub token_in: AccountId,
+    pub pool_id: Option<AccountId>,
+}
 
 #[ink::trait_definition]
 pub trait RouterV2 {
@@ -97,8 +102,15 @@ pub trait RouterV2 {
         deadline: u64,
     ) -> Result<(u128, Balance), RouterV2Error>;
 
-    /// Exchanges tokens along `path` pools and tokens.
-    /// Starts with `amount_in` and pair under `(path[0], path[1])` address.
+    /// Exchanges tokens along the `path` to `token_out`.
+    ///
+    /// Starts with `amount_in` and token address under `path[0].token_in`.
+    ///
+    /// If `path[i].pool_id` is `None`, it attemps the swap through
+    /// `(path[i].token_in, path[i + 1].token_in)` Pair,
+    /// or `(path[path.len() - 1].token_in, token_out)` Pair
+    /// if this is the last Step in the `path`
+    ///
     /// Fails if output amount is less than `amount_out_min`.
     /// Transfers tokens to account under `to` address.
     #[ink(message)]
@@ -107,11 +119,12 @@ pub trait RouterV2 {
         amount_in: u128,
         amount_out_min: u128,
         path: Vec<Step>,
+        token_out: AccountId,
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<u128>, RouterV2Error>;
 
-    /// Exchanges tokens along `path` pools and tokens
+    /// Exchanges tokens along `path` to `token_out`
     /// so that at the end caller receives `amount_out`
     /// worth of tokens and pays no more than `amount_in_max`
     /// of the starting token. Fails if any of these conditions
@@ -123,12 +136,13 @@ pub trait RouterV2 {
         amount_out: u128,
         amount_in_max: u128,
         path: Vec<Step>,
+        token_out: AccountId,
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<u128>, RouterV2Error>;
 
     /// Exchanges exact amount of native token,
-    /// along the `path` pools and tokens, and expects
+    /// along the `path` to `token_out`, and expects
     /// to receive at least `amount_out_min` of tokens
     /// at the end of execution. Fails if the output
     /// amount is less than `amount_out_min`.
@@ -138,11 +152,12 @@ pub trait RouterV2 {
         &mut self,
         amount_out_min: u128,
         path: Vec<Step>,
+        token_out: AccountId,
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<u128>, RouterV2Error>;
 
-    /// Exchanges tokens along `path` pools and token
+    /// Exchanges tokens along `path`
     /// so that at the end caller receives `amount_out`
     /// worth of native tokens and pays no more than `amount_in_max`
     /// of the starting token. Fails if any of these conditions
@@ -159,7 +174,7 @@ pub trait RouterV2 {
     ) -> Result<Vec<u128>, RouterV2Error>;
 
     /// Exchanges exact amount of token,
-    /// along the `path` pools and tokens, and expects
+    /// along the `path`, and expects
     /// to receive at least `amount_out_min` of native tokens
     /// at the end of execution. Fails if the output
     /// amount is less than `amount_out_min`.
@@ -174,7 +189,7 @@ pub trait RouterV2 {
         deadline: u64,
     ) -> Result<Vec<u128>, RouterV2Error>;
 
-    /// Exchanges tokens along `path` pools and tokens
+    /// Exchanges tokens along `path` to `token_out`
     /// so that at the end caller receives `amount_out`
     /// worth of tokens and pays no more than `amount_in_max`
     /// of the native token. Fails if any of these conditions
@@ -185,19 +200,28 @@ pub trait RouterV2 {
         &mut self,
         amount_out: u128,
         path: Vec<Step>,
+        token_out: AccountId,
         to: AccountId,
         deadline: u64,
     ) -> Result<Vec<u128>, RouterV2Error>;
 
     /// Returns amounts of tokens received for `amount_in`.
     #[ink(message)]
-    fn get_amounts_out(&self, amount_in: u128, path: Vec<Step>)
-        -> Result<Vec<u128>, RouterV2Error>;
+    fn get_amounts_out(
+        &self,
+        amount_in: u128,
+        path: Vec<Step>,
+        token_out: AccountId,
+    ) -> Result<Vec<u128>, RouterV2Error>;
 
     /// Returns amounts of tokens user has to supply.
     #[ink(message)]
-    fn get_amounts_in(&self, amount_out: u128, path: Vec<Step>)
-        -> Result<Vec<u128>, RouterV2Error>;
+    fn get_amounts_in(
+        &self,
+        amount_out: u128,
+        path: Vec<Step>,
+        token_out: AccountId,
+    ) -> Result<Vec<u128>, RouterV2Error>;
 }
 
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
