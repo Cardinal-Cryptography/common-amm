@@ -18,23 +18,18 @@ fn test_cache_stable_pool(mut session: Session) {
     let now = get_timestamp(&mut session);
     set_timestamp(&mut session, now);
 
+    // setup router
     let fee_to_setter = bob();
-
-    // initial amount of ICE is 1_000_000_000 * 10 ** 18
     let factory = factory::setup(&mut session, fee_to_setter);
     let wazero = wazero::setup(&mut session);
     let router = router_v2::setup(&mut session, factory.into(), wazero.into());
 
     let initial_reserves = vec![100000 * ONE_USDT, 100000 * ONE_USDC];
-    let initial_supply = initial_reserves
-        .iter()
-        .map(|amount| amount * 100_000_000_000)
-        .collect::<Vec<u128>>();
 
     let (usdt_usdc_pool, _) = setup_stable_swap_with_tokens(
         &mut session,
         vec![6, 6],
-        initial_supply.clone(),
+        initial_reserves.clone(),
         10_000,
         2_500_000,
         200_000_000,
