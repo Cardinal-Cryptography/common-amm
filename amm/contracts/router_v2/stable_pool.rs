@@ -1,4 +1,9 @@
-use ink::{contract_ref, env::DefaultEnvironment, prelude::{vec, vec::Vec}, primitives::AccountId};
+use ink::{
+    contract_ref,
+    env::DefaultEnvironment as Env,
+    prelude::{vec, vec::Vec},
+    primitives::AccountId,
+};
 use traits::StablePool as StablePoolTrait;
 
 #[derive(scale::Decode, scale::Encode)]
@@ -15,7 +20,7 @@ impl StablePool {
         pool
     }
 
-    pub fn contract_ref(&self) -> contract_ref!(StablePoolTrait, DefaultEnvironment) {
+    pub fn contract_ref(&self) -> contract_ref!(StablePoolTrait, Env) {
         self.0.into()
     }
 

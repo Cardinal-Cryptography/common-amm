@@ -1,9 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-mod pool;
 mod pair;
+mod pool;
 mod stable_pool;
-
+mod utils;
 #[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub struct CallerIsNotOwner;
@@ -12,18 +12,16 @@ pub struct CallerIsNotOwner;
 pub mod router_v2 {
     use crate::{
         pool::{Pair, Pool, StablePool},
+        utils::*,
         CallerIsNotOwner,
     };
     use amm_helpers::ensure;
     use ink::{
-        codegen::TraitCallBuilder,
         contract_ref,
-        prelude::{string::String, vec, vec::Vec},
+        prelude::{vec, vec::Vec},
         storage::Mapping,
     };
-    use psp22::{PSP22Error, PSP22};
     use traits::{Factory, Pair as _, PoolId, RouterV2, RouterV2Error, Step};
-    use wrapped_azero::WrappedAZERO;
 
     struct ValidStep {
         token_in: AccountId,
@@ -162,7 +160,7 @@ pub mod router_v2 {
             }
         }
 
-         /// Returns cached Pair or Pair created with the Factory contract for `(token_0, token_1)` tokens.
+        /// Returns cached Pair or Pair created with the Factory contract for `(token_0, token_1)` tokens.
         ///
         /// If Pair exists but was not cached, it adds the Pair to the cache.
         #[inline]
@@ -287,7 +285,7 @@ pub mod router_v2 {
             path: &[Step],
             token_out: AccountId,
         ) -> Result<Vec<ValidStep>, RouterV2Error> {
-            ensure!(path.len() >= 1, RouterV2Error::InvalidPath);
+            ensure!(!path.is_empty(), RouterV2Error::InvalidPath);
             let mut valid_path = Vec::with_capacity(path.len());
             for i in 0..(path.len() - 1) {
                 ensure!(
@@ -318,34 +316,6 @@ pub mod router_v2 {
         fn pair_factory_ref(&self) -> contract_ref!(Factory) {
             self.pair_factory.into()
         }
-
-        #[inline]
-        fn wnative_ref(&self) -> contract_ref!(WrappedAZERO) {
-            self.wnative.into()
-        }
-
-        /// Checks if the current block timestamp is not after the deadline.
-        #[inline]
-        fn check_timestamp(&self, deadline: u64) -> Result<(), RouterV2Error> {
-            ensure!(
-                deadline >= self.env().block_timestamp(),
-                RouterV2Error::Expired
-            );
-            Ok(())
-        }
-
-        #[inline]
-        fn wrap(&self, value: Balance) -> Result<(), RouterV2Error> {
-            self.wnative_ref()
-                .call_mut()
-                .deposit()
-                .transferred_value(value)
-                .try_invoke()
-                .map_err(|_| {
-                    RouterV2Error::CrossContractCallFailed(String::from("Wrapped AZERO: deposit"))
-                })???;
-            Ok(())
-        }
     }
 
     impl RouterV2 for RouterV2Contract {
@@ -371,7 +341,7 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            self.check_timestamp(deadline)?;
+            check_timestamp(deadline)?;
             let valid_path = self.validate_path(&path, token_out)?;
             let amounts = self.calculate_amounts_out(amount_in, &valid_path, token_out)?;
             ensure!(
@@ -398,7 +368,7 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            self.check_timestamp(deadline)?;
+            check_timestamp(deadline)?;
             let valid_path = self.validate_path(&path, token_out)?;
             let amounts = self.calculate_amounts_in(amount_out, &valid_path, token_out)?;
             ensure!(
@@ -424,7 +394,7 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            self.check_timestamp(deadline)?;
+            check_timestamp(deadline)?;
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
             ensure!(path[0].token_in == wnative, RouterV2Error::InvalidPath);
@@ -434,7 +404,7 @@ pub mod router_v2 {
                 amounts[amounts.len() - 1] >= amount_out_min,
                 RouterV2Error::InsufficientOutputAmount
             );
-            self.wrap(received_value)?;
+            wrap(wnative, received_value)?;
             psp22_transfer(wnative, valid_path[0].pool.pool_id(), amounts[0])?;
             self.swap(&amounts, &valid_path, token_out, to)?;
             Ok(amounts)
@@ -449,7 +419,7 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            self.check_timestamp(deadline)?;
+            check_timestamp(deadline)?;
             let wnative = self.wnative;
             let valid_path = self.validate_path(&path, wnative)?;
             let amounts = self.calculate_amounts_in(amount_out, &valid_path, wnative)?;
@@ -465,7 +435,7 @@ pub mod router_v2 {
             )?;
             self.swap(&amounts, &valid_path, wnative, self.env().account_id())?;
             let native_out = amounts[amounts.len() - 1];
-            self.wnative_ref().withdraw(native_out)?;
+            withdraw(wnative ,native_out)?;
             self.env()
                 .transfer(to, native_out)
                 .map_err(|_| RouterV2Error::TransferError)?;
@@ -481,7 +451,7 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            self.check_timestamp(deadline)?;
+            check_timestamp(deadline)?;
             let wnative = self.wnative;
             let valid_path = self.validate_path(&path, wnative)?;
             let amounts = self.calculate_amounts_out(amount_in, &valid_path, wnative)?;
@@ -497,7 +467,7 @@ pub mod router_v2 {
                 amounts[0],
             )?;
             self.swap(&amounts, &valid_path, wnative, self.env().account_id())?;
-            self.wnative_ref().withdraw(native_out)?;
+            withdraw(wnative, native_out)?;
             self.env()
                 .transfer(to, native_out)
                 .map_err(|_| RouterV2Error::TransferError)?;
@@ -513,7 +483,7 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            self.check_timestamp(deadline)?;
+            check_timestamp(deadline)?;
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
             ensure!(path[0].token_in == wnative, RouterV2Error::InvalidPath);
@@ -524,7 +494,7 @@ pub mod router_v2 {
                 native_in <= received_native,
                 RouterV2Error::ExcessiveInputAmount
             );
-            self.wrap(native_in)?;
+            wrap(wnative, native_in)?;
             psp22_transfer(wnative, path[0].token_in, native_in)?;
             self.swap(&amounts, &valid_path, token_out, to)?;
             if received_native > native_in {
@@ -571,24 +541,17 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, u128, u128), RouterV2Error> {
-            self.check_timestamp(deadline)?;
             let pair = self.get_or_create_pair(token_0, token_1)?;
-            let (amount_0, amount_1) = pair.calculate_liquidity(
+            pair.add_liquidity(
                 token_0,
                 token_1,
                 amount_0_desired,
                 amount_1_desired,
                 amount_0_min,
                 amount_1_min,
-            )?;
-
-            let caller = self.env().caller();
-            psp22_transfer_from(token_0, caller, pair.pool_id(), amount_0)?;
-            psp22_transfer_from(token_1, caller, pair.pool_id(), amount_1)?;
-
-            let liquidity = pair.contract_ref().mint(to)?;
-
-            Ok((amount_0, amount_1, liquidity))
+                to,
+                deadline,
+            )
         }
 
         #[ink(message, payable)]
@@ -601,34 +564,17 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, Balance, u128), RouterV2Error> {
-            self.check_timestamp(deadline)?;
             let wnative = self.wnative;
-            let received_value = self.env().transferred_value();
-
             let pair = self.get_or_create_pair(token, wnative)?;
-            let (amount_0, amount_native) = pair.calculate_liquidity(
+            pair.add_liquidity_native(
                 token,
                 wnative,
                 amount_token_desired,
-                received_value,
                 amount_token_min,
                 amount_native_min,
-            )?;
-
-            let caller = self.env().caller();
-            psp22_transfer_from(token, caller, pair.pool_id(), amount_0)?;
-            self.wrap(amount_native)?;
-            psp22_transfer(wnative, pair.pool_id(), amount_native)?;
-
-            let liquidity = pair.contract_ref().mint(to)?;
-
-            if received_value > amount_native {
-                self.env()
-                    .transfer(caller, received_value - amount_native)
-                    .map_err(|_| RouterV2Error::TransferError)?;
-            }
-
-            Ok((amount_0, amount_native, liquidity))
+                to,
+                deadline,
+            )
         }
 
         #[ink(message)]
@@ -642,26 +588,16 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, u128), RouterV2Error> {
-            self.check_timestamp(deadline)?;
-            ensure!(token_0 != token_1, RouterV2Error::IdenticalAddresses);
             let pair = self.get_pair(token_0, token_1)?;
-
-            psp22_transfer_from(pair.pool_id(), self.env().caller(), pair.pool_id(), liquidity)?;
-
-            let (amount_0, amount_1) =
-                pair.contract_ref().call_mut().burn(to).try_invoke().map_err(|_| {
-                    RouterV2Error::CrossContractCallFailed(String::from("Pair:burn"))
-                })???;
-            let (amount_0, amount_1) = if token_0 < token_1 {
-                (amount_0, amount_1)
-            } else {
-                (amount_1, amount_0)
-            };
-
-            ensure!(amount_0 >= amount_0_min, RouterV2Error::InsufficientAmountA);
-            ensure!(amount_1 >= amount_1_min, RouterV2Error::InsufficientAmountB);
-
-            Ok((amount_0, amount_1))
+            pair.remove_liquidity(
+                token_0,
+                token_1,
+                liquidity,
+                amount_0_min,
+                amount_1_min,
+                to,
+                deadline,
+            )
         }
 
         #[ink(message)]
@@ -674,41 +610,18 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, Balance), RouterV2Error> {
-            self.check_timestamp(deadline)?;
             let wnative = self.wnative;
-            let (amount_token, amount_native) = self.remove_pair_liquidity(
+            let pair = self.get_pair(token, wnative)?;
+            pair.remove_liquidity_native(
                 token,
                 wnative,
                 liquidity,
                 amount_token_min,
                 amount_native_min,
-                self.env().account_id(),
+                to,
                 deadline,
-            )?;
-            psp22_transfer(token, to, amount_token)?;
-            self.wnative_ref().withdraw(amount_native)?;
-            self.env()
-                .transfer(to, amount_native)
-                .map_err(|_| RouterV2Error::TransferError)?;
-            Ok((amount_token, amount_native))
+            )
         }
-    }
-
-    #[inline]
-    fn psp22_transfer(token: AccountId, to: AccountId, value: u128) -> Result<(), PSP22Error> {
-        let mut token: contract_ref!(PSP22) = token.into();
-        token.transfer(to, value, Vec::new())
-    }
-
-    #[inline]
-    fn psp22_transfer_from(
-        token: AccountId,
-        from: AccountId,
-        to: AccountId,
-        value: u128,
-    ) -> Result<(), PSP22Error> {
-        let mut token: contract_ref!(PSP22) = token.into();
-        token.transfer_from(from, to, value, Vec::new())
     }
 
     #[cfg(test)]
