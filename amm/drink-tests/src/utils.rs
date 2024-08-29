@@ -15,6 +15,12 @@ pub const EVA: drink::AccountId32 = AccountId32::new([5u8; 32]);
 
 pub const TOKEN: u128 = 10u128.pow(18);
 
+pub const FEE_RECEIVER: AccountId32 = AccountId32::new([42u8; 32]);
+
+pub fn fee_receiver() -> ink_primitives::AccountId {
+    AsRef::<[u8; 32]>::as_ref(&FEE_RECEIVER).clone().into()
+}
+
 pub fn bob() -> ink_primitives::AccountId {
     AsRef::<[u8; 32]>::as_ref(&BOB).clone().into()
 }
@@ -54,6 +60,9 @@ pub fn upload_all(session: &mut Session<MinimalRuntime>) {
     session
         .upload_code(router_contract::upload())
         .expect("Upload router_contract code");
+    session
+        .upload_code(router_v2_contract::upload())
+        .expect("Upload router_v2_contract code");
     session
         .upload_code(wrapped_azero::upload())
         .expect("Upload wrapped_azero code");
@@ -206,9 +215,122 @@ pub mod router {
     }
 }
 
+pub mod router_v2 {
+    use super::*;
+    use router_v2_contract::RouterV2 as _;
+
+    pub fn setup(
+        session: &mut Session<MinimalRuntime>,
+        factory: AccountId,
+        wazero: AccountId,
+    ) -> router_v2_contract::Instance {
+        let instance = router_v2_contract::Instance::new(factory, wazero);
+
+        session
+            .instantiate(instance)
+            .unwrap()
+            .result
+            .to_account_id()
+            .into()
+    }
+
+    pub fn add_pair_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        token_0: AccountId,
+        token_1: AccountId,
+        desired_amount_0: u128,
+        desired_amount_1: u128,
+        min_amount_0: u128,
+        min_amount_1: u128,
+        to: AccountId,
+        caller: drink::AccountId32,
+    ) -> (u128, u128, u128) {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(router_v2_contract::Instance::from(router).add_pair_liquidity(
+                token_0,
+                token_1,
+                desired_amount_0,
+                desired_amount_1,
+                min_amount_0,
+                min_amount_1,
+                to,
+                deadline,
+            ))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap()
+    }
+
+    pub fn remove_pair_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        first_token: AccountId,
+        second_token: AccountId,
+        liquidity: u128,
+        min_token0: u128,
+        min_token1: u128,
+        to: AccountId,
+        caller: drink::AccountId32,
+    ) -> (u128, u128) {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(router_v2_contract::Instance::from(router).remove_pair_liquidity(
+                first_token,
+                second_token,
+                liquidity,
+                min_token0,
+                min_token1,
+                to,
+                deadline,
+            ))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap()
+    }
+
+    pub fn get_cached_pair(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        token0: AccountId,
+        token1: AccountId,
+    ) -> AccountId {
+        session
+            .query(router_v2_contract::Instance::from(router).read_cached_pair(token0, token1))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap()
+            .0
+    }
+
+    pub fn get_cached_stable_pool(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pool_id: AccountId
+    ) -> AccountId {
+        session
+            .query(router_v2_contract::Instance::from(router).read_cached_stable_pool(pool_id))
+            .unwrap()
+            .result
+            .unwrap()
+            .unwrap()
+            .0
+    }
+}
+
 pub mod psp22_utils {
     use super::*;
-    use psp22::{Instance as PSP22, PSP22 as _, PSP22Metadata as _};
+    use psp22::{Instance as PSP22, PSP22Metadata as _, PSP22 as _};
 
     /// Uploads and creates a PSP22 instance with 1B*10^18 issuance and given names.
     /// Returns its AccountId casted to PSP22 interface.

@@ -12,6 +12,7 @@ declare -a CONTRACTS=(
     "stable_pool_contract" 
     "mock_rate_provider_contract" 
     "router_contract"
+    "router_v2_contract"
 )
 
 function wrap_contracts() {
