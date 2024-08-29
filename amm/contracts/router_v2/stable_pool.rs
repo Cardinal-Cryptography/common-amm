@@ -1,4 +1,4 @@
-use ink::{contract_ref, env::DefaultEnvironment, primitives::AccountId};
+use ink::{contract_ref, env::DefaultEnvironment, prelude::{vec, vec::Vec}, primitives::AccountId};
 use traits::StablePool as StablePoolTrait;
 
 #[derive(scale::Decode, scale::Encode)]
