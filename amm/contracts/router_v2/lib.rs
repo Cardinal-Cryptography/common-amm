@@ -140,24 +140,23 @@ pub mod router_v2 {
 
         /// Returns
         /// 1. `Pool::StablePool` for given `pool_id` if one exists in the cache,
-        /// 2. `Pool::Pair` for given `pair` tokens if pair exists in the cache
-        /// 3. `Pool::Pair` for given `pair` tokens if pair was deployed with the Factory contract.
+        /// 2. `Pool::Pair` for given `pair` tokens and `pool_id` if pair exists in the cache
+        /// 3. `Pool::Pair` for given `pair` tokens and `pool_id` if pair was deployed with the Factory contract.
         /// 4. `RouterV2Error::PoolNotFound` error if the pool was not found.
         #[inline]
         fn get_pool(
             &self,
-            pool_id: Option<AccountId>,
+            pool_id: AccountId,
             pair: (AccountId, AccountId),
         ) -> Result<Pool, RouterV2Error> {
-            if let Some(pool_id) = pool_id {
-                if let Some(pool) = self.cached_stable_pools.get(pool_id) {
-                    return Ok(Pool::StablePool(pool));
-                }
+            if let Some(pool) = self.cached_stable_pools.get(pool_id) {
+                return Ok(Pool::StablePool(pool));
             }
-            match self.get_pair(pair.0, pair.1) {
-                Ok(pair) => Ok(Pool::Pair(pair)),
-                Err(_) => Err(RouterV2Error::PoolNotFound),
+            if let Some(pair) = self.get_pair(pair.0, pair.1).ok() {
+                ensure!(pair.pool_id() == pool_id, RouterV2Error::PoolNotFound);
+                return Ok(Pool::Pair(pair));
             }
+            Err(RouterV2Error::PoolNotFound)
         }
 
         /// Returns cached Pair or Pair created with the Factory contract for `(token_0, token_1)` tokens.
@@ -435,7 +434,7 @@ pub mod router_v2 {
             )?;
             self.swap(&amounts, &valid_path, wnative, self.env().account_id())?;
             let native_out = amounts[amounts.len() - 1];
-            withdraw(wnative ,native_out)?;
+            withdraw(wnative, native_out)?;
             self.env()
                 .transfer(to, native_out)
                 .map_err(|_| RouterV2Error::TransferError)?;

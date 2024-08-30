@@ -11,7 +11,7 @@ use psp22::PSP22Error;
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub struct Step {
     pub token_in: AccountId,
-    pub pool_id: Option<AccountId>,
+    pub pool_id: AccountId,
 }
 
 #[ink::trait_definition]
