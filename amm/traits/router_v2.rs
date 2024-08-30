@@ -6,8 +6,6 @@ use ink::{
 };
 use psp22::PSP22Error;
 
-pub type PoolId = AccountId;
-
 /// Specifies the pool for the trade and the input token of this trade (token to sell).
 #[derive(scale::Decode, scale::Encode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]

@@ -21,7 +21,7 @@ pub mod router_v2 {
         prelude::{vec, vec::Vec},
         storage::Mapping,
     };
-    use traits::{Factory, Pair as _, PoolId, RouterV2, RouterV2Error, Step};
+    use traits::{Factory, Pair as _, RouterV2, RouterV2Error, Step};
 
     struct ValidStep {
         token_in: AccountId,
@@ -146,7 +146,7 @@ pub mod router_v2 {
         #[inline]
         fn get_pool(
             &self,
-            pool_id: Option<PoolId>,
+            pool_id: Option<AccountId>,
             pair: (AccountId, AccountId),
         ) -> Result<Pool, RouterV2Error> {
             if let Some(pool_id) = pool_id {
