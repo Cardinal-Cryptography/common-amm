@@ -1,0 +1,30 @@
+[
+  {
+    "poolName": "wazero_sazero",
+    "poolType": "Rated",
+    "tokens": [
+      "5EFDb7mKbougLtr5dnwd5KDfZ3wK55JPGPLiryKq4uRMPR46",
+      "5G1AaZHj1Dm8Xo1jsscxNaaqzrUhtxuW4gsHrWd4wJ4HdST2"
+    ],
+    "rateProviders": [null, "5FQtz68upJqkr4zKwV9MWAWt92NDh1iSHHo9u14SermExWFH"],
+    "decimals": [12, 12],
+    "A": 200,
+    "tradeFee": 400000,
+    "protocolFee": 200000000,
+    "protocolFeeReceiver": null
+  },
+  {
+    "poolName": "usdc_usdt",
+    "poolType": "Stable",
+    "tokens": [
+      "5DEeMqcbWEYD2X9EhMraSxndYYzfWHA6pCsFQkYAPX4FLWLd",
+      "5CU5WNiYUkTfFZxJYR7AySfUqvEcHj5zr526CuC7iiVCHPfa"
+    ],
+    "decimals": [6, 6],
+    "A": 200,
+    "tradeFee": 100000,
+    "protocolFee": 200000000,
+    "protocolFeeReceiver": null,
+    "owner": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+  }
+]
