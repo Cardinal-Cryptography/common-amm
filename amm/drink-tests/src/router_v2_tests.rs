@@ -131,7 +131,7 @@ fn test_simple_swap(mut session: Session) {
         bob(),
         BOB,
     );
-    let _ice_wood_pair: pair_contract::Instance =
+    let ice_wood_pair: pair_contract::Instance =
         factory::get_pair(&mut session, factory.into(), ice.into(), wood.into());
 
     _ = router_v2::add_pair_liquidity(
@@ -146,7 +146,7 @@ fn test_simple_swap(mut session: Session) {
         bob(),
         BOB,
     );
-    let _ice_usdt_pair: pair_contract::Instance =
+    let ice_usdt_pair: pair_contract::Instance =
         factory::get_pair(&mut session, factory.into(), ice.into(), usdt);
 
     // increase gas limit (swaps with more than 3 tokens require more gas)
@@ -167,15 +167,15 @@ fn test_simple_swap(mut session: Session) {
             vec![
                 Step {
                     token_in: wood.into(),
-                    pool_id: None,
+                    pool_id: ice_wood_pair.into(),
                 },
                 Step {
                     token_in: ice.into(),
-                    pool_id: None,
+                    pool_id: ice_usdt_pair.into(),
                 },
                 Step {
                     token_in: usdt.into(),
-                    pool_id: Some(usdt_usdc_pool),
+                    pool_id: usdt_usdc_pool.into(),
                 },
             ],
             usdc.into(),

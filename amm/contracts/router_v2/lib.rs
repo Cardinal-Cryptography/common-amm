@@ -152,7 +152,7 @@ pub mod router_v2 {
             if let Some(pool) = self.cached_stable_pools.get(pool_id) {
                 return Ok(Pool::StablePool(pool));
             }
-            if let Some(pair) = self.get_pair(pair.0, pair.1).ok() {
+            if let Ok(pair) = self.get_pair(pair.0, pair.1) {
                 ensure!(pair.pool_id() == pool_id, RouterV2Error::PoolNotFound);
                 return Ok(Pool::Pair(pair));
             }
