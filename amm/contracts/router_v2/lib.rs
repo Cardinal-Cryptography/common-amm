@@ -232,9 +232,9 @@ pub mod router_v2 {
             token_out: AccountId,
         ) -> Result<Vec<u128>, RouterV2Error> {
             let mut amounts = vec![0; valid_path.len() + 1];
-            amounts[valid_path.len() - 1] = amount_out;
-            amounts[valid_path.len() - 2] = valid_path[valid_path.len() - 2].pool.get_amount_in(
-                valid_path[valid_path.len() - 2].token_in,
+            amounts[valid_path.len()] = amount_out;
+            amounts[valid_path.len() - 1] = valid_path[valid_path.len() - 1].pool.get_amount_in(
+                valid_path[valid_path.len() - 1].token_in,
                 token_out,
                 amount_out,
             )?;
