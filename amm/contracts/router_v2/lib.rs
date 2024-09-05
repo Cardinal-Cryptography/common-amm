@@ -204,7 +204,8 @@ pub mod router_v2 {
             token_out: AccountId,
             to: AccountId,
         ) -> Result<(), RouterV2Error> {
-            for i in 0..valid_path.len() - 1 {
+            let n_pools = valid_path.len();
+            for i in 0..n_pools - 1 {
                 valid_path[i].pool.swap(
                     valid_path[i].token_in,
                     valid_path[i + 1].token_in,
@@ -213,10 +214,10 @@ pub mod router_v2 {
                 )?;
             }
             // If last pool in the path, transfer tokens to the `to` recipient.
-            valid_path[valid_path.len() - 1].pool.swap(
-                valid_path[valid_path.len() - 1].token_in,
+            valid_path[n_pools - 1].pool.swap(
+                valid_path[n_pools - 1].token_in,
                 token_out,
-                amounts[valid_path.len()],
+                amounts[n_pools],
                 to,
             )?;
             Ok(())
@@ -231,14 +232,15 @@ pub mod router_v2 {
             valid_path: &[ValidStep],
             token_out: AccountId,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            let mut amounts = vec![0; valid_path.len() + 1];
-            amounts[valid_path.len()] = amount_out;
-            amounts[valid_path.len() - 1] = valid_path[valid_path.len() - 1].pool.get_amount_in(
-                valid_path[valid_path.len() - 1].token_in,
+            let n_pools = valid_path.len();
+            let mut amounts = vec![0; n_pools + 1];
+            amounts[n_pools] = amount_out;
+            amounts[n_pools - 1] = valid_path[n_pools - 1].pool.get_amount_in(
+                valid_path[n_pools - 1].token_in,
                 token_out,
                 amount_out,
             )?;
-            for i in (0..valid_path.len() - 1).rev() {
+            for i in (0..n_pools - 1).rev() {
                 amounts[i] = valid_path[i].pool.get_amount_in(
                     valid_path[i].token_in,
                     valid_path[i + 1].token_in,
@@ -258,20 +260,21 @@ pub mod router_v2 {
             valid_path: &[ValidStep],
             token_out: AccountId,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            let mut amounts = Vec::with_capacity(valid_path.len() + 1);
-            amounts.push(amount_in);
-            for i in 0..valid_path.len() - 1 {
-                amounts.push(valid_path[i].pool.get_amount_out(
+            let n_pools = valid_path.len();
+            let mut amounts = vec![0; n_pools + 1];
+            amounts[0] = amount_in;
+            for i in 0..n_pools - 1 {
+                amounts[i + 1] = valid_path[i].pool.get_amount_out(
                     valid_path[i].token_in,
                     valid_path[i + 1].token_in,
                     amounts[i],
-                )?);
+                )?;
             }
-            amounts.push(valid_path[valid_path.len() - 1].pool.get_amount_out(
-                valid_path[valid_path.len() - 1].token_in,
+            amounts[n_pools] = valid_path[n_pools - 1].pool.get_amount_out(
+                valid_path[n_pools - 1].token_in,
                 token_out,
-                amounts[valid_path.len() - 1],
-            )?);
+                amounts[n_pools - 1],
+            )?;
 
             Ok(amounts)
         }
@@ -285,8 +288,9 @@ pub mod router_v2 {
             token_out: AccountId,
         ) -> Result<Vec<ValidStep>, RouterV2Error> {
             ensure!(!path.is_empty(), RouterV2Error::InvalidPath);
-            let mut valid_path = Vec::with_capacity(path.len());
-            for i in 0..(path.len() - 1) {
+            let n_pools = path.len();
+            let mut valid_path = Vec::with_capacity(n_pools);
+            for i in 0..(n_pools - 1) {
                 ensure!(
                     path[i].token_in != path[i + 1].token_in,
                     RouterV2Error::IdenticalAddresses
@@ -298,14 +302,14 @@ pub mod router_v2 {
                 });
             }
             ensure!(
-                path[path.len() - 1].token_in != token_out,
+                path[n_pools - 1].token_in != token_out,
                 RouterV2Error::IdenticalAddresses
             );
             valid_path.push(ValidStep {
-                token_in: path[path.len() - 1].token_in,
+                token_in: path[n_pools - 1].token_in,
                 pool: self.get_pool(
-                    path[path.len() - 1].pool_id,
-                    (path[path.len() - 1].token_in, token_out),
+                    path[n_pools - 1].pool_id,
+                    (path[n_pools - 1].token_in, token_out),
                 )?,
             });
             Ok(valid_path)
