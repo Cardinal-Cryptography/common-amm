@@ -16,7 +16,7 @@ pub struct Step {
 
 #[ink::trait_definition]
 pub trait RouterV2 {
-    /// Returns address of the `Factory` contract for this `RouterV2` instance.
+    /// Returns address of the pair `Factory` contract for this `RouterV2` instance.
     #[ink(message)]
     fn pair_factory(&self) -> AccountId;
 
@@ -24,9 +24,11 @@ pub trait RouterV2 {
     #[ink(message)]
     fn wnative(&self) -> AccountId;
 
-    /// Adds liquidity to `(token_0, token_1)` pair.
+    /// Adds liquidity to the `pair`.
     ///
-    /// If `(token_0, token_1)` pair does not exist, creates a new pair.
+    /// If `pair` is `None` then it creates a new pair for
+    /// `(token_0, token_1)` via the Factory contract.
+    /// Throws an error if the Pair already exists in the Factory.
     ///
     /// Will add at least `*_min` amount of tokens and up to `*_desired`
     /// while still maintaining the constant `k` ratio of the pair.
@@ -36,6 +38,7 @@ pub trait RouterV2 {
     #[ink(message)]
     fn add_pair_liquidity(
         &mut self,
+        pair: Option<AccountId>,
         token_0: AccountId,
         token_1: AccountId,
         amount_0_desired: u128,
@@ -46,8 +49,8 @@ pub trait RouterV2 {
         deadline: u64,
     ) -> Result<(u128, u128, u128), RouterV2Error>;
 
-    /// Removes `liquidity` amount of tokens from `(token_0, token_1)`
-    /// pair and transfers tokens `to` account.
+    /// Removes `liquidity` amount of tokens from the `pair`
+    /// and transfers tokens `to` account.
     ///
     /// Fails if any of the balances is lower than respective `*_min` amount.
     ///
@@ -55,6 +58,7 @@ pub trait RouterV2 {
     #[ink(message)]
     fn remove_pair_liquidity(
         &mut self,
+        pair: AccountId,
         token_0: AccountId,
         token_1: AccountId,
         liquidity: u128,
@@ -64,9 +68,11 @@ pub trait RouterV2 {
         deadline: u64,
     ) -> Result<(u128, u128), RouterV2Error>;
 
-    /// Adds liquidity to `(token, native token)` pair.
+    /// Adds liquidity to the `pair`.
     ///
-    /// If `(token_0, token_1)` pair does not exist, creates a new pair.
+    /// If `pair` is `None` then it creates a new pair for
+    /// `(token, wrapped_native)` via the Factory contract.
+    /// Throws an error if the Pair already exists in the Factory.
     ///
     /// Will add at least `*_min` amount of tokens and up to `*_desired`
     /// while still maintaining the constant `k` ratio of the pair.
@@ -75,6 +81,7 @@ pub trait RouterV2 {
     #[ink(message, payable)]
     fn add_pair_liquidity_native(
         &mut self,
+        pair: Option<AccountId>,
         token: AccountId,
         amount_token_desired: u128,
         amount_token_min: u128,
@@ -83,8 +90,8 @@ pub trait RouterV2 {
         deadline: u64,
     ) -> Result<(u128, Balance, u128), RouterV2Error>;
 
-    /// Removes `liquidity` amount of tokens from `(token, wrapped_native)`
-    /// pair and transfers tokens `to` account.
+    /// Removes `liquidity` amount of tokens from the `pair`
+    /// and transfers tokens `to` account.
     ///
     /// Fails if any of the balances is lower than respective `*_min` amount.
     ///
@@ -92,6 +99,7 @@ pub trait RouterV2 {
     #[ink(message)]
     fn remove_pair_liquidity_native(
         &mut self,
+        pair: AccountId,
         token: AccountId,
         liquidity: u128,
         amount_token_min: u128,
@@ -103,11 +111,6 @@ pub trait RouterV2 {
     /// Exchanges tokens along the `path` to `token_out`.
     ///
     /// Starts with `amount_in` and token address under `path[0].token_in`.
-    ///
-    /// If `path[i].pool_id` is `None`, it attemps the swap through
-    /// `(path[i].token_in, path[i + 1].token_in)` Pair,
-    /// or `(path[path.len() - 1].token_in, token_out)` Pair
-    /// if this is the last Step in the `path`
     ///
     /// Fails if output amount is less than `amount_out_min`.
     /// Transfers tokens to account under `to` address.
@@ -206,7 +209,7 @@ pub trait RouterV2 {
     /// Returns amounts of tokens received for `amount_in`.
     #[ink(message)]
     fn get_amounts_out(
-        &self,
+        &mut self,
         amount_in: u128,
         path: Vec<Step>,
         token_out: AccountId,
@@ -215,7 +218,7 @@ pub trait RouterV2 {
     /// Returns amounts of tokens user has to supply.
     #[ink(message)]
     fn get_amounts_in(
-        &self,
+        &mut self,
         amount_out: u128,
         path: Vec<Step>,
         token_out: AccountId,
@@ -234,10 +237,9 @@ pub enum RouterV2Error {
 
     CrossContractCallFailed(String),
     Expired,
-    IdenticalAddresses,
     InvalidPath,
+    InvalidToken,
     PairNotFound,
-    PoolNotFound,
     TransferError,
 
     ExcessiveInputAmount,
