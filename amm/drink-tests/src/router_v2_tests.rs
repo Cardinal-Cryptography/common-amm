@@ -1,14 +1,29 @@
-use crate::pair_contract;
-use crate::router_v2_contract;
 use crate::stable_swap_tests::*;
 use crate::utils::*;
+use crate::{factory_contract, pair_contract, router_v2_contract, wrapped_azero};
 
-use drink::Weight;
+use drink::{runtime::MinimalRuntime, Weight};
+use ink_wrapper_types::ToAccountId;
 use router_v2_contract::RouterV2 as _;
-use router_v2_contract::Step;
+use router_v2_contract::{Pair, Pool, StablePool, Step};
 
 use drink::{self, session::Session};
 use ink_wrapper_types::Connection;
+
+fn setup_router(
+    session: &mut Session<MinimalRuntime>,
+) -> (
+    router_v2_contract::Instance,
+    factory_contract::Instance,
+    wrapped_azero::Instance,
+    ink_primitives::AccountId,
+) {
+    let fee_to_setter = bob();
+    let factory = factory::setup(session, fee_to_setter);
+    let wazero = wazero::setup(session);
+    let router = router_v2::setup(session, factory.into(), wazero.into());
+    (router, factory, wazero, fee_to_setter)
+}
 
 #[drink::test]
 fn test_cache_stable_pool(mut session: Session) {
@@ -18,18 +33,18 @@ fn test_cache_stable_pool(mut session: Session) {
     let now = get_timestamp(&mut session);
     set_timestamp(&mut session, now);
 
-    // setup router
-    let fee_to_setter = bob();
-    let factory = factory::setup(&mut session, fee_to_setter);
-    let wazero = wazero::setup(&mut session);
-    let router = router_v2::setup(&mut session, factory.into(), wazero.into());
+    let (router, _, _, _) = setup_router(&mut session);
 
     let initial_reserves = vec![100000 * ONE_USDT, 100000 * ONE_USDC];
+    let initial_supply = initial_reserves
+        .iter()
+        .map(|amount| amount * 100_000_000_000)
+        .collect::<Vec<u128>>();
 
-    let (usdt_usdc_pool, _) = setup_stable_swap_with_tokens(
+    let (usdt_usdc_pool, tokens) = setup_stable_swap_with_tokens(
         &mut session,
         vec![6, 6],
-        initial_reserves.clone(),
+        initial_supply,
         10_000,
         2_500_000,
         200_000_000,
@@ -37,15 +52,53 @@ fn test_cache_stable_pool(mut session: Session) {
         vec![],
     );
 
-    _ = session
-        .execute(router.add_stable_pool_to_cache(usdt_usdc_pool))
+    _ = stable_swap::add_liquidity(
+        &mut session,
+        usdt_usdc_pool,
+        BOB,
+        1,
+        initial_reserves.clone(),
+        bob(),
+    )
+    .expect("Should successfully add liquidity");
+
+    psp22_utils::increase_allowance(
+        &mut session,
+        tokens[0].into(),
+        router.into(),
+        u128::MAX,
+        BOB,
+    )
+    .unwrap();
+
+    let deadline = get_timestamp(&mut session) + 10;
+    session
+        .execute(router.swap_exact_tokens_for_tokens(
+            ONE_USDT,
+            0,
+            vec![Step {
+                token_in: tokens[0].into(),
+                pool_id: usdt_usdc_pool.into(),
+            }],
+            tokens[1].into(),
+            bob(),
+            deadline,
+        ))
         .unwrap()
         .result
         .unwrap()
-        .unwrap();
+        .expect("Should swap");
 
-    let res = router_v2::get_cached_stable_pool(&mut session, router.into(), usdt_usdc_pool);
-    assert_eq!(res, usdt_usdc_pool, "Pool Id mismatch");
+    let res = router_v2::get_cached_pool(&mut session, router.into(), usdt_usdc_pool)
+        .expect("Should return cached StablePool");
+    assert_eq!(
+        res,
+        Pool::StablePool(StablePool {
+            id: usdt_usdc_pool,
+            tokens
+        }),
+        "StablePool mismatch"
+    );
 }
 
 #[drink::test]
@@ -62,11 +115,7 @@ fn test_simple_swap(mut session: Session) {
     let now = get_timestamp(&mut session);
     set_timestamp(&mut session, now);
 
-    // setup router
-    let fee_to_setter = bob();
-    let factory = factory::setup(&mut session, fee_to_setter);
-    let wazero = wazero::setup(&mut session);
-    let router = router_v2::setup(&mut session, factory.into(), wazero.into());
+    let (router, factory, _, _) = setup_router(&mut session);
 
     // setup stable pool
     let initial_reserves = vec![100000 * ONE_USDT, 100000 * ONE_USDC];
@@ -99,15 +148,8 @@ fn test_simple_swap(mut session: Session) {
     )
     .expect("Should successfully add liquidity");
 
-    _ = session
-        .execute(router.add_stable_pool_to_cache(usdt_usdc_pool))
-        .unwrap()
-        .result
-        .unwrap()
-        .unwrap();
-
     // setup pairs
-    // initial amount of ICE is 1_000_000_000 * 10 ** 18
+    // initial amount of ICE/WOOD is 1_000_000_000 * 10 ** 18
     let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
     let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
     psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
@@ -122,6 +164,7 @@ fn test_simple_swap(mut session: Session) {
     _ = router_v2::add_pair_liquidity(
         &mut session,
         router.into(),
+        None,
         ice.into(),
         wood.into(),
         token_amount,
@@ -137,6 +180,7 @@ fn test_simple_swap(mut session: Session) {
     _ = router_v2::add_pair_liquidity(
         &mut session,
         router.into(),
+        None,
         ice.into(),
         usdt,
         token_amount,

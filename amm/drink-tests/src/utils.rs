@@ -218,6 +218,7 @@ pub mod router {
 pub mod router_v2 {
     use super::*;
     use router_v2_contract::RouterV2 as _;
+    use router_v2_contract::{Pool, RouterV2Error};
 
     pub fn setup(
         session: &mut Session<MinimalRuntime>,
@@ -237,6 +238,7 @@ pub mod router_v2 {
     pub fn add_pair_liquidity(
         session: &mut Session<MinimalRuntime>,
         router: AccountId,
+        pair: Option<AccountId>,
         token_0: AccountId,
         token_1: AccountId,
         desired_amount_0: u128,
@@ -245,13 +247,14 @@ pub mod router_v2 {
         min_amount_1: u128,
         to: AccountId,
         caller: drink::AccountId32,
-    ) -> (u128, u128, u128) {
+    ) -> Result<(u128, u128, u128), RouterV2Error> {
         let now = get_timestamp(session);
         let deadline = now + 10;
         let _ = session.set_actor(caller);
 
         session
             .execute(router_v2_contract::Instance::from(router).add_pair_liquidity(
+                pair,
                 token_0,
                 token_1,
                 desired_amount_0,
@@ -264,12 +267,13 @@ pub mod router_v2 {
             .unwrap()
             .result
             .unwrap()
-            .unwrap()
+            // .unwrap()
     }
 
     pub fn remove_pair_liquidity(
         session: &mut Session<MinimalRuntime>,
         router: AccountId,
+        pair: AccountId,
         first_token: AccountId,
         second_token: AccountId,
         liquidity: u128,
@@ -277,13 +281,14 @@ pub mod router_v2 {
         min_token1: u128,
         to: AccountId,
         caller: drink::AccountId32,
-    ) -> (u128, u128) {
+    ) -> Result<(u128, u128), RouterV2Error> {
         let now = get_timestamp(session);
         let deadline = now + 10;
         let _ = session.set_actor(caller);
 
         session
             .execute(router_v2_contract::Instance::from(router).remove_pair_liquidity(
+                pair,
                 first_token,
                 second_token,
                 liquidity,
@@ -295,36 +300,19 @@ pub mod router_v2 {
             .unwrap()
             .result
             .unwrap()
-            .unwrap()
     }
 
-    pub fn get_cached_pair(
-        session: &mut Session<MinimalRuntime>,
-        router: AccountId,
-        token0: AccountId,
-        token1: AccountId,
-    ) -> AccountId {
-        session
-            .query(router_v2_contract::Instance::from(router).read_cached_pair(token0, token1))
-            .unwrap()
-            .result
-            .unwrap()
-            .unwrap()
-            .0
-    }
 
-    pub fn get_cached_stable_pool(
+    pub fn get_cached_pool(
         session: &mut Session<MinimalRuntime>,
         router: AccountId,
         pool_id: AccountId
-    ) -> AccountId {
+    ) -> Option<Pool> {
         session
-            .query(router_v2_contract::Instance::from(router).read_cached_stable_pool(pool_id))
+            .query(router_v2_contract::Instance::from(router).read_cached_pool(pool_id))
             .unwrap()
             .result
             .unwrap()
-            .unwrap()
-            .0
     }
 }
 
