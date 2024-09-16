@@ -102,6 +102,197 @@ fn test_cache_stable_pool(mut session: Session) {
 }
 
 #[drink::test]
+fn test_cache_pair(mut session: Session) {
+    upload_all(&mut session);
+
+    // Fix timestamp. Otherwise underlying UNIX clock is used.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let (router, factory, _, _) = setup_router(&mut session);
+
+    let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
+    let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
+
+    let ice_wood_pair: pair_contract::Instance = session
+        .instantiate(pair_contract::Instance::new(
+            ice.into(),
+            wood.into(),
+            factory.into(),
+            1,
+        ))
+        .unwrap()
+        .result
+        .to_account_id()
+        .into();
+
+    psp22_utils::transfer(
+        &mut session,
+        ice.into(),
+        ice_wood_pair.into(),
+        10000000,
+        BOB,
+    );
+    psp22_utils::transfer(
+        &mut session,
+        wood.into(),
+        ice_wood_pair.into(),
+        10000000,
+        BOB,
+    );
+
+    use pair_contract::Pair as _;
+    session
+        .execute(ice_wood_pair.mint(bob()))
+        .unwrap()
+        .result
+        .unwrap()
+        .expect("Should mint");
+
+    psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
+
+    let deadline = get_timestamp(&mut session) + 10;
+    session
+        .execute(router.swap_exact_tokens_for_tokens(
+            ONE_USDT,
+            0,
+            vec![Step {
+                token_in: ice.into(),
+                pool_id: ice_wood_pair.into(),
+            }],
+            wood.into(),
+            bob(),
+            deadline,
+        ))
+        .unwrap()
+        .result
+        .unwrap()
+        .expect("Should swap");
+
+    let res = router_v2::get_cached_pool(&mut session, router.into(), ice_wood_pair.into())
+        .expect("Should return cached Pair");
+    assert_eq!(
+        res,
+        Pool::Pair(Pair {
+            id: ice_wood_pair.into(),
+            token_0: ice.into(),
+            token_1: wood.into(),
+            fee: 1,
+        }),
+        "Pair mismatch"
+    );
+}
+
+#[drink::test]
+fn test_cache_custom_pair_with_add_liqudity(mut session: Session) {
+    upload_all(&mut session);
+
+    // Fix timestamp. Otherwise underlying UNIX clock is used.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let (router, factory, _, _) = setup_router(&mut session);
+
+    let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
+    let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
+
+    let ice_wood_pair: pair_contract::Instance = session
+        .instantiate(pair_contract::Instance::new(
+            ice.into(),
+            wood.into(),
+            factory.into(),
+            1,
+        ))
+        .unwrap()
+        .result
+        .to_account_id()
+        .into();
+
+    psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
+    psp22_utils::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
+
+    router_v2::add_pair_liquidity(
+        &mut session,
+        router.into(),
+        Some(ice_wood_pair.into()),
+        ice.into(),
+        wood.into(),
+        100000,
+        100000,
+        100000,
+        100000,
+        bob(),
+        BOB,
+    )
+    .expect("Should add liquidity");
+
+    let res = router_v2::get_cached_pool(&mut session, router.into(), ice_wood_pair.into())
+        .expect("Should return cached Pair");
+    assert_eq!(
+        res,
+        Pool::Pair(Pair {
+            id: ice_wood_pair.into(),
+            token_0: ice.into(),
+            token_1: wood.into(),
+            fee: 1,
+        }),
+        "Pair mismatch"
+    );
+}
+
+#[drink::test]
+fn test_create_and_cache_pair_with_add_liqudity(mut session: Session) {
+    upload_all(&mut session);
+
+    // Fix timestamp. Otherwise underlying UNIX clock is used.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let (router, factory, _, _) = setup_router(&mut session);
+
+    let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
+    let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
+
+    psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
+    psp22_utils::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB)
+        .unwrap();
+
+    router_v2::add_pair_liquidity(
+        &mut session,
+        router.into(),
+        None,
+        ice.into(),
+        wood.into(),
+        100000,
+        100000,
+        100000,
+        100000,
+        bob(),
+        BOB,
+    )
+    .expect("Should add liquidity");
+
+    let ice_wood_pair = factory::get_pair(&mut session, factory.into(), ice.into(), wood.into());
+
+    let res = router_v2::get_cached_pool(&mut session, router.into(), ice_wood_pair.into())
+        .expect("Should return cached Pair");
+    assert_eq!(
+        res,
+        Pool::Pair(Pair {
+            id: ice_wood_pair.into(),
+            token_0: ice.into(),
+            token_1: wood.into(),
+            fee: 3,
+        }),
+        "Pair mismatch"
+    );
+}
+
+#[drink::test]
 fn test_simple_swap(mut session: Session) {
     upload_all(&mut session);
 
