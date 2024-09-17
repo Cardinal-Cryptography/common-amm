@@ -1,10 +1,12 @@
+use std::u128;
+
 use crate::stable_swap_tests::*;
 use crate::utils::*;
 use crate::{factory_contract, pair_contract, router_v2_contract, wrapped_azero};
 
 use drink::{runtime::MinimalRuntime, Weight};
 use ink_wrapper_types::ToAccountId;
-use router_v2_contract::RouterV2 as _;
+use pair_contract::Pair as _;
 use router_v2_contract::{Pair, Pool, StablePool, Step};
 
 use drink::{self, session::Session};
@@ -25,6 +27,8 @@ fn setup_router(
     (router, factory, wazero, fee_to_setter)
 }
 
+/// Tests that a StablePool is cached in the Router
+/// with the first swap.
 #[drink::test]
 fn test_cache_stable_pool(mut session: Session) {
     upload_all(&mut session);
@@ -52,7 +56,8 @@ fn test_cache_stable_pool(mut session: Session) {
         vec![],
     );
 
-    _ = stable_swap::add_liquidity(
+    // we need to add some liquidity to the pool before the swap
+    stable_swap::add_liquidity(
         &mut session,
         usdt_usdc_pool,
         BOB,
@@ -62,6 +67,10 @@ fn test_cache_stable_pool(mut session: Session) {
     )
     .expect("Should successfully add liquidity");
 
+    // ensure that the pool is not cached before the swap
+    let res = router_v2::get_cached_pool(&mut session, router.into(), usdt_usdc_pool);
+    assert_eq!(res, None, "StablePool should not be in the cache");
+
     psp22_utils::increase_allowance(
         &mut session,
         tokens[0].into(),
@@ -69,25 +78,22 @@ fn test_cache_stable_pool(mut session: Session) {
         u128::MAX,
         BOB,
     )
-    .unwrap();
+    .expect("Should increase allowance");
 
-    let deadline = get_timestamp(&mut session) + 10;
-    session
-        .execute(router.swap_exact_tokens_for_tokens(
-            ONE_USDT,
-            0,
-            vec![Step {
-                token_in: tokens[0].into(),
-                pool_id: usdt_usdc_pool.into(),
-            }],
-            tokens[1].into(),
-            bob(),
-            deadline,
-        ))
-        .unwrap()
-        .result
-        .unwrap()
-        .expect("Should swap");
+    router_v2::swap_exact_tokens_for_tokens(
+        &mut session,
+        router.into(),
+        ONE_USDT,
+        0,
+        vec![Step {
+            token_in: tokens[0].into(),
+            pool_id: usdt_usdc_pool.into(),
+        }],
+        tokens[1].into(),
+        bob(),
+        BOB,
+    )
+    .expect("Should swap");
 
     let res = router_v2::get_cached_pool(&mut session, router.into(), usdt_usdc_pool)
         .expect("Should return cached StablePool");
@@ -97,10 +103,12 @@ fn test_cache_stable_pool(mut session: Session) {
             id: usdt_usdc_pool,
             tokens
         }),
-        "StablePool mismatch"
+        "StablePool cache mismatch"
     );
 }
 
+/// Tests that a Pair is cached in the Router
+/// with the first swap.
 #[drink::test]
 fn test_cache_pair(mut session: Session) {
     upload_all(&mut session);
@@ -114,12 +122,14 @@ fn test_cache_pair(mut session: Session) {
     let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
     let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
 
+    // create a custom Pair w/o the Factory contract
+    let custom_fee: u8 = 1;
     let ice_wood_pair: pair_contract::Instance = session
         .instantiate(pair_contract::Instance::new(
             ice.into(),
             wood.into(),
             factory.into(),
-            1,
+            custom_fee,
         ))
         .unwrap()
         .result
@@ -132,16 +142,17 @@ fn test_cache_pair(mut session: Session) {
         ice_wood_pair.into(),
         10000000,
         BOB,
-    );
+    )
+    .expect("Should transfer PSP22");
     psp22_utils::transfer(
         &mut session,
         wood.into(),
         ice_wood_pair.into(),
         10000000,
         BOB,
-    );
+    )
+    .expect("Should transfer PSP22");
 
-    use pair_contract::Pair as _;
     session
         .execute(ice_wood_pair.mint(bob()))
         .unwrap()
@@ -150,25 +161,26 @@ fn test_cache_pair(mut session: Session) {
         .expect("Should mint");
 
     psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
-        .unwrap();
+        .expect("Should increase allowance");
 
-    let deadline = get_timestamp(&mut session) + 10;
-    session
-        .execute(router.swap_exact_tokens_for_tokens(
-            ONE_USDT,
-            0,
-            vec![Step {
-                token_in: ice.into(),
-                pool_id: ice_wood_pair.into(),
-            }],
-            wood.into(),
-            bob(),
-            deadline,
-        ))
-        .unwrap()
-        .result
-        .unwrap()
-        .expect("Should swap");
+    // ensure that the pair is not cached before the swap
+    let res = router_v2::get_cached_pool(&mut session, router.into(), ice_wood_pair.into());
+    assert_eq!(res, None, "Pair should not be in the cache");
+
+    router_v2::swap_exact_tokens_for_tokens(
+        &mut session,
+        router.into(),
+        ONE_USDT,
+        0,
+        vec![Step {
+            token_in: ice.into(),
+            pool_id: ice_wood_pair.into(),
+        }],
+        wood.into(),
+        bob(),
+        BOB,
+    )
+    .expect("Should swap");
 
     let res = router_v2::get_cached_pool(&mut session, router.into(), ice_wood_pair.into())
         .expect("Should return cached Pair");
@@ -178,12 +190,14 @@ fn test_cache_pair(mut session: Session) {
             id: ice_wood_pair.into(),
             token_0: ice.into(),
             token_1: wood.into(),
-            fee: 1,
+            fee: custom_fee,
         }),
-        "Pair mismatch"
+        "Pair cache mismatch"
     );
 }
 
+/// Tests that a Pair is cached in the Router
+/// with the first liquidity deposit.
 #[drink::test]
 fn test_cache_custom_pair_with_add_liqudity(mut session: Session) {
     upload_all(&mut session);
@@ -197,12 +211,14 @@ fn test_cache_custom_pair_with_add_liqudity(mut session: Session) {
     let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
     let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
 
+    // create a custom Pair w/o the Factory contract
+    let custom_fee: u8 = 1;
     let ice_wood_pair: pair_contract::Instance = session
         .instantiate(pair_contract::Instance::new(
             ice.into(),
             wood.into(),
             factory.into(),
-            1,
+            custom_fee,
         ))
         .unwrap()
         .result
@@ -210,20 +226,25 @@ fn test_cache_custom_pair_with_add_liqudity(mut session: Session) {
         .into();
 
     psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
-        .unwrap();
+        .expect("Should increase allowance");
     psp22_utils::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB)
-        .unwrap();
+        .expect("Should increase allowance");
 
+    // ensure that the pair is not cached before the swap
+    let res = router_v2::get_cached_pool(&mut session, router.into(), ice_wood_pair.into());
+    assert_eq!(res, None, "Pair should not be in the cache");
+
+    let init_liqudity_amount = 100000;
     router_v2::add_pair_liquidity(
         &mut session,
         router.into(),
         Some(ice_wood_pair.into()),
         ice.into(),
         wood.into(),
-        100000,
-        100000,
-        100000,
-        100000,
+        init_liqudity_amount,
+        init_liqudity_amount,
+        init_liqudity_amount,
+        init_liqudity_amount,
         bob(),
         BOB,
     )
@@ -237,12 +258,14 @@ fn test_cache_custom_pair_with_add_liqudity(mut session: Session) {
             id: ice_wood_pair.into(),
             token_0: ice.into(),
             token_1: wood.into(),
-            fee: 1,
+            fee: custom_fee,
         }),
         "Pair mismatch"
     );
 }
 
+/// Tests that a Pair is created and cached
+/// with the first liquidity deposit.
 #[drink::test]
 fn test_create_and_cache_pair_with_add_liqudity(mut session: Session) {
     upload_all(&mut session);
@@ -276,8 +299,8 @@ fn test_create_and_cache_pair_with_add_liqudity(mut session: Session) {
     )
     .expect("Should add liquidity");
 
+    let default_pair_fee = 3;
     let ice_wood_pair = factory::get_pair(&mut session, factory.into(), ice.into(), wood.into());
-
     let res = router_v2::get_cached_pool(&mut session, router.into(), ice_wood_pair.into())
         .expect("Should return cached Pair");
     assert_eq!(
@@ -286,12 +309,15 @@ fn test_create_and_cache_pair_with_add_liqudity(mut session: Session) {
             id: ice_wood_pair.into(),
             token_0: ice.into(),
             token_1: wood.into(),
-            fee: 3,
+            fee: default_pair_fee,
         }),
         "Pair mismatch"
     );
 }
 
+/// Tests a simple swap along [Pair -> StableSwap -> Pair] path
+/// using `swap_exact_tokens_for_tokens` and
+/// `swap_tokens_for_exact_tokens` methods
 #[drink::test]
 fn test_simple_swap(mut session: Session) {
     upload_all(&mut session);
@@ -329,7 +355,7 @@ fn test_simple_swap(mut session: Session) {
     let usdt = tokens[0];
     let usdc = tokens[1];
 
-    _ = stable_swap::add_liquidity(
+    stable_swap::add_liquidity(
         &mut session,
         usdt_usdc_pool,
         BOB,
@@ -340,49 +366,55 @@ fn test_simple_swap(mut session: Session) {
     .expect("Should successfully add liquidity");
 
     // setup pairs
-    // initial amount of ICE/WOOD is 1_000_000_000 * 10 ** 18
     let ice = psp22_utils::setup(&mut session, ICE.to_string(), BOB);
     let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
     psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
-        .unwrap();
+        .expect("Should increase allowance");
     psp22_utils::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB)
-        .unwrap();
-    psp22_utils::increase_allowance(&mut session, usdt, router.into(), u128::MAX, BOB).unwrap();
-    psp22_utils::increase_allowance(&mut session, usdc, router.into(), u128::MAX, BOB).unwrap();
+        .expect("Should increase allowance");
+    psp22_utils::increase_allowance(&mut session, usdt, router.into(), u128::MAX, BOB)
+        .expect("Should increase allowance");
+    psp22_utils::increase_allowance(&mut session, usdc, router.into(), u128::MAX, BOB)
+        .expect("Should increase allowance");
 
     let token_amount = 100_000 * TOKEN;
+    let stable_amount = 100_000 * ONE_USDC;
 
-    _ = router_v2::add_pair_liquidity(
+    router_v2::add_pair_liquidity(
         &mut session,
         router.into(),
         None,
         ice.into(),
-        wood.into(),
+        usdc,
         token_amount,
+        stable_amount,
         token_amount,
-        token_amount,
-        token_amount,
+        stable_amount,
         bob(),
         BOB,
-    );
-    let ice_wood_pair: pair_contract::Instance =
-        factory::get_pair(&mut session, factory.into(), ice.into(), wood.into());
+    )
+    .expect("Should add liquidity");
 
-    _ = router_v2::add_pair_liquidity(
+    let ice_usdc_pair: pair_contract::Instance =
+        factory::get_pair(&mut session, factory.into(), ice.into(), usdc);
+
+    router_v2::add_pair_liquidity(
         &mut session,
         router.into(),
         None,
-        ice.into(),
+        wood.into(),
         usdt,
         token_amount,
-        100_000 * ONE_USDT,
+        stable_amount,
         token_amount,
-        100_000 * ONE_USDT,
+        stable_amount,
         bob(),
         BOB,
-    );
-    let ice_usdt_pair: pair_contract::Instance =
-        factory::get_pair(&mut session, factory.into(), ice.into(), usdt);
+    )
+    .expect("Should add liquidity");
+
+    let wood_usdt_pair: pair_contract::Instance =
+        factory::get_pair(&mut session, factory.into(), wood.into(), usdt);
 
     // increase gas limit (swaps with more than 3 tokens require more gas)
     let gas_limit = session.get_gas_limit();
@@ -391,32 +423,54 @@ fn test_simple_swap(mut session: Session) {
         10 * gas_limit.proof_size(),
     ));
 
-    // swap wood -> ice -> usdt -> usdc
-    let deadline = now + 10;
     let swap_amount = 100 * TOKEN;
-
-    let swap_res = session
-        .execute(router.swap_exact_tokens_for_tokens(
-            swap_amount,
-            0,
-            vec![
-                Step {
-                    token_in: wood.into(),
-                    pool_id: ice_wood_pair.into(),
-                },
-                Step {
-                    token_in: ice.into(),
-                    pool_id: ice_usdt_pair.into(),
-                },
-                Step {
-                    token_in: usdt.into(),
-                    pool_id: usdt_usdc_pool.into(),
-                },
-            ],
-            usdc.into(),
-            bob(),
-            deadline,
-        ))
-        .unwrap();
-    _ = swap_res.result.unwrap().unwrap();
+    router_v2::swap_exact_tokens_for_tokens(
+        &mut session,
+        router.into(),
+        swap_amount,
+        0,
+        vec![
+            Step {
+                token_in: ice.into(),
+                pool_id: ice_usdc_pair.into(),
+            },
+            Step {
+                token_in: usdc,
+                pool_id: usdt_usdc_pool.into(),
+            },
+            Step {
+                token_in: usdt,
+                pool_id: wood_usdt_pair.into(),
+            },
+        ],
+        wood.into(),
+        bob(),
+        BOB,
+    )
+    .expect("Should swap");
+    
+    router_v2::swap_tokens_for_exact_tokens(
+        &mut session,
+        router.into(),
+        swap_amount,
+        u128::MAX,
+        vec![
+            Step {
+                token_in: ice.into(),
+                pool_id: ice_usdc_pair.into(),
+            },
+            Step {
+                token_in: usdc,
+                pool_id: usdt_usdc_pool.into(),
+            },
+            Step {
+                token_in: usdt,
+                pool_id: wood_usdt_pair.into(),
+            },
+        ],
+        wood.into(),
+        bob(),
+        BOB,
+    )
+    .expect("Should swap");
 }
