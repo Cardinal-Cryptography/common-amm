@@ -73,23 +73,23 @@ impl StablePool {
             self.tokens.len() == amounts.len(),
             RouterV2Error::StablePoolError(StablePoolError::IncorrectAmountsCount)
         );
-        let wnative_idx = match wnative {
+        let native_received = transferred_value::<Env>();
+        let (wnative_idx, native_surplus) = match wnative {
             Some(wnative) => {
                 let wnative_idx = self.wnative_idx(wnative)?;
-                let native_received = transferred_value::<Env>();
                 let wnative_amount = amounts[wnative_idx];
                 ensure!(
                     native_received >= wnative_amount,
                     RouterV2Error::InsufficientTransferredAmount
                 );
                 wrap(wnative, wnative_amount)?;
-                if native_received > wnative_amount {
-                    transfer_native(caller::<Env>(), native_received - wnative_amount)?;
-                }
-                wnative_idx
+                (wnative_idx, native_received.saturating_sub(wnative_amount))
             }
-            None => self.tokens.len(),
+            None => (self.tokens.len(), native_received),
         };
+        if native_surplus > 0 {
+            transfer_native(caller::<Env>(), native_surplus)?;
+        }
         for i in (0..self.tokens.len()).filter(|&idx| idx != wnative_idx) {
             psp22_transfer_from(
                 self.tokens[i],

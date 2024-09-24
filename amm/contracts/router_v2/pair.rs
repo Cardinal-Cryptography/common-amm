@@ -63,6 +63,8 @@ impl Pair {
 
     /// Makes a cross-contract call to fetch the Pair reserves.
     /// Returns reserves `(reserve_0, reserve_1)` in order of `token_0` and `token_1`
+    /// NOTE: before calling this method ensure that `token_0` and `token_1` belong to
+    /// this `Pair` pool
     fn get_reserves(&self, token_0: &AccountId, token_1: &AccountId) -> (u128, u128) {
         let (reserve_0, reserve_1, _) = self.contract_ref().get_reserves();
         if token_0 < token_1 {
