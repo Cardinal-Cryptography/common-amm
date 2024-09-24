@@ -40,7 +40,7 @@ pub fn eva() -> ink_primitives::AccountId {
 pub fn seed_account(session: &mut Session<MinimalRuntime>, account: AccountId32) {
     session
         .sandbox()
-        .mint_into(account, 1_000_000_000u128)
+        .mint_into(account, 1_000_000 * TOKEN)
         .unwrap();
 }
 
@@ -217,6 +217,7 @@ pub mod router {
 
 pub mod router_v2 {
     use super::*;
+    use drink::frame_support::dispatch::PaysFee;
     use router_v2_contract::RouterV2 as _;
     use router_v2_contract::{Pool, RouterV2Error, Step};
 
@@ -270,6 +271,41 @@ pub mod router_v2 {
             .result
             .unwrap()
         // .unwrap()
+    }
+
+    pub fn add_pair_liquidity_native(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pair: Option<AccountId>,
+        token: AccountId,
+        amount_token_desired: u128,
+        amount_token_min: u128,
+        amount_native_min: u128,
+        to: AccountId,
+        native_amount: u128,
+        caller: drink::AccountId32,
+    ) -> Result<(u128, u128, u128), RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router)
+                    .add_pair_liquidity_native(
+                        pair,
+                        token,
+                        amount_token_desired,
+                        amount_token_min,
+                        amount_native_min,
+                        to,
+                        deadline,
+                    )
+                    .with_value(native_amount),
+            )
+            .unwrap()
+            .result
+            .unwrap()
     }
 
     pub fn remove_pair_liquidity(
@@ -477,7 +513,6 @@ pub mod router_v2 {
             .result
             .unwrap()
     }
-
 }
 
 pub mod psp22_utils {
@@ -880,4 +915,10 @@ pub fn handle_ink_error<R>(res: ContractResult<Result<R, InkLangError>>) -> R {
         Err(ink_lang_err) => panic!("InkLangError: {:?}", ink_lang_err),
         Ok(r) => r,
     }
+}
+
+pub fn native_balance_of(session: &mut Session<MinimalRuntime>, account_id: AccountId) -> u128 {
+    session.sandbox().free_balance(&AccountId32::from(
+        AsRef::<[u8; 32]>::as_ref(&account_id).clone(),
+    ))
 }
