@@ -341,7 +341,7 @@ pub mod router_v2 {
                 RouterV2Error::ExcessiveInputAmount
             );
             wrap(wnative, native_in)?;
-            psp22_transfer(wnative, path[0].token_in, native_in)?;
+            psp22_transfer(wnative, path[0].pool_id, native_in)?;
             self.swap(&amounts, &path, token_out, to)?;
             if received_native > native_in {
                 self.env()
