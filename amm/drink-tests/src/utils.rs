@@ -342,6 +342,39 @@ pub mod router_v2 {
             .unwrap()
     }
 
+    pub fn add_stable_swap_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pool: AccountId,
+        min_share_amount: u128,
+        amounts: Vec<u128>,
+        to: AccountId,
+        native: bool,
+        native_amount: u128,
+        caller: drink::AccountId32,
+    ) -> Result<(u128, u128), RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router)
+                    .add_stable_pool_liquidity(
+                        pool,
+                        min_share_amount,
+                        amounts,
+                        to,
+                        deadline,
+                        native,
+                    )
+                    .with_value(native_amount),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
     pub fn get_cached_pool(
         session: &mut Session<MinimalRuntime>,
         router: AccountId,

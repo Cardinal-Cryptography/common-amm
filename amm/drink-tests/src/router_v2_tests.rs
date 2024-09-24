@@ -110,6 +110,71 @@ fn test_cache_stable_pool(mut session: Session) {
     );
 }
 
+/// Tests that a StablePool is cached in the Router
+/// with the first liquidity deposit.
+#[drink::test]
+fn test_cache_stable_pool_with_add_liquidity(mut session: Session) {
+    upload_all(&mut session);
+
+    // Fix timestamp. Otherwise underlying UNIX clock is used.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let (router, _, _, _) = setup_router(&mut session);
+
+    let initial_reserves = vec![U100K * ONE_USDT, U100K * ONE_USDC];
+    let initial_supply = initial_reserves
+        .iter()
+        .map(|amount| amount * U1M)
+        .collect::<Vec<u128>>();
+
+    let (usdt_usdc_pool, tokens) = setup_stable_swap_with_tokens(
+        &mut session,
+        vec![6, 6],
+        initial_supply,
+        10_000,
+        2_500_000,
+        200_000_000,
+        BOB,
+        vec![],
+    );
+
+    let (usdt, usdc) = (tokens[0], tokens[1]);
+
+    psp22_utils::increase_allowance(&mut session, usdt, router.into(), u128::MAX, BOB)
+        .expect("Should increase allowance");
+    psp22_utils::increase_allowance(&mut session, usdc, router.into(), u128::MAX, BOB)
+        .expect("Should increase allowance");
+
+    // ensure that the pool is not cached before the swap
+    let res = router_v2::get_cached_pool(&mut session, router.into(), usdt_usdc_pool);
+    assert_eq!(res, None, "StablePool should not be in the cache");
+
+    router_v2::add_stable_swap_liquidity(
+        &mut session,
+        router.into(),
+        usdt_usdc_pool,
+        1,
+        initial_reserves.clone(),
+        bob(),
+        false,
+        0,
+        BOB,
+    )
+    .expect("Should add liquidity");
+
+    let res = router_v2::get_cached_pool(&mut session, router.into(), usdt_usdc_pool)
+        .expect("Should return cached StablePool");
+    assert_eq!(
+        res,
+        Pool::StablePool(StablePool {
+            id: usdt_usdc_pool,
+            tokens
+        }),
+        "StablePool cache mismatch"
+    );
+}
+
 /// Tests that a Pair is cached in the Router
 /// with the first swap.
 #[drink::test]
