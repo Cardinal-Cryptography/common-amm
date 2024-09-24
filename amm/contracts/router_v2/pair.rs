@@ -3,7 +3,7 @@ use amm_helpers::{ensure, math::casted_mul};
 use ink::{
     codegen::TraitCallBuilder,
     contract_ref,
-    env::{account_id, caller, transfer, transferred_value, DefaultEnvironment as Env},
+    env::{account_id, caller, transferred_value, DefaultEnvironment as Env},
     primitives::AccountId,
 };
 use traits::{Balance, MathError, Pair as PairTrait, RouterV2Error};
@@ -189,8 +189,7 @@ impl Pair {
         let liquidity = self.contract_ref().mint(to)?;
 
         if received_value > amount_native {
-            transfer::<Env>(caller, received_value - amount_native)
-                .map_err(|_| RouterV2Error::TransferError)?;
+            transfer_native(caller, received_value - amount_native)?;
         }
 
         Ok((amount_0, amount_native, liquidity))
@@ -244,7 +243,7 @@ impl Pair {
         )?;
         psp22_transfer(token, to, amount_token)?;
         withdraw(wnative, amount_native)?;
-        transfer::<Env>(to, amount_native).map_err(|_| RouterV2Error::TransferError)?;
+        transfer_native(to, amount_native)?;
         Ok((amount_token, amount_native))
     }
 
