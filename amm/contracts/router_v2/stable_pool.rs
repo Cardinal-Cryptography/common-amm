@@ -6,7 +6,7 @@ use ink::{
     prelude::vec::Vec,
     primitives::AccountId,
 };
-use traits::{RouterV2Error, StablePool as StablePoolTrait, StablePoolError};
+use traits::{RouterV2Error, StablePool as StablePoolTrait};
 
 use crate::utils::{
     check_timestamp, psp22_approve, psp22_transfer, psp22_transfer_from, transfer_native, withdraw,
@@ -69,10 +69,6 @@ impl StablePool {
         wnative: Option<AccountId>,
     ) -> Result<(u128, u128), RouterV2Error> {
         check_timestamp(deadline)?;
-        ensure!(
-            self.tokens.len() == amounts.len(),
-            RouterV2Error::StablePoolError(StablePoolError::IncorrectAmountsCount)
-        );
         let native_received = transferred_value::<Env>();
         let (wnative_idx, native_surplus) = match wnative {
             Some(wnative) => {
@@ -116,10 +112,6 @@ impl StablePool {
         wnative: Option<AccountId>,
     ) -> Result<(u128, u128), RouterV2Error> {
         check_timestamp(deadline)?;
-        ensure!(
-            self.tokens.len() == amounts.len(),
-            RouterV2Error::StablePoolError(StablePoolError::IncorrectAmountsCount)
-        );
         psp22_transfer_from(
             self.id,
             caller::<Env>(),
@@ -161,10 +153,6 @@ impl StablePool {
         wnative: Option<AccountId>,
     ) -> Result<Vec<u128>, RouterV2Error> {
         check_timestamp(deadline)?;
-        ensure!(
-            self.tokens.len() == min_amounts.len(),
-            RouterV2Error::StablePoolError(StablePoolError::IncorrectAmountsCount)
-        );
         psp22_transfer_from(self.id, caller::<Env>(), account_id::<Env>(), share_amount)?;
         match wnative {
             Some(wnative) => {
