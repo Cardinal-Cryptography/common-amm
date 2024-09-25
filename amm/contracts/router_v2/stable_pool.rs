@@ -1,3 +1,4 @@
+use amm_helpers::ensure;
 use ink::{
     codegen::TraitCallBuilder,
     contract_ref,
@@ -133,11 +134,7 @@ impl StablePool {
                     amounts.clone(),
                     account_id::<Env>(),
                 )?;
-                withdraw(wnative, amounts[wnative_idx])?;
-                transfer_native(to, amounts[wnative_idx])?;
-                for i in (0..self.tokens.len()).filter(|&idx| idx != wnative_idx) {
-                    psp22_transfer(self.tokens[i], to, amounts[i])?;
-                }
+                self.handle_token_transfers(&amounts, to, wnative_idx)?;
                 res
             }
             None => {
@@ -177,11 +174,7 @@ impl StablePool {
                     min_amounts,
                     account_id::<Env>(),
                 )?;
-                withdraw(wnative, amounts[wnative_idx])?;
-                transfer_native(to, amounts[wnative_idx])?;
-                for i in (0..self.tokens.len()).filter(|&idx| idx != wnative_idx) {
-                    psp22_transfer(self.tokens[i], to, amounts[i])?;
-                }
+                self.handle_token_transfers(&amounts, to, wnative_idx)?;
                 Ok(amounts)
             }
             None => {
@@ -233,5 +226,19 @@ impl StablePool {
             .iter()
             .position(|&token| wnative == token)
             .ok_or(RouterV2Error::InvalidToken)
+    }
+
+    fn handle_token_transfers(
+        &self,
+        amounts: &[u128],
+        to: AccountId,
+        wnative_idx: usize,
+    ) -> Result<(), RouterV2Error> {
+        withdraw(self.tokens[wnative_idx], amounts[wnative_idx])?;
+        transfer_native(to, amounts[wnative_idx])?;
+        for i in (0..self.tokens.len()).filter(|&idx| idx != wnative_idx) {
+            psp22_transfer(self.tokens[i], to, amounts[i])?;
+        }
+        Ok(())
     }
 }
