@@ -54,7 +54,7 @@ pub mod router_v2 {
             match self.cached_pools.get(pool_id) {
                 Some(pool) => Ok(pool),
                 None => {
-                    let pool = Pool::try_new(pool_id).ok_or(RouterV2Error::InvalidPath)?;
+                    let pool = Pool::try_new(pool_id).ok_or(RouterV2Error::InvalidPoolAddress)?;
                     self.cached_pools.insert(pool_id, &pool);
                     Ok(pool)
                 }
@@ -86,9 +86,9 @@ pub mod router_v2 {
                 Some(pool_id) => pool_id,
                 None => self.pair_factory_ref().create_pair(token_0, token_1)?,
             };
-            match self.get_pool(pool_id) {
-                Ok(Pool::Pair(pair)) => Ok(pair),
-                _ => Err(RouterV2Error::PairNotFound),
+            match self.get_pool(pool_id)? {
+                Pool::Pair(pair) => Ok(pair),
+                Pool::StablePool(_) => Err(RouterV2Error::PairNotFound),
             }
         }
 
@@ -257,7 +257,7 @@ pub mod router_v2 {
             check_timestamp(deadline)?;
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
-            ensure!(path[0].token_in == wnative, RouterV2Error::InvalidPath);
+            ensure!(path[0].token_in == wnative, RouterV2Error::InvalidToken);
             let amounts = self.calculate_amounts_out(received_value, &path, token_out)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
@@ -339,7 +339,7 @@ pub mod router_v2 {
             check_timestamp(deadline)?;
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
-            ensure!(path[0].token_in == wnative, RouterV2Error::InvalidPath);
+            ensure!(path[0].token_in == wnative, RouterV2Error::InvalidToken);
             let amounts = self.calculate_amounts_in(amount_out, &path, token_out)?;
             let native_in: Balance = amounts[0];
             ensure!(

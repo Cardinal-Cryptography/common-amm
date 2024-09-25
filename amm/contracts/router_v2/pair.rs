@@ -104,10 +104,6 @@ impl Pair {
         }
 
         ensure!(
-            reserve_0 > 0 && reserve_1 > 0,
-            RouterV2Error::InsufficientLiquidity
-        );
-        ensure!(
             amount_0_desired > 0 && amount_1_desired > 0,
             RouterV2Error::InsufficientAmount
         );
@@ -256,8 +252,7 @@ impl Pair {
         amount_out: u128,
         to: AccountId,
     ) -> Result<(), RouterV2Error> {
-        self.check_tokens(token_in, token_out)
-            .map_err(|_| RouterV2Error::InvalidPath)?;
+        self.check_tokens(token_in, token_out)?;
         let (amount_0_out, amount_1_out) = if token_in < token_out {
             (0, amount_out)
         } else {
@@ -274,8 +269,7 @@ impl Pair {
         token_out: AccountId,
         amount_out: u128,
     ) -> Result<u128, RouterV2Error> {
-        self.check_tokens(token_in, token_out)
-            .map_err(|_| RouterV2Error::InvalidPath)?;
+        self.check_tokens(token_in, token_out)?;
         let (reserve_in, reserve_out) = self.get_reserves(&token_in, &token_out);
         ensure!(amount_out > 0, RouterV2Error::InsufficientAmount);
         ensure!(
@@ -311,8 +305,7 @@ impl Pair {
         token_out: AccountId,
         amount_in: u128,
     ) -> Result<u128, RouterV2Error> {
-        self.check_tokens(token_in, token_out)
-            .map_err(|_| RouterV2Error::InvalidPath)?;
+        self.check_tokens(token_in, token_out)?;
         let (reserve_in, reserve_out) = self.get_reserves(&token_in, &token_out);
         ensure!(amount_in > 0, RouterV2Error::InsufficientAmount);
         ensure!(

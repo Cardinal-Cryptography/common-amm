@@ -291,7 +291,7 @@ pub enum RouterV2Error {
 
     CrossContractCallFailed(String),
     Expired,
-    InvalidPath,
+    InvalidPoolAddress,
     InvalidToken,
     PairNotFound,
     PoolNotFound,
