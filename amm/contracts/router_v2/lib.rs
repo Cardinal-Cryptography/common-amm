@@ -76,9 +76,9 @@ pub mod router_v2 {
                 Some(pool_id) => pool_id,
                 None => self.pair_factory_ref().create_pair(token_0, token_1)?,
             };
-            match self.get_pool(pool_id) {
-                Ok(Pool::Pair(pair)) => Ok(pair),
-                _ => Err(RouterV2Error::PairNotFound),
+            match self.get_pool(pool_id)? {
+                Pool::Pair(pair) => Ok(pair),
+                Pool::StablePool(_) => Err(RouterV2Error::PairNotFound),
             }
         }
 
