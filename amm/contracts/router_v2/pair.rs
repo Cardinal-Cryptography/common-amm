@@ -102,10 +102,6 @@ impl Pair {
         }
 
         ensure!(
-            reserve_0 > 0 && reserve_1 > 0,
-            RouterV2Error::InsufficientLiquidity
-        );
-        ensure!(
             amount_0_desired > 0 && amount_1_desired > 0,
             RouterV2Error::InsufficientAmount
         );
