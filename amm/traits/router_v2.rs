@@ -1,6 +1,6 @@
 use crate::{Balance, FactoryError, MathError, PairError, StablePoolError};
 use ink::{
-    prelude::{string::String, vec::Vec},
+    prelude::vec::Vec,
     primitives::AccountId,
     LangError,
 };
@@ -289,7 +289,6 @@ pub enum RouterV2Error {
     MathError(MathError),
     StablePoolError(StablePoolError),
 
-    CrossContractCallFailed(String),
     Expired,
     InvalidPoolAddress,
     InvalidToken,

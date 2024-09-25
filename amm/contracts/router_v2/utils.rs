@@ -43,15 +43,11 @@ pub fn psp22_approve(token: AccountId, spender: AccountId, value: u128) -> Resul
 #[inline]
 pub fn wrap(wnative: AccountId, value: Balance) -> Result<(), RouterV2Error> {
     let mut wnative_ref: contract_ref!(WrappedAZERO, Env) = wnative.into();
-    wnative_ref
+    Ok(wnative_ref
         .call_mut()
         .deposit()
         .transferred_value(value)
-        .try_invoke()
-        .map_err(|_| {
-            RouterV2Error::CrossContractCallFailed(String::from("Wrapped AZERO: deposit"))
-        })???;
-    Ok(())
+        .invoke()?)
 }
 
 #[inline]
