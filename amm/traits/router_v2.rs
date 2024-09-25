@@ -292,8 +292,6 @@ pub enum RouterV2Error {
     Expired,
     InvalidPoolAddress,
     InvalidToken,
-    PairNotFound,
-    PoolNotFound,
     TransferError,
 
     ExcessiveInputAmount,
