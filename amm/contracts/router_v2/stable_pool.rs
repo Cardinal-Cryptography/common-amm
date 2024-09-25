@@ -1,4 +1,3 @@
-use amm_helpers::ensure;
 use ink::{
     codegen::TraitCallBuilder, contract_ref, env::DefaultEnvironment as Env, prelude::vec::Vec,
     primitives::AccountId,
@@ -48,10 +47,6 @@ impl StablePool {
         amount_out: u128,
         to: AccountId,
     ) -> Result<(), RouterV2Error> {
-        ensure!(
-            self.tokens.contains(&token_in) && self.tokens.contains(&token_out),
-            RouterV2Error::InvalidPath
-        );
         self.contract_ref()
             .swap_received(token_in, token_out, amount_out, to)?;
         Ok(())
@@ -63,17 +58,10 @@ impl StablePool {
         token_out: AccountId,
         amount_out: u128,
     ) -> Result<u128, RouterV2Error> {
-        ensure!(
-            self.tokens.contains(&token_in) && self.tokens.contains(&token_out),
-            RouterV2Error::InvalidPath
-        );
-        match self
+        Ok(self
             .contract_ref()
             .get_swap_amount_in(token_in, token_out, amount_out)
-        {
-            Ok((amount_in, _)) => Ok(amount_in),
-            Err(err) => Err(err.into()),
-        }
+            .map(|(amount_in, _)| amount_in)?)
     }
 
     pub fn get_amount_out(
@@ -82,16 +70,9 @@ impl StablePool {
         token_out: AccountId,
         amount_in: u128,
     ) -> Result<u128, RouterV2Error> {
-        ensure!(
-            self.tokens.contains(&token_in) && self.tokens.contains(&token_out),
-            RouterV2Error::InvalidPath
-        );
-        match self
+        Ok(self
             .contract_ref()
             .get_swap_amount_out(token_in, token_out, amount_in)
-        {
-            Ok((amount_out, _)) => Ok(amount_out),
-            Err(err) => Err(err.into()),
-        }
+            .map(|(amount_out, _)| amount_out)?)
     }
 }
