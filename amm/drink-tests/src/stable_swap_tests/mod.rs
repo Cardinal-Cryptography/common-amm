@@ -21,12 +21,6 @@ pub const FEE_DENOM: u128 = 1_000_000_000;
 
 pub const RATE_PRECISION: u128 = 10u128.pow(12);
 
-pub const FEE_RECEIVER: AccountId32 = AccountId32::new([42u8; 32]);
-
-pub fn fee_receiver() -> ink_primitives::AccountId {
-    AsRef::<[u8; 32]>::as_ref(&FEE_RECEIVER).clone().into()
-}
-
 pub const ONE_LPT: u128 = 1000000000000000000;
 pub const ONE_DAI: u128 = 1000000000000000000;
 pub const ONE_USDT: u128 = 1000000;

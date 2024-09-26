@@ -1,0 +1,39 @@
+[package]
+name = "router_v2_contract"
+version = "0.1.0"
+authors = ["Cardinal Cryptography"]
+edition = "2021"
+
+[dependencies]
+ink = { version = "=4.3.0", default-features = false }
+
+scale = { package = "parity-scale-codec", version = "3", default-features = false, features = [
+    "derive",
+] }
+scale-info = { version = "2.9", default-features = false, features = [
+    "derive",
+], optional = true }
+
+psp22 = { version = "=0.2.2", default-features = false }
+wrapped-azero = { git = "https://github.com/Cardinal-Cryptography/wAZERO.git", default-features = false, features = [
+    "ink-as-dependency",
+] }
+
+traits = { path = "../../traits", default-features = false }
+amm-helpers = { path = "../../../helpers", default-features = false }
+
+[lib]
+name = "router_v2_contract"
+path = "lib.rs"
+
+[features]
+default = ["std"]
+std = [
+    "ink/std",
+    "psp22/std",
+    "scale/std",
+    "scale-info",
+    "scale-info/std",
+    "traits/std",
+]
+ink-as-dependency = []

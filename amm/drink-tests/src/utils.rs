@@ -15,6 +15,14 @@ pub const EVA: drink::AccountId32 = AccountId32::new([5u8; 32]);
 
 pub const TOKEN: u128 = 10u128.pow(18);
 
+pub const ONE_AZERO: u128 = 10u128.pow(12);
+
+pub const FEE_RECEIVER: AccountId32 = AccountId32::new([42u8; 32]);
+
+pub fn fee_receiver() -> ink_primitives::AccountId {
+    AsRef::<[u8; 32]>::as_ref(&FEE_RECEIVER).clone().into()
+}
+
 pub fn bob() -> ink_primitives::AccountId {
     AsRef::<[u8; 32]>::as_ref(&BOB).clone().into()
 }
@@ -34,7 +42,7 @@ pub fn eva() -> ink_primitives::AccountId {
 pub fn seed_account(session: &mut Session<MinimalRuntime>, account: AccountId32) {
     session
         .sandbox()
-        .mint_into(account, 1_000_000_000u128)
+        .mint_into(account, 1_000_000 * TOKEN)
         .unwrap();
 }
 
@@ -54,6 +62,9 @@ pub fn upload_all(session: &mut Session<MinimalRuntime>) {
     session
         .upload_code(router_contract::upload())
         .expect("Upload router_contract code");
+    session
+        .upload_code(router_v2_contract::upload())
+        .expect("Upload router_v2_contract code");
     session
         .upload_code(wrapped_azero::upload())
         .expect("Upload wrapped_azero code");
@@ -206,9 +217,401 @@ pub mod router {
     }
 }
 
+pub mod router_v2 {
+    use super::*;
+    use drink::frame_support::dispatch::PaysFee;
+    use router_v2_contract::RouterV2 as _;
+    use router_v2_contract::{Pool, RouterV2Error, Step};
+
+    pub fn setup(
+        session: &mut Session<MinimalRuntime>,
+        factory: AccountId,
+        wazero: AccountId,
+    ) -> router_v2_contract::Instance {
+        let instance = router_v2_contract::Instance::new(factory, wazero);
+
+        session
+            .instantiate(instance)
+            .unwrap()
+            .result
+            .to_account_id()
+            .into()
+    }
+
+    pub fn add_pair_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pair: Option<AccountId>,
+        token_0: AccountId,
+        token_1: AccountId,
+        desired_amount_0: u128,
+        desired_amount_1: u128,
+        min_amount_0: u128,
+        min_amount_1: u128,
+        to: AccountId,
+        caller: drink::AccountId32,
+    ) -> Result<(u128, u128, u128), RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router).add_pair_liquidity(
+                    pair,
+                    token_0,
+                    token_1,
+                    desired_amount_0,
+                    desired_amount_1,
+                    min_amount_0,
+                    min_amount_1,
+                    to,
+                    deadline,
+                ),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn add_pair_liquidity_native(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pair: Option<AccountId>,
+        token: AccountId,
+        amount_token_desired: u128,
+        amount_token_min: u128,
+        amount_native_min: u128,
+        to: AccountId,
+        native_amount: u128,
+        caller: drink::AccountId32,
+    ) -> Result<(u128, u128, u128), RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router)
+                    .add_pair_liquidity_native(
+                        pair,
+                        token,
+                        amount_token_desired,
+                        amount_token_min,
+                        amount_native_min,
+                        to,
+                        deadline,
+                    )
+                    .with_value(native_amount),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn remove_pair_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pair: AccountId,
+        first_token: AccountId,
+        second_token: AccountId,
+        liquidity: u128,
+        min_token0: u128,
+        min_token1: u128,
+        to: AccountId,
+        caller: drink::AccountId32,
+    ) -> Result<(u128, u128), RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router).remove_pair_liquidity(
+                    pair,
+                    first_token,
+                    second_token,
+                    liquidity,
+                    min_token0,
+                    min_token1,
+                    to,
+                    deadline,
+                ),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn add_stable_swap_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pool: AccountId,
+        min_share_amount: u128,
+        amounts: Vec<u128>,
+        to: AccountId,
+        native: bool,
+        native_amount: u128,
+        caller: drink::AccountId32,
+    ) -> Result<(u128, u128), RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router)
+                    .add_stable_pool_liquidity(
+                        pool,
+                        min_share_amount,
+                        amounts,
+                        to,
+                        deadline,
+                        native,
+                    )
+                    .with_value(native_amount),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn remove_stable_pool_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pool: AccountId,
+        max_share_amount: u128,
+        amounts: Vec<u128>,
+        to: AccountId,
+        native: bool,
+        caller: drink::AccountId32,
+    ) -> Result<(u128, u128), RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router).remove_stable_pool_liquidity(
+                    pool,
+                    max_share_amount,
+                    amounts,
+                    to,
+                    deadline,
+                    native,
+                ),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn remove_stable_pool_liquidity_by_share(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pool: AccountId,
+        share_amount: u128,
+        min_amounts: Vec<u128>,
+        to: AccountId,
+        native: bool,
+        caller: drink::AccountId32,
+    ) -> Result<Vec<u128>, RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router).remove_stable_pool_liquidity_by_share(
+                    pool,
+                    share_amount,
+                    min_amounts,
+                    to,
+                    deadline,
+                    native,
+                ),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn get_cached_pool(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pool_id: AccountId,
+    ) -> Option<Pool> {
+        session
+            .query(router_v2_contract::Instance::from(router).read_cached_pool(pool_id))
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn swap_exact_tokens_for_tokens(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        amount_in: u128,
+        amount_out_min: u128,
+        path: Vec<Step>,
+        token_out: ink_primitives::AccountId,
+        to: ink_primitives::AccountId,
+        caller: drink::AccountId32,
+    ) -> Result<Vec<u128>, RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+        session
+            .execute(
+                router_v2_contract::Instance::from(router).swap_exact_tokens_for_tokens(
+                    amount_in,
+                    amount_out_min,
+                    path,
+                    token_out,
+                    to,
+                    deadline,
+                ),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn swap_tokens_for_exact_tokens(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        amount_out: u128,
+        amount_in_max: u128,
+        path: Vec<Step>,
+        token_out: ink_primitives::AccountId,
+        to: ink_primitives::AccountId,
+        caller: drink::AccountId32,
+    ) -> Result<Vec<u128>, RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+        session
+            .execute(
+                router_v2_contract::Instance::from(router).swap_tokens_for_exact_tokens(
+                    amount_out,
+                    amount_in_max,
+                    path,
+                    token_out,
+                    to,
+                    deadline,
+                ),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn swap_exact_native_for_tokens(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        native_amount: u128,
+        amount_out_min: u128,
+        path: Vec<Step>,
+        token_out: ink_primitives::AccountId,
+        to: ink_primitives::AccountId,
+        caller: drink::AccountId32,
+    ) -> Result<Vec<u128>, RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+        session
+            .execute(
+                router_v2_contract::Instance::from(router)
+                    .swap_exact_native_for_tokens(amount_out_min, path, token_out, to, deadline)
+                    .with_value(native_amount),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn swap_exact_tokens_for_native(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        amount_in: u128,
+        amount_out_min: u128,
+        path: Vec<Step>,
+        to: ink_primitives::AccountId,
+        caller: drink::AccountId32,
+    ) -> Result<Vec<u128>, RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+        session
+            .execute(
+                router_v2_contract::Instance::from(router).swap_exact_tokens_for_native(
+                    amount_in,
+                    amount_out_min,
+                    path,
+                    to,
+                    deadline,
+                ),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn swap_tokens_for_exact_native(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        amount_out: u128,
+        amount_in_max: u128,
+        path: Vec<Step>,
+        to: ink_primitives::AccountId,
+        caller: drink::AccountId32,
+    ) -> Result<Vec<u128>, RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+        session
+            .execute(
+                router_v2_contract::Instance::from(router).swap_tokens_for_exact_native(
+                    amount_out,
+                    amount_in_max,
+                    path,
+                    to,
+                    deadline,
+                ),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn swap_native_for_exact_tokens(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        native_amount: u128,
+        amount_out: u128,
+        path: Vec<Step>,
+        token_out: ink_primitives::AccountId,
+        to: ink_primitives::AccountId,
+        caller: drink::AccountId32,
+    ) -> Result<Vec<u128>, RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+        session
+            .execute(
+                router_v2_contract::Instance::from(router)
+                    .swap_native_for_exact_tokens(amount_out, path, token_out, to, deadline)
+                    .with_value(native_amount),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+}
+
 pub mod psp22_utils {
     use super::*;
-    use psp22::{Instance as PSP22, PSP22 as _, PSP22Metadata as _};
+    use psp22::{Instance as PSP22, PSP22Metadata as _, PSP22 as _};
 
     /// Uploads and creates a PSP22 instance with 1B*10^18 issuance and given names.
     /// Returns its AccountId casted to PSP22 interface.
@@ -606,4 +1009,10 @@ pub fn handle_ink_error<R>(res: ContractResult<Result<R, InkLangError>>) -> R {
         Err(ink_lang_err) => panic!("InkLangError: {:?}", ink_lang_err),
         Ok(r) => r,
     }
+}
+
+pub fn native_balance_of(session: &mut Session<MinimalRuntime>, account_id: AccountId) -> u128 {
+    session.sandbox().free_balance(&AccountId32::from(
+        AsRef::<[u8; 32]>::as_ref(&account_id).clone(),
+    ))
 }
