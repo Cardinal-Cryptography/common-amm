@@ -126,7 +126,7 @@ impl StablePool {
                     amounts.clone(),
                     account_id::<Env>(),
                 )?;
-                self.handle_token_transfers(&amounts, to, wnative_idx)?;
+                self.transfer_tokens_back(&amounts, to, wnative_idx)?;
                 res
             }
             None => {
@@ -162,7 +162,7 @@ impl StablePool {
                     min_amounts,
                     account_id::<Env>(),
                 )?;
-                self.handle_token_transfers(&amounts, to, wnative_idx)?;
+                self.transfer_tokens_back(&amounts, to, wnative_idx)?;
                 Ok(amounts)
             }
             None => {
@@ -216,7 +216,7 @@ impl StablePool {
             .ok_or(RouterV2Error::InvalidToken)
     }
 
-    fn handle_token_transfers(
+    fn transfer_tokens_back(
         &self,
         amounts: &[u128],
         to: AccountId,
