@@ -15,6 +15,8 @@ pub const EVA: drink::AccountId32 = AccountId32::new([5u8; 32]);
 
 pub const TOKEN: u128 = 10u128.pow(18);
 
+pub const ONE_AZERO: u128 = 10u128.pow(12);
+
 pub const FEE_RECEIVER: AccountId32 = AccountId32::new([42u8; 32]);
 
 pub fn fee_receiver() -> ink_primitives::AccountId {
@@ -334,6 +336,99 @@ pub mod router_v2 {
                     min_token1,
                     to,
                     deadline,
+                ),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn add_stable_swap_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pool: AccountId,
+        min_share_amount: u128,
+        amounts: Vec<u128>,
+        to: AccountId,
+        native: bool,
+        native_amount: u128,
+        caller: drink::AccountId32,
+    ) -> Result<(u128, u128), RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router)
+                    .add_stable_pool_liquidity(
+                        pool,
+                        min_share_amount,
+                        amounts,
+                        to,
+                        deadline,
+                        native,
+                    )
+                    .with_value(native_amount),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn remove_stable_pool_liquidity(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pool: AccountId,
+        max_share_amount: u128,
+        amounts: Vec<u128>,
+        to: AccountId,
+        native: bool,
+        caller: drink::AccountId32,
+    ) -> Result<(u128, u128), RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router).remove_stable_pool_liquidity(
+                    pool,
+                    max_share_amount,
+                    amounts,
+                    to,
+                    deadline,
+                    native,
+                ),
+            )
+            .unwrap()
+            .result
+            .unwrap()
+    }
+
+    pub fn remove_stable_pool_liquidity_by_share(
+        session: &mut Session<MinimalRuntime>,
+        router: AccountId,
+        pool: AccountId,
+        share_amount: u128,
+        min_amounts: Vec<u128>,
+        to: AccountId,
+        native: bool,
+        caller: drink::AccountId32,
+    ) -> Result<Vec<u128>, RouterV2Error> {
+        let now = get_timestamp(session);
+        let deadline = now + 10;
+        let _ = session.set_actor(caller);
+
+        session
+            .execute(
+                router_v2_contract::Instance::from(router).remove_stable_pool_liquidity_by_share(
+                    pool,
+                    share_amount,
+                    min_amounts,
+                    to,
+                    deadline,
+                    native,
                 ),
             )
             .unwrap()

@@ -5,6 +5,7 @@ use crate::utils::*;
 use crate::{factory_contract, pair_contract, router_v2_contract, wrapped_azero};
 
 use drink::{runtime::MinimalRuntime, Weight};
+use ink_primitives::AccountId;
 use ink_wrapper_types::ToAccountId;
 use pair_contract::Pair as _;
 use router_v2_contract::{Pair, Pool, StablePool, Step};
@@ -110,6 +111,71 @@ fn test_cache_stable_pool(mut session: Session) {
     );
 }
 
+/// Tests that a StablePool is cached in the Router
+/// with the first liquidity deposit.
+#[drink::test]
+fn test_cache_stable_pool_with_add_liquidity(mut session: Session) {
+    upload_all(&mut session);
+
+    // Fix timestamp. Otherwise underlying UNIX clock is used.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let (router, _, _, _) = setup_router(&mut session);
+
+    let initial_reserves = vec![U100K * ONE_USDT, U100K * ONE_USDC];
+    let initial_supply = initial_reserves
+        .iter()
+        .map(|amount| amount * U1M)
+        .collect::<Vec<u128>>();
+
+    let (usdt_usdc_pool, tokens) = setup_stable_swap_with_tokens(
+        &mut session,
+        vec![6, 6],
+        initial_supply,
+        10_000,
+        2_500_000,
+        200_000_000,
+        BOB,
+        vec![],
+    );
+
+    let (usdt, usdc) = (tokens[0], tokens[1]);
+
+    psp22_utils::increase_allowance(&mut session, usdt, router.into(), u128::MAX, BOB)
+        .expect("Should increase allowance");
+    psp22_utils::increase_allowance(&mut session, usdc, router.into(), u128::MAX, BOB)
+        .expect("Should increase allowance");
+
+    // ensure that the pool is not cached before the swap
+    let res = router_v2::get_cached_pool(&mut session, router.into(), usdt_usdc_pool);
+    assert_eq!(res, None, "StablePool should not be in the cache");
+
+    router_v2::add_stable_swap_liquidity(
+        &mut session,
+        router.into(),
+        usdt_usdc_pool,
+        1,
+        initial_reserves.clone(),
+        bob(),
+        false,
+        0,
+        BOB,
+    )
+    .expect("Should add liquidity");
+
+    let res = router_v2::get_cached_pool(&mut session, router.into(), usdt_usdc_pool)
+        .expect("Should return cached StablePool");
+    assert_eq!(
+        res,
+        Pool::StablePool(StablePool {
+            id: usdt_usdc_pool,
+            tokens
+        }),
+        "StablePool cache mismatch"
+    );
+}
+
 /// Tests that a Pair is cached in the Router
 /// with the first swap.
 #[drink::test]
@@ -151,7 +217,7 @@ fn test_cache_pair(mut session: Session) {
         .result
         .unwrap()
         .expect("Should mint");
-    
+
     // ensure that the pair is not cached before the swap
     let res = router_v2::get_cached_pool(&mut session, router.into(), ice_wood_pair.into());
     assert_eq!(res, None, "Pair should not be in the cache");
@@ -271,9 +337,9 @@ fn test_create_and_cache_pair_with_add_liqudity(mut session: Session) {
     let wood = psp22_utils::setup(&mut session, WOOD.to_string(), BOB);
 
     psp22_utils::increase_allowance(&mut session, ice.into(), router.into(), u128::MAX, BOB)
-        .unwrap();
+        .expect("Should increase allowance");
     psp22_utils::increase_allowance(&mut session, wood.into(), router.into(), u128::MAX, BOB)
-        .unwrap();
+        .expect("Should increase allowance");
 
     router_v2::add_pair_liquidity(
         &mut session,
@@ -527,7 +593,7 @@ fn test_native_in_swap(mut session: Session) {
         .expect("Should increase allowance");
 
     let stable_amount = U100K * ONE_USDC;
-    let native_amount = U100K * TOKEN;
+    let native_amount = U100K * ONE_AZERO;
 
     router_v2::add_pair_liquidity_native(
         &mut session,
@@ -573,7 +639,7 @@ fn test_native_in_swap(mut session: Session) {
         10 * gas_limit.proof_size(),
     ));
 
-    let native_amount = 100 * TOKEN;
+    let native_amount = 100 * ONE_AZERO;
 
     let router_native_balance = native_balance_of(&mut session, router.into());
 
@@ -603,7 +669,7 @@ fn test_native_in_swap(mut session: Session) {
     .expect("Should swap");
 
     let swap_amount = 100 * TOKEN;
-    let native_amount = 120 * TOKEN;
+    let native_amount = 120 * ONE_AZERO;
 
     router_v2::swap_native_for_exact_tokens(
         &mut session,
@@ -701,7 +767,7 @@ fn test_native_out_swap(mut session: Session) {
         .expect("Should increase allowance");
 
     let stable_amount = U100K * ONE_USDC;
-    let native_amount = U100K * TOKEN;
+    let native_amount = U100K * ONE_AZERO;
 
     router_v2::add_pair_liquidity_native(
         &mut session,
@@ -775,6 +841,8 @@ fn test_native_out_swap(mut session: Session) {
     )
     .expect("Should swap");
 
+    let swap_amount = 100 * ONE_AZERO;
+
     router_v2::swap_tokens_for_exact_native(
         &mut session,
         router.into(),
@@ -800,6 +868,227 @@ fn test_native_out_swap(mut session: Session) {
     .expect("Should swap");
 
     for token in [usdt, usdc, wnative.into(), wood.into()] {
+        assert_eq!(
+            psp22_utils::balance_of(&mut session, token, router.into()),
+            0,
+            "Router should not hold any tokens"
+        );
+    }
+
+    assert_eq!(
+        router_native_balance,
+        native_balance_of(&mut session, router.into()),
+        "Router native balance should not change"
+    );
+}
+
+/// Tests StablePool add liquidity PSP22 tokens
+#[drink::test]
+fn test_stable_pool_liqudity(mut session: Session) {
+    upload_all(&mut session);
+
+    // seed test accounts with some native token
+    seed_account(&mut session, BOB);
+
+    // Fix timestamp. Otherwise underlying UNIX clock is used.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    let (router, _, _, _) = setup_router(&mut session);
+
+    // setup stable pool
+    let initial_reserves = vec![U100K * ONE_USDT, U100K * ONE_USDC];
+    let initial_supply = initial_reserves
+        .iter()
+        .map(|amount| amount * U1M)
+        .collect::<Vec<u128>>();
+
+    let (usdt_usdc_pool, tokens) = setup_stable_swap_with_tokens(
+        &mut session,
+        vec![6, 6],
+        initial_supply.clone(),
+        A,
+        TRADE_FEE,
+        PROTOCOL_FEE,
+        BOB,
+        vec![],
+    );
+
+    let (usdt, usdc) = (tokens[0], tokens[1]);
+
+    // add liquidity via Router
+    psp22_utils::increase_allowance(&mut session, usdt, router.into(), u128::MAX, BOB)
+        .expect("Should increase allowance");
+    psp22_utils::increase_allowance(&mut session, usdc, router.into(), u128::MAX, BOB)
+        .expect("Should increase allowance");
+    router_v2::add_stable_swap_liquidity(
+        &mut session,
+        router.into(),
+        usdt_usdc_pool,
+        1,
+        initial_reserves.clone(),
+        bob(),
+        false,
+        0,
+        BOB,
+    )
+    .expect("Should successfully add liquidity");
+
+    psp22_utils::increase_allowance(&mut session, usdt_usdc_pool, router.into(), u128::MAX, BOB)
+        .expect("Should increase allowance");
+
+    let to_withdraw = vec![100 * ONE_USDT, 100 * ONE_USDC];
+    let (max_share, _) = stable_swap::get_burn_liquidity_for_amounts(
+        &mut session,
+        usdt_usdc_pool,
+        to_withdraw.clone(),
+    )
+    .expect("Should estimate burn liquidity");
+
+    router_v2::remove_stable_pool_liquidity(
+        &mut session,
+        router.into(),
+        usdt_usdc_pool,
+        max_share,
+        to_withdraw,
+        bob(),
+        false,
+        BOB,
+    )
+    .expect("Should successfully add liquidity");
+
+    let share_amount = psp22_utils::balance_of(&mut session, usdt_usdc_pool, bob()) / 100; // ~1%
+    let min_amounts =
+        stable_swap::get_amounts_for_liquidity_burn(&mut session, usdt_usdc_pool, share_amount)
+            .expect("Should estimate amounts");
+
+    router_v2::remove_stable_pool_liquidity_by_share(
+        &mut session,
+        router.into(),
+        usdt_usdc_pool,
+        share_amount,
+        min_amounts,
+        bob(),
+        false,
+        BOB,
+    )
+    .expect("Should successfully add liquidity");
+
+    for token in [usdt, usdc] {
+        assert_eq!(
+            psp22_utils::balance_of(&mut session, token, router.into()),
+            0,
+            "Router should not hold any tokens"
+        );
+    }
+}
+
+/// Tests StablePool add liquidity with native token
+#[drink::test]
+fn test_stable_pool_liqudity_native(mut session: Session) {
+    upload_all(&mut session);
+
+    // seed test accounts with some native token
+    seed_account(&mut session, BOB);
+
+    // Fix timestamp. Otherwise underlying UNIX clock is used.
+    let now = get_timestamp(&mut session);
+    set_timestamp(&mut session, now);
+
+    // setup router and tokens
+    let (router, _, wnative, _) = setup_router(&mut session);
+    let sazero = session
+        .instantiate(crate::psp22::Instance::new(
+            1_000_000u128 * ONE_AZERO,
+            Some("SAZERO".to_string()),
+            Some("SAZERO".to_string()),
+            12,
+        ))
+        .unwrap()
+        .result
+        .to_account_id()
+        .into();
+
+    // setup stable pool
+    let initial_reserves = vec![U100K * ONE_AZERO, U100K * ONE_AZERO];
+
+    let wazero_sazero_pool: AccountId = stable_swap::setup(
+        &mut session,
+        vec![wnative.into(), sazero],
+        vec![12, 12],
+        A,
+        BOB,
+        TRADE_FEE,
+        PROTOCOL_FEE,
+        Some(fee_receiver()),
+    )
+    .into();
+
+    let router_native_balance = native_balance_of(&mut session, router.into());
+
+    // add liquidity via Router
+    psp22_utils::increase_allowance(&mut session, sazero, router.into(), u128::MAX, BOB)
+        .expect("Should increase allowance");
+    router_v2::add_stable_swap_liquidity(
+        &mut session,
+        router.into(),
+        wazero_sazero_pool,
+        1,
+        initial_reserves.clone(),
+        bob(),
+        true,
+        initial_reserves[0],
+        BOB,
+    )
+    .expect("Should successfully add liquidity");
+
+    psp22_utils::increase_allowance(
+        &mut session,
+        wazero_sazero_pool,
+        router.into(),
+        u128::MAX,
+        BOB,
+    )
+    .expect("Should increase allowance");
+
+    let to_withdraw = vec![100 * ONE_AZERO, 100 * ONE_AZERO];
+    let (max_share, _) = stable_swap::get_burn_liquidity_for_amounts(
+        &mut session,
+        wazero_sazero_pool,
+        to_withdraw.clone(),
+    )
+    .expect("Should estimate burn liquidity");
+
+    router_v2::remove_stable_pool_liquidity(
+        &mut session,
+        router.into(),
+        wazero_sazero_pool,
+        max_share,
+        to_withdraw,
+        bob(),
+        true,
+        BOB,
+    )
+    .expect("Should successfully add liquidity");
+
+    let share_amount = psp22_utils::balance_of(&mut session, wazero_sazero_pool, bob()) / 100; // ~1%
+    let min_amounts =
+        stable_swap::get_amounts_for_liquidity_burn(&mut session, wazero_sazero_pool, share_amount)
+            .expect("Should estimate amounts");
+
+    router_v2::remove_stable_pool_liquidity_by_share(
+        &mut session,
+        router.into(),
+        wazero_sazero_pool,
+        share_amount,
+        min_amounts,
+        bob(),
+        true,
+        BOB,
+    )
+    .expect("Should successfully add liquidity");
+
+    for token in [wnative.into(), sazero] {
         assert_eq!(
             psp22_utils::balance_of(&mut session, token, router.into()),
             0,

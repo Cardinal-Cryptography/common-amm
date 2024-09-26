@@ -1,6 +1,6 @@
 use crate::{Balance, FactoryError, MathError, PairError, StablePoolError};
 use ink::{
-    prelude::{string::String, vec::Vec},
+    prelude::vec::Vec,
     primitives::AccountId,
     LangError,
 };
@@ -23,6 +23,8 @@ pub trait RouterV2 {
     /// Returns address of the `WrappedNative` contract for this `RouterV2` instance.
     #[ink(message)]
     fn wnative(&self) -> AccountId;
+
+    // ----------- PAIR LIQUIDITY METHODS ----------- //
 
     /// Adds liquidity to the `pair`.
     ///
@@ -107,6 +109,58 @@ pub trait RouterV2 {
         to: AccountId,
         deadline: u64,
     ) -> Result<(u128, Balance), RouterV2Error>;
+
+    // ----------- STABLE POOL LIQUIDITY METHODS ----------- //
+
+    /// Adds liquidity to the stable pool.
+    ///
+    /// If `native` is true, it attemps to wrap the transferred native token
+    /// and use it instead of transferring the wrapped version.
+    /// Fails if `native` is true but the pool does not have wrapped native token.
+    #[ink(message, payable)]
+    fn add_stable_pool_liquidity(
+        &mut self,
+        pool: AccountId,
+        min_share_amount: u128,
+        amounts: Vec<u128>,
+        to: AccountId,
+        deadline: u64,
+        native: bool,
+    ) -> Result<(u128, u128), RouterV2Error>;
+
+    /// Withdraws liquidity from the stable pool by the specified amounts.
+    ///
+    /// If `native` is true, it attemps to unwrap the wrapped native token
+    /// and withdraw it to the `to` account.
+    /// Fails if `native` is true but the pool does not have wrapped native token.
+    #[ink(message)]
+    fn remove_stable_pool_liquidity(
+        &mut self,
+        pool: AccountId,
+        max_share_amount: u128,
+        amounts: Vec<u128>,
+        to: AccountId,
+        deadline: u64,
+        native: bool,
+    ) -> Result<(u128, u128), RouterV2Error>;
+
+    /// Withdraws liquidity from the stable pool in balanced propotions.
+    ///
+    /// If `native` is true, it attemps to unwrap the wrapped native token
+    /// and withdraw it to the `to` account.
+    /// Fails if `native` is true but the pool does not have wrapped native token.
+    #[ink(message)]
+    fn remove_stable_pool_liquidity_by_share(
+        &mut self,
+        pool: AccountId,
+        share_amount: u128,
+        min_amounts: Vec<u128>,
+        to: AccountId,
+        deadline: u64,
+        native: bool,
+    ) -> Result<Vec<u128>, RouterV2Error>;
+
+    // ----------- SWAP METHODS ----------- //
 
     /// Exchanges tokens along the `path` to `token_out`.
     ///
@@ -235,14 +289,13 @@ pub enum RouterV2Error {
     MathError(MathError),
     StablePoolError(StablePoolError),
 
-    CrossContractCallFailed(String),
     Expired,
     InvalidPoolAddress,
     InvalidToken,
-    PairNotFound,
     TransferError,
 
     ExcessiveInputAmount,
+    InsufficientTransferredAmount,
     InsufficientAmount,
     InsufficientOutputAmount,
     InsufficientAmountA,

@@ -12,7 +12,7 @@ pub struct CallerIsNotOwner;
 #[ink::contract]
 pub mod router_v2 {
     use crate::{
-        pool::{Pair, Pool},
+        pool::{Pair, Pool, StablePool},
         utils::*,
     };
     use amm_helpers::ensure;
@@ -50,7 +50,7 @@ pub mod router_v2 {
         /// Returns Pool for `pool_id` if it exists.
         /// Adds the Pool to the cache.
         #[inline]
-        fn get_pool(&mut self, pool_id: AccountId) -> Result<Pool, RouterV2Error> {
+        fn get_and_cache_pool(&mut self, pool_id: AccountId) -> Result<Pool, RouterV2Error> {
             match self.cached_pools.get(pool_id) {
                 Some(pool) => Ok(pool),
                 None => {
@@ -60,13 +60,24 @@ pub mod router_v2 {
                 }
             }
         }
+
+        /// Returns StablePool for `pool_id`.
+        /// Adds the StablePool to the cache.
+        #[inline]
+        fn get_and_cache_stable_pool(&mut self, pool_id: AccountId) -> Result<StablePool, RouterV2Error> {
+            match self.get_and_cache_pool(pool_id)? {
+                Pool::StablePool(pool) => Ok(pool),
+                Pool::Pair(_) => Err(RouterV2Error::InvalidPoolAddress),
+            }
+        }
+
         /// Returns Pair for `pool_id`.
         /// If `pool_id` is `None`, it creates a new Pair for
         /// `(token_0, token_1)` tokens if the Pair does not
         /// exist in the pair Factory.
         /// Adds the Pair to the cache.
         #[inline]
-        fn get_pair(
+        fn get_and_cache_pair(
             &mut self,
             pool_id: Option<AccountId>,
             token_0: AccountId,
@@ -76,9 +87,9 @@ pub mod router_v2 {
                 Some(pool_id) => pool_id,
                 None => self.pair_factory_ref().create_pair(token_0, token_1)?,
             };
-            match self.get_pool(pool_id)? {
+            match self.get_and_cache_pool(pool_id)? {
                 Pool::Pair(pair) => Ok(pair),
-                Pool::StablePool(_) => Err(RouterV2Error::PairNotFound),
+                Pool::StablePool(_) => Err(RouterV2Error::InvalidPoolAddress),
             }
         }
 
@@ -91,7 +102,7 @@ pub mod router_v2 {
         ) -> Result<(), RouterV2Error> {
             let n_pools = path.len();
             for i in 0..n_pools - 1 {
-                self.get_pool(path[i].pool_id)?.swap(
+                self.get_and_cache_pool(path[i].pool_id)?.swap(
                     path[i].token_in,
                     path[i + 1].token_in,
                     amounts[i + 1],
@@ -99,7 +110,7 @@ pub mod router_v2 {
                 )?;
             }
             // If last pool in the path, transfer tokens to the `to` recipient.
-            self.get_pool(path[n_pools - 1].pool_id)?.swap(
+            self.get_and_cache_pool(path[n_pools - 1].pool_id)?.swap(
                 path[n_pools - 1].token_in,
                 token_out,
                 amounts[n_pools],
@@ -120,13 +131,13 @@ pub mod router_v2 {
             let n_pools = path.len();
             let mut amounts = vec![0; n_pools + 1];
             amounts[n_pools] = amount_out;
-            amounts[n_pools - 1] = self.get_pool(path[n_pools - 1].pool_id)?.get_amount_in(
+            amounts[n_pools - 1] = self.get_and_cache_pool(path[n_pools - 1].pool_id)?.get_amount_in(
                 path[n_pools - 1].token_in,
                 token_out,
                 amount_out,
             )?;
             for i in (0..n_pools - 1).rev() {
-                amounts[i] = self.get_pool(path[i].pool_id)?.get_amount_in(
+                amounts[i] = self.get_and_cache_pool(path[i].pool_id)?.get_amount_in(
                     path[i].token_in,
                     path[i + 1].token_in,
                     amounts[i + 1],
@@ -149,13 +160,13 @@ pub mod router_v2 {
             let mut amounts = vec![0; n_pools + 1];
             amounts[0] = amount_in;
             for i in 0..n_pools - 1 {
-                amounts[i + 1] = self.get_pool(path[i].pool_id)?.get_amount_out(
+                amounts[i + 1] = self.get_and_cache_pool(path[i].pool_id)?.get_amount_out(
                     path[i].token_in,
                     path[i + 1].token_in,
                     amounts[i],
                 )?;
             }
-            amounts[n_pools] = self.get_pool(path[n_pools - 1].pool_id)?.get_amount_out(
+            amounts[n_pools] = self.get_and_cache_pool(path[n_pools - 1].pool_id)?.get_amount_out(
                 path[n_pools - 1].token_in,
                 token_out,
                 amounts[n_pools - 1],
@@ -284,9 +295,7 @@ pub mod router_v2 {
             self.swap(&amounts, &path, wnative, self.env().account_id())?;
             let native_out = amounts[amounts.len() - 1];
             withdraw(wnative, native_out)?;
-            self.env()
-                .transfer(to, native_out)
-                .map_err(|_| RouterV2Error::TransferError)?;
+            transfer_native(to, native_out)?;
             Ok(amounts)
         }
 
@@ -315,9 +324,7 @@ pub mod router_v2 {
             )?;
             self.swap(&amounts, &path, wnative, self.env().account_id())?;
             withdraw(wnative, native_out)?;
-            self.env()
-                .transfer(to, native_out)
-                .map_err(|_| RouterV2Error::TransferError)?;
+            transfer_native(to, native_out)?;
             Ok(amounts)
         }
 
@@ -386,7 +393,7 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, u128, u128), RouterV2Error> {
-            let pair = self.get_pair(pair, token_0, token_1)?;
+            let pair = self.get_and_cache_pair(pair, token_0, token_1)?;
             pair.add_liquidity(
                 token_0,
                 token_1,
@@ -411,7 +418,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<(u128, Balance, u128), RouterV2Error> {
             let wnative = self.wnative;
-            let pair = self.get_pair(pair, token, wnative)?;
+            let pair = self.get_and_cache_pair(pair, token, wnative)?;
             pair.add_liquidity_native(
                 token,
                 wnative,
@@ -435,7 +442,7 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<(u128, u128), RouterV2Error> {
-            let pair = self.get_pair(Some(pair), token_0, token_1)?;
+            let pair = self.get_and_cache_pair(Some(pair), token_0, token_1)?;
             pair.remove_liquidity(
                 token_0,
                 token_1,
@@ -459,7 +466,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<(u128, Balance), RouterV2Error> {
             let wnative = self.wnative;
-            let pair = self.get_pair(Some(pair), token, wnative)?;
+            let pair = self.get_and_cache_pair(Some(pair), token, wnative)?;
             pair.remove_liquidity_native(
                 token,
                 wnative,
@@ -468,6 +475,68 @@ pub mod router_v2 {
                 amount_native_min,
                 to,
                 deadline,
+            )
+        }
+
+        // ----------- STABLE POOL LIQUIDITY METHODS ----------- //
+
+        #[ink(message, payable)]
+        fn add_stable_pool_liquidity(
+            &mut self,
+            pool: AccountId,
+            min_share_amount: u128,
+            amounts: Vec<u128>,
+            to: AccountId,
+            deadline: u64,
+            native: bool,
+        ) -> Result<(u128, u128), RouterV2Error> {
+            let wnative = if native { Some(self.wnative) } else { None };
+            self.get_and_cache_stable_pool(pool)?.add_liquidity(
+                min_share_amount,
+                amounts,
+                to,
+                deadline,
+                wnative,
+            )
+        }
+
+        #[ink(message)]
+        fn remove_stable_pool_liquidity(
+            &mut self,
+            pool: AccountId,
+            max_share_amount: u128,
+            amounts: Vec<u128>,
+            to: AccountId,
+            deadline: u64,
+            native: bool,
+        ) -> Result<(u128, u128), RouterV2Error> {
+            let wnative = if native { Some(self.wnative) } else { None };
+            self.get_and_cache_stable_pool(pool)?.remove_liquidity(
+                max_share_amount,
+                amounts,
+                to,
+                deadline,
+                wnative,
+            )
+        }
+
+        #[ink(message)]
+        fn remove_stable_pool_liquidity_by_share(
+            &mut self,
+            pool: AccountId,
+            share_amount: u128,
+            min_amounts: Vec<u128>,
+            to: AccountId,
+            deadline: u64,
+            native: bool,
+        ) -> Result<Vec<u128>, RouterV2Error> {
+            let wnative = if native { Some(self.wnative) } else { None };
+            self.get_and_cache_stable_pool(pool)?.remove_liquidity_by_share(
+                share_amount,
+                min_amounts,
+                to,
+                deadline,
+                wnative,
             )
         }
     }

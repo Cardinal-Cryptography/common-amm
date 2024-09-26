@@ -2,7 +2,7 @@ use amm_helpers::ensure;
 use ink::{
     codegen::TraitCallBuilder,
     contract_ref,
-    env::{block_timestamp, DefaultEnvironment as Env},
+    env::{block_timestamp, transfer, DefaultEnvironment as Env},
     prelude::{string::String, vec::Vec},
     primitives::AccountId,
 };
@@ -35,21 +35,28 @@ pub fn psp22_transfer_from(
 }
 
 #[inline]
+pub fn psp22_approve(token: AccountId, spender: AccountId, value: u128) -> Result<(), PSP22Error> {
+    let mut token: contract_ref!(PSP22, Env) = token.into();
+    token.approve(spender, value)
+}
+
+#[inline]
 pub fn wrap(wnative: AccountId, value: Balance) -> Result<(), RouterV2Error> {
     let mut wnative_ref: contract_ref!(WrappedAZERO, Env) = wnative.into();
-    wnative_ref
+    Ok(wnative_ref
         .call_mut()
         .deposit()
         .transferred_value(value)
-        .try_invoke()
-        .map_err(|_| {
-            RouterV2Error::CrossContractCallFailed(String::from("Wrapped AZERO: deposit"))
-        })???;
-    Ok(())
+        .invoke()?)
 }
 
 #[inline]
 pub fn withdraw(wnative: AccountId, value: Balance) -> Result<(), RouterV2Error> {
     let mut wnative_ref: contract_ref!(WrappedAZERO, Env) = wnative.into();
     Ok(wnative_ref.withdraw(value)?)
+}
+
+#[inline]
+pub fn transfer_native(to: AccountId, amount: u128) -> Result<(), RouterV2Error> {
+    transfer::<Env>(to, amount).map_err(|_| RouterV2Error::TransferError)
 }
