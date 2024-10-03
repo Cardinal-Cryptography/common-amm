@@ -508,7 +508,7 @@ fn test_psp22_swap(mut session: Session) {
     let init_bob_ice_balance = psp22_utils::balance_of(&mut session, ice.into(), bob());
     let init_bob_wood_balance = psp22_utils::balance_of(&mut session, wood.into(), bob());
 
-    router_v2::swap_exact_tokens_for_tokens(
+    let amounts = router_v2::swap_exact_tokens_for_tokens(
         &mut session,
         router.into(),
         swap_amount,
@@ -532,6 +532,12 @@ fn test_psp22_swap(mut session: Session) {
         BOB,
     )
     .expect("Should swap");
+
+    assert_eq!(amounts.len(), 4);
+    assert_eq!(amounts[0], swap_amount);
+    assert_eq!(amounts[1], first_step_output);
+    assert_eq!(amounts[2], second_step_output.0);
+    assert_eq!(amounts[3], third_step_output);
 
     let bob_ice_balance = psp22_utils::balance_of(&mut session, ice.into(), bob());
     let bob_wood_balance = psp22_utils::balance_of(&mut session, wood.into(), bob());
@@ -569,7 +575,7 @@ fn test_psp22_swap(mut session: Session) {
     )
     .unwrap();
 
-    router_v2::swap_tokens_for_exact_tokens(
+    let amounts = router_v2::swap_tokens_for_exact_tokens(
         &mut session,
         router.into(),
         swap_amount,
@@ -593,6 +599,12 @@ fn test_psp22_swap(mut session: Session) {
         BOB,
     )
     .expect("Should swap");
+
+    assert_eq!(amounts.len(), 4);
+    assert_eq!(amounts[0], first_step_input);
+    assert_eq!(amounts[1], second_step_input.0);
+    assert_eq!(amounts[2], third_step_input);
+    assert_eq!(amounts[3], swap_amount);
 
     let bob_ice_balance = psp22_utils::balance_of(&mut session, ice.into(), bob());
     let bob_wood_balance = psp22_utils::balance_of(&mut session, wood.into(), bob());
