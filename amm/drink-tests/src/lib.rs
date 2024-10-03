@@ -9,9 +9,9 @@ mod psp22;
 #[cfg(test)]
 mod router_contract;
 #[cfg(test)]
-mod router_v2_contract;
-#[cfg(test)]
 mod router_tests;
+#[cfg(test)]
+mod router_v2_contract;
 #[cfg(test)]
 mod router_v2_tests;
 #[cfg(test)]

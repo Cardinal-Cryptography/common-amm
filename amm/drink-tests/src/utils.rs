@@ -1004,9 +1004,15 @@ pub mod stable_swap {
         token_in_amount: u128,
     ) -> Result<(u128, u128), StablePoolError> {
         handle_contract_result(
-            session.query(
-                stable_pool_contract::Instance::from(stable_pool).get_swap_amount_out(token_in, token_out, token_in_amount)
-            ).unwrap()
+            session
+                .query(
+                    stable_pool_contract::Instance::from(stable_pool).get_swap_amount_out(
+                        token_in,
+                        token_out,
+                        token_in_amount,
+                    ),
+                )
+                .unwrap(),
         )
     }
 
@@ -1018,17 +1024,23 @@ pub mod stable_swap {
         token_out_amount: u128,
     ) -> Result<(u128, u128), StablePoolError> {
         handle_contract_result(
-            session.query(
-                stable_pool_contract::Instance::from(stable_pool).get_swap_amount_in(token_in, token_out, token_out_amount)
-            ).unwrap()
+            session
+                .query(
+                    stable_pool_contract::Instance::from(stable_pool).get_swap_amount_in(
+                        token_in,
+                        token_out,
+                        token_out_amount,
+                    ),
+                )
+                .unwrap(),
         )
     }
 }
 
 pub mod v2_amounts {
-    use primitive_types::U256;
-    use crate::pair_contract::{MathError, Pair};
     use super::*;
+    use crate::pair_contract::{MathError, Pair};
+    use primitive_types::U256;
 
     const PAIR_TRADING_FEE_DENOM: u128 = 1000;
 
@@ -1126,26 +1138,11 @@ pub mod v2_amounts {
 
     fn get_pair_params(session: &mut Session<MinimalRuntime>, pair: AccountId) -> PairParams {
         let contract = pair_contract::Instance::from(pair);
-        let token_0 = handle_contract_result(
-            session.query(
-                contract.get_token_0()
-            ).unwrap()
-        );
-        let token_1 = handle_contract_result(
-            session.query(
-                contract.get_token_1()
-            ).unwrap()
-        );
-        let (reserve_0, reserve_1, _) = handle_contract_result(
-            session.query(
-                contract.get_reserves()
-            ).unwrap()
-        );
-        let fee = handle_contract_result(
-            session.query(
-                contract.get_fee()
-            ).unwrap()
-        );
+        let token_0 = handle_contract_result(session.query(contract.get_token_0()).unwrap());
+        let token_1 = handle_contract_result(session.query(contract.get_token_1()).unwrap());
+        let (reserve_0, reserve_1, _) =
+            handle_contract_result(session.query(contract.get_reserves()).unwrap());
+        let fee = handle_contract_result(session.query(contract.get_fee()).unwrap());
 
         PairParams {
             token_0,

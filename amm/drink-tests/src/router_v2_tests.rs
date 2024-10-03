@@ -484,7 +484,8 @@ fn test_psp22_swap(mut session: Session) {
         ice.into(),
         usdc.into(),
         swap_amount,
-    ).unwrap();
+    )
+    .unwrap();
 
     let second_step_output = stable_swap::get_swap_amount_out(
         &mut session,
@@ -492,7 +493,8 @@ fn test_psp22_swap(mut session: Session) {
         usdc.into(),
         usdt.into(),
         first_step_output,
-    ).unwrap();
+    )
+    .unwrap();
 
     let third_step_output = v2_amounts::get_amount_out(
         &mut session,
@@ -500,7 +502,8 @@ fn test_psp22_swap(mut session: Session) {
         usdt.into(),
         wood.into(),
         second_step_output.0,
-    ).unwrap();
+    )
+    .unwrap();
 
     let init_bob_ice_balance = psp22_utils::balance_of(&mut session, ice.into(), bob());
     let init_bob_wood_balance = psp22_utils::balance_of(&mut session, wood.into(), bob());
@@ -545,7 +548,8 @@ fn test_psp22_swap(mut session: Session) {
         usdt.into(),
         wood.into(),
         swap_amount,
-    ).unwrap();
+    )
+    .unwrap();
 
     let second_step_input = stable_swap::get_swap_amount_in(
         &mut session,
@@ -553,7 +557,8 @@ fn test_psp22_swap(mut session: Session) {
         usdc.into(),
         usdt.into(),
         third_step_input,
-    ).unwrap();
+    )
+    .unwrap();
 
     let first_step_input = v2_amounts::get_amount_in(
         &mut session,
@@ -561,7 +566,8 @@ fn test_psp22_swap(mut session: Session) {
         ice.into(),
         usdc.into(),
         second_step_input.0,
-    ).unwrap();
+    )
+    .unwrap();
 
     router_v2::swap_tokens_for_exact_tokens(
         &mut session,
