@@ -308,6 +308,7 @@ pub mod router_v2 {
             .unwrap()
     }
 
+    #[allow(dead_code)]
     pub fn remove_pair_liquidity(
         session: &mut Session<MinimalRuntime>,
         router: AccountId,
@@ -979,6 +980,7 @@ pub mod stable_swap {
         )
     }
 
+    #[allow(dead_code)]
     pub fn get_mint_liquidity_for_amounts(
         session: &mut Session<MinimalRuntime>,
         stable_pool: AccountId,
@@ -994,7 +996,7 @@ pub mod stable_swap {
         )
     }
 
-    fn get_swap_amount_out(
+    pub fn get_swap_amount_out(
         session: &mut Session<MinimalRuntime>,
         stable_pool: AccountId,
         token_in: AccountId,
@@ -1008,7 +1010,7 @@ pub mod stable_swap {
         )
     }
 
-    fn get_swap_amount_in(
+    pub fn get_swap_amount_in(
         session: &mut Session<MinimalRuntime>,
         stable_pool: AccountId,
         token_in: AccountId,
@@ -1025,7 +1027,7 @@ pub mod stable_swap {
 
 pub mod v2_amounts {
     use primitive_types::U256;
-    use crate::pair_contract::{MathError, Pair as _,  PairError};
+    use crate::pair_contract::{MathError, Pair};
     use super::*;
 
     const PAIR_TRADING_FEE_DENOM: u128 = 1000;
