@@ -219,7 +219,6 @@ pub mod router {
 
 pub mod router_v2 {
     use super::*;
-    use drink::frame_support::dispatch::PaysFee;
     use router_v2_contract::RouterV2 as _;
     use router_v2_contract::{Pool, RouterV2Error, Step};
 
@@ -670,7 +669,7 @@ pub mod psp22_utils {
     ) -> Result<(), psp22::PSP22Error> {
         let _ = session.set_actor(caller);
 
-        handle_ink_error(
+        handle_contract_result(
             session
                 .execute(PSP22::increase_allowance(&token.into(), spender, amount))
                 .unwrap(),
@@ -687,7 +686,7 @@ pub mod psp22_utils {
     ) -> Result<(), psp22::PSP22Error> {
         let _ = session.set_actor(caller);
 
-        handle_ink_error(
+        handle_contract_result(
             session
                 .execute(PSP22::transfer(&token.into(), to, amount, [].to_vec()))
                 .unwrap(),
@@ -701,7 +700,7 @@ pub mod psp22_utils {
         token: AccountId,
         account: AccountId,
     ) -> u128 {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(PSP22::balance_of(&token.into(), account))
                 .unwrap(),
@@ -709,11 +708,11 @@ pub mod psp22_utils {
     }
 
     pub fn total_supply(session: &mut Session<MinimalRuntime>, token: AccountId) -> u128 {
-        handle_ink_error(session.query(PSP22::total_supply(&token.into())).unwrap())
+        handle_contract_result(session.query(PSP22::total_supply(&token.into())).unwrap())
     }
 
     pub fn token_decimals(session: &mut Session<MinimalRuntime>, token: AccountId) -> u8 {
-        handle_ink_error(session.query(PSP22::token_decimals(&token.into())).unwrap())
+        handle_contract_result(session.query(PSP22::token_decimals(&token.into())).unwrap())
     }
 }
 
@@ -758,8 +757,8 @@ pub mod stable_swap {
         amounts: Vec<u128>,
         to: AccountId,
     ) -> Result<(u128, u128), StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).add_liquidity(
@@ -780,8 +779,8 @@ pub mod stable_swap {
         amounts: Vec<u128>,
         to: AccountId,
     ) -> Result<(u128, u128), StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).remove_liquidity_by_amounts(
@@ -802,8 +801,8 @@ pub mod stable_swap {
         min_amounts: Vec<u128>,
         to: AccountId,
     ) -> Result<Vec<u128>, StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).remove_liquidity_by_shares(
@@ -826,8 +825,8 @@ pub mod stable_swap {
         min_token_out_amount: u128,
         to: AccountId,
     ) -> Result<(u128, u128), StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).swap_exact_in(
@@ -852,8 +851,8 @@ pub mod stable_swap {
         max_token_in_amount: u128,
         to: AccountId,
     ) -> Result<(u128, u128), StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).swap_exact_out(
@@ -877,8 +876,8 @@ pub mod stable_swap {
         min_token_out_amount: u128,
         to: AccountId,
     ) -> Result<(u128, u128), StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).swap_received(
@@ -893,7 +892,7 @@ pub mod stable_swap {
     }
 
     pub fn reserves(session: &mut Session<MinimalRuntime>, stable_pool: AccountId) -> Vec<u128> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(stable_pool_contract::Instance::from(stable_pool).reserves())
                 .unwrap(),
@@ -904,7 +903,7 @@ pub mod stable_swap {
         session: &mut Session<MinimalRuntime>,
         stable_pool: AccountId,
     ) -> Result<u128, StablePoolError> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(stable_pool_contract::Instance::from(stable_pool).amp_coef())
                 .unwrap(),
@@ -912,7 +911,7 @@ pub mod stable_swap {
     }
 
     pub fn fees(session: &mut Session<MinimalRuntime>, stable_pool: AccountId) -> (u32, u32) {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(stable_pool_contract::Instance::from(stable_pool).fees())
                 .unwrap(),
@@ -920,7 +919,7 @@ pub mod stable_swap {
     }
 
     pub fn token_rates(session: &mut Session<MinimalRuntime>, stable_pool: AccountId) -> Vec<u128> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(stable_pool_contract::Instance::from(stable_pool).token_rates())
                 .unwrap(),
@@ -928,7 +927,7 @@ pub mod stable_swap {
     }
 
     pub fn tokens(session: &mut Session<MinimalRuntime>, stable_pool: AccountId) -> Vec<AccountId> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(stable_pool_contract::Instance::from(stable_pool).tokens())
                 .unwrap(),
@@ -940,7 +939,7 @@ pub mod stable_swap {
         stable_pool: AccountId,
         liquidity: u128,
     ) -> Result<Vec<u128>, StablePoolError> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(
                     stable_pool_contract::Instance::from(stable_pool)
@@ -955,7 +954,7 @@ pub mod stable_swap {
         stable_pool: AccountId,
         liquidity: u128,
     ) -> Result<Vec<u128>, StablePoolError> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(
                     stable_pool_contract::Instance::from(stable_pool)
@@ -970,7 +969,7 @@ pub mod stable_swap {
         stable_pool: AccountId,
         amounts: Vec<u128>,
     ) -> Result<(u128, u128), StablePoolError> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(
                     stable_pool_contract::Instance::from(stable_pool)
@@ -985,13 +984,41 @@ pub mod stable_swap {
         stable_pool: AccountId,
         amounts: Vec<u128>,
     ) -> Result<(u128, u128), StablePoolError> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(
                     stable_pool_contract::Instance::from(stable_pool)
                         .get_mint_liquidity_for_amounts(amounts),
                 )
                 .unwrap(),
+        )
+    }
+
+    fn get_swap_amount_out(
+        session: &mut Session<MinimalRuntime>,
+        stable_pool: AccountId,
+        token_in: AccountId,
+        token_out: AccountId,
+        token_in_amount: u128,
+    ) -> Result<(u128, u128), StablePoolError> {
+        handle_contract_result(
+            session.query(
+                stable_pool_contract::Instance::from(stable_pool).get_swap_amount_out(token_in, token_out, token_in_amount)
+            ).unwrap()
+        )
+    }
+
+    fn get_swap_amount_in(
+        session: &mut Session<MinimalRuntime>,
+        stable_pool: AccountId,
+        token_in: AccountId,
+        token_out: AccountId,
+        token_out_amount: u128,
+    ) -> Result<(u128, u128), StablePoolError> {
+        handle_contract_result(
+            session.query(
+                stable_pool_contract::Instance::from(stable_pool).get_swap_amount_in(token_in, token_out, token_out_amount)
+            ).unwrap()
         )
     }
 }
@@ -1004,7 +1031,7 @@ pub fn set_timestamp(session: &mut Session<MinimalRuntime>, timestamp: u64) {
     session.sandbox().set_timestamp(timestamp);
 }
 
-pub fn handle_ink_error<R>(res: ContractResult<Result<R, InkLangError>>) -> R {
+pub fn handle_contract_result<R>(res: ContractResult<Result<R, InkLangError>>) -> R {
     match res.result {
         Err(ink_lang_err) => panic!("InkLangError: {:?}", ink_lang_err),
         Ok(r) => r,

@@ -84,7 +84,7 @@ fn setup_rated_swap_with_tokens(
 }
 
 fn set_mock_rate(session: &mut Session<MinimalRuntime>, mock_rate_contract: AccountId, rate: u128) {
-    _ = handle_ink_error(
+    let _ = handle_contract_result(
         session
             .execute(mock_rate_provider_contract::Instance::from(mock_rate_contract).set_rate(rate))
             .unwrap(),
@@ -118,7 +118,7 @@ fn test_01(mut session: Session) {
     set_timestamp(&mut session, now + 1);
     set_mock_rate(&mut session, mock_rate_provider, 2 * RATE_PRECISION);
 
-    _ = stable_swap::add_liquidity(
+    let _ = stable_swap::add_liquidity(
         &mut session,
         rated_swap.into(),
         BOB,
@@ -149,7 +149,7 @@ fn test_01(mut session: Session) {
         vec![100000 * ONE_SAZERO, 100000 * ONE_WAZERO],
         BOB,
     );
-    _ = stable_swap::add_liquidity(
+    let _ = stable_swap::add_liquidity(
         &mut session,
         rated_swap.into(),
         CHARLIE,
@@ -172,7 +172,7 @@ fn test_01(mut session: Session) {
     );
     assert_eq!(last_share_price, 100000000, "Incorrect share price");
 
-    _ = stable_swap::remove_liquidity_by_shares(
+    let _ = stable_swap::remove_liquidity_by_shares(
         &mut session,
         rated_swap.into(),
         CHARLIE,
@@ -198,7 +198,7 @@ fn test_01(mut session: Session) {
     // --- DIFF ----
     // Allow withdrawing all liquidity from the pool
 
-    _ = stable_swap::remove_liquidity_by_shares(
+    let _ = stable_swap::remove_liquidity_by_shares(
         &mut session,
         rated_swap.into(),
         BOB,
@@ -249,7 +249,7 @@ fn test_02(mut session: Session) {
     set_timestamp(&mut session, now);
     set_mock_rate(&mut session, mock_token_2_rate, 2 * RATE_PRECISION);
 
-    _ = stable_swap::add_liquidity(
+    let _ = stable_swap::add_liquidity(
         &mut session,
         rated_swap.into(),
         BOB,
@@ -284,7 +284,7 @@ fn test_02(mut session: Session) {
         ],
         BOB,
     );
-    _ = stable_swap::add_liquidity(
+    let _ = stable_swap::add_liquidity(
         &mut session,
         rated_swap.into(),
         CHARLIE,
@@ -307,7 +307,7 @@ fn test_02(mut session: Session) {
     );
     assert_eq!(last_share_price, 100000000, "Incorrect share price");
 
-    _ = stable_swap::remove_liquidity_by_shares(
+    let _ = stable_swap::remove_liquidity_by_shares(
         &mut session,
         rated_swap.into(),
         CHARLIE,
@@ -360,7 +360,7 @@ fn test_03(mut session: Session) {
     set_mock_rate(&mut session, mock_token_2_rate, 2 * RATE_PRECISION);
     set_mock_rate(&mut session, mock_token_3_rate, 4 * RATE_PRECISION);
 
-    _ = stable_swap::add_liquidity(
+    let _ = stable_swap::add_liquidity(
         &mut session,
         rated_swap.into(),
         BOB,
@@ -396,7 +396,7 @@ fn test_03(mut session: Session) {
         BOB,
     );
 
-    _ = stable_swap::add_liquidity(
+    let _ = stable_swap::add_liquidity(
         &mut session,
         rated_swap.into(),
         CHARLIE,
@@ -419,7 +419,7 @@ fn test_03(mut session: Session) {
     );
     assert_eq!(last_share_price, 100000000, "Incorrect share price");
 
-    _ = stable_swap::remove_liquidity_by_shares(
+    let _ = stable_swap::remove_liquidity_by_shares(
         &mut session,
         rated_swap.into(),
         CHARLIE,
@@ -463,7 +463,7 @@ fn test_04(mut session: Session) {
         200_000_000,
     );
 
-    _ = stable_swap::add_liquidity(
+    let _ = stable_swap::add_liquidity(
         &mut session,
         rated_swap.into(),
         BOB,
@@ -513,7 +513,7 @@ fn test_04(mut session: Session) {
         "Incorrect user token balance"
     );
 
-    _ = stable_swap::swap_exact_in(
+    let _ = stable_swap::swap_exact_in(
         &mut session,
         rated_swap.into(),
         CHARLIE,
