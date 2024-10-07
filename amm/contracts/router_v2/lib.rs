@@ -131,6 +131,7 @@ pub mod router_v2 {
             let n_pools = path.len();
             let mut amounts = vec![0; n_pools + 1];
             amounts[n_pools] = amount_out;
+            // Maybe ensure that n_pools >= 1? Otherwise, the instruction below will panic.
             amounts[n_pools - 1] = self.get_and_cache_pool(path[n_pools - 1].pool_id)?.get_amount_in(
                 path[n_pools - 1].token_in,
                 token_out,
@@ -166,6 +167,7 @@ pub mod router_v2 {
                     amounts[i],
                 )?;
             }
+            // Maybe ensure that n_pools >= 1? Otherwise, the instruction below will panic.
             amounts[n_pools] = self.get_and_cache_pool(path[n_pools - 1].pool_id)?.get_amount_out(
                 path[n_pools - 1].token_in,
                 token_out,
@@ -194,6 +196,7 @@ pub mod router_v2 {
 
         // ----------- SWAP METHODS ----------- //
 
+        // Docs: maybe let's state in docs that path is not allowed to go through the same pool twice
         #[ink(message)]
         fn swap_exact_tokens_for_tokens(
             &mut self,
@@ -210,6 +213,8 @@ pub mod router_v2 {
                 amounts[amounts.len() - 1] >= amount_out_min,
                 RouterV2Error::InsufficientOutputAmount
             );
+            // Maybe we can add a similar safe check as we have for pair (for all swap* methods):
+            // ensure!(to != token_out && to != self.env().account_id(), RouterV2Error::InvalidRecipient);
             psp22_transfer_from(
                 path[0].token_in,
                 self.env().caller(),
@@ -294,6 +299,11 @@ pub mod router_v2 {
             )?;
             self.swap(&amounts, &path, wnative, self.env().account_id())?;
             let native_out = amounts[amounts.len() - 1];
+            // If the last step is a stable pool, we might get a little than `amount_out`
+            // (because of rounding, or even donations) than token_out, which will be collected
+            // as dust in the router.
+            // This is fine, but somewhat inconsistent with swap_tokens_for_exact_tokens, which
+            // will send those extra tokens to the `to` account, so just saying that here.
             withdraw(wnative, native_out)?;
             transfer_native(to, native_out)?;
             Ok(amounts)
@@ -340,6 +350,7 @@ pub mod router_v2 {
             check_timestamp(deadline)?;
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
+            // ensure!(path.len() >= 1);
             ensure!(path[0].token_in == wnative, RouterV2Error::InvalidToken);
             let amounts = self.calculate_amounts_in(amount_out, &path, token_out)?;
             let native_in: Balance = amounts[0];

@@ -58,7 +58,7 @@ impl StablePool {
 
     /// Adds liquidity to the pool.
     ///
-    /// If `wnative` is specified, it attemps to wrap the transferred native token
+    /// If `wnative` is specified, it attempts to wrap the transferred native token
     /// and use it instead of transferring the wrapped version.
     pub fn add_liquidity(
         &self,
@@ -101,7 +101,7 @@ impl StablePool {
 
     /// Withdraws liquidity from the pool by the specified amounts.
     ///
-    /// If `wnative` is specified, it attemps to unwrap the wrapped native token
+    /// If `wnative` is specified, it attempts to unwrap the wrapped native token
     /// and withdraw it to the `to` account.
     pub fn remove_liquidity(
         &self,
@@ -140,9 +140,9 @@ impl StablePool {
         Ok((lp_burned, fee_part))
     }
 
-    /// Withdraws liquidity from the pool in balanced propotions.
+    /// Withdraws liquidity from the pool in balanced proportions.
     ///
-    /// If `wnative` is specified, it attemps to unwrap the wrapped native token
+    /// If `wnative` is specified, it attempts to unwrap the wrapped native token
     /// and withdraw it to the `to` account.
     pub fn remove_liquidity_by_share(
         &self,
