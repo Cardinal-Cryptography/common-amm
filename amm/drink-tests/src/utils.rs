@@ -219,7 +219,6 @@ pub mod router {
 
 pub mod router_v2 {
     use super::*;
-    use drink::frame_support::dispatch::PaysFee;
     use router_v2_contract::RouterV2 as _;
     use router_v2_contract::{Pool, RouterV2Error, Step};
 
@@ -309,6 +308,7 @@ pub mod router_v2 {
             .unwrap()
     }
 
+    #[allow(dead_code)]
     pub fn remove_pair_liquidity(
         session: &mut Session<MinimalRuntime>,
         router: AccountId,
@@ -670,7 +670,7 @@ pub mod psp22_utils {
     ) -> Result<(), psp22::PSP22Error> {
         let _ = session.set_actor(caller);
 
-        handle_ink_error(
+        handle_contract_result(
             session
                 .execute(PSP22::increase_allowance(&token.into(), spender, amount))
                 .unwrap(),
@@ -687,7 +687,7 @@ pub mod psp22_utils {
     ) -> Result<(), psp22::PSP22Error> {
         let _ = session.set_actor(caller);
 
-        handle_ink_error(
+        handle_contract_result(
             session
                 .execute(PSP22::transfer(&token.into(), to, amount, [].to_vec()))
                 .unwrap(),
@@ -701,7 +701,7 @@ pub mod psp22_utils {
         token: AccountId,
         account: AccountId,
     ) -> u128 {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(PSP22::balance_of(&token.into(), account))
                 .unwrap(),
@@ -709,11 +709,11 @@ pub mod psp22_utils {
     }
 
     pub fn total_supply(session: &mut Session<MinimalRuntime>, token: AccountId) -> u128 {
-        handle_ink_error(session.query(PSP22::total_supply(&token.into())).unwrap())
+        handle_contract_result(session.query(PSP22::total_supply(&token.into())).unwrap())
     }
 
     pub fn token_decimals(session: &mut Session<MinimalRuntime>, token: AccountId) -> u8 {
-        handle_ink_error(session.query(PSP22::token_decimals(&token.into())).unwrap())
+        handle_contract_result(session.query(PSP22::token_decimals(&token.into())).unwrap())
     }
 }
 
@@ -758,8 +758,8 @@ pub mod stable_swap {
         amounts: Vec<u128>,
         to: AccountId,
     ) -> Result<(u128, u128), StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).add_liquidity(
@@ -780,8 +780,8 @@ pub mod stable_swap {
         amounts: Vec<u128>,
         to: AccountId,
     ) -> Result<(u128, u128), StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).remove_liquidity_by_amounts(
@@ -802,8 +802,8 @@ pub mod stable_swap {
         min_amounts: Vec<u128>,
         to: AccountId,
     ) -> Result<Vec<u128>, StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).remove_liquidity_by_shares(
@@ -826,8 +826,8 @@ pub mod stable_swap {
         min_token_out_amount: u128,
         to: AccountId,
     ) -> Result<(u128, u128), StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).swap_exact_in(
@@ -852,8 +852,8 @@ pub mod stable_swap {
         max_token_in_amount: u128,
         to: AccountId,
     ) -> Result<(u128, u128), StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).swap_exact_out(
@@ -877,8 +877,8 @@ pub mod stable_swap {
         min_token_out_amount: u128,
         to: AccountId,
     ) -> Result<(u128, u128), StablePoolError> {
-        _ = session.set_actor(caller);
-        handle_ink_error(
+        let _ = session.set_actor(caller);
+        handle_contract_result(
             session
                 .execute(
                     stable_pool_contract::Instance::from(stable_pool).swap_received(
@@ -893,7 +893,7 @@ pub mod stable_swap {
     }
 
     pub fn reserves(session: &mut Session<MinimalRuntime>, stable_pool: AccountId) -> Vec<u128> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(stable_pool_contract::Instance::from(stable_pool).reserves())
                 .unwrap(),
@@ -904,7 +904,7 @@ pub mod stable_swap {
         session: &mut Session<MinimalRuntime>,
         stable_pool: AccountId,
     ) -> Result<u128, StablePoolError> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(stable_pool_contract::Instance::from(stable_pool).amp_coef())
                 .unwrap(),
@@ -912,7 +912,7 @@ pub mod stable_swap {
     }
 
     pub fn fees(session: &mut Session<MinimalRuntime>, stable_pool: AccountId) -> (u32, u32) {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(stable_pool_contract::Instance::from(stable_pool).fees())
                 .unwrap(),
@@ -920,7 +920,7 @@ pub mod stable_swap {
     }
 
     pub fn token_rates(session: &mut Session<MinimalRuntime>, stable_pool: AccountId) -> Vec<u128> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(stable_pool_contract::Instance::from(stable_pool).token_rates())
                 .unwrap(),
@@ -928,7 +928,7 @@ pub mod stable_swap {
     }
 
     pub fn tokens(session: &mut Session<MinimalRuntime>, stable_pool: AccountId) -> Vec<AccountId> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(stable_pool_contract::Instance::from(stable_pool).tokens())
                 .unwrap(),
@@ -940,7 +940,7 @@ pub mod stable_swap {
         stable_pool: AccountId,
         liquidity: u128,
     ) -> Result<Vec<u128>, StablePoolError> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(
                     stable_pool_contract::Instance::from(stable_pool)
@@ -955,7 +955,7 @@ pub mod stable_swap {
         stable_pool: AccountId,
         liquidity: u128,
     ) -> Result<Vec<u128>, StablePoolError> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(
                     stable_pool_contract::Instance::from(stable_pool)
@@ -970,7 +970,7 @@ pub mod stable_swap {
         stable_pool: AccountId,
         amounts: Vec<u128>,
     ) -> Result<(u128, u128), StablePoolError> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(
                     stable_pool_contract::Instance::from(stable_pool)
@@ -980,12 +980,13 @@ pub mod stable_swap {
         )
     }
 
+    #[allow(dead_code)]
     pub fn get_mint_liquidity_for_amounts(
         session: &mut Session<MinimalRuntime>,
         stable_pool: AccountId,
         amounts: Vec<u128>,
     ) -> Result<(u128, u128), StablePoolError> {
-        handle_ink_error(
+        handle_contract_result(
             session
                 .query(
                     stable_pool_contract::Instance::from(stable_pool)
@@ -993,6 +994,167 @@ pub mod stable_swap {
                 )
                 .unwrap(),
         )
+    }
+
+    pub fn get_swap_amount_out(
+        session: &mut Session<MinimalRuntime>,
+        stable_pool: AccountId,
+        token_in: AccountId,
+        token_out: AccountId,
+        token_in_amount: u128,
+    ) -> Result<(u128, u128), StablePoolError> {
+        handle_contract_result(
+            session
+                .query(
+                    stable_pool_contract::Instance::from(stable_pool).get_swap_amount_out(
+                        token_in,
+                        token_out,
+                        token_in_amount,
+                    ),
+                )
+                .unwrap(),
+        )
+    }
+
+    pub fn get_swap_amount_in(
+        session: &mut Session<MinimalRuntime>,
+        stable_pool: AccountId,
+        token_in: AccountId,
+        token_out: AccountId,
+        token_out_amount: u128,
+    ) -> Result<(u128, u128), StablePoolError> {
+        handle_contract_result(
+            session
+                .query(
+                    stable_pool_contract::Instance::from(stable_pool).get_swap_amount_in(
+                        token_in,
+                        token_out,
+                        token_out_amount,
+                    ),
+                )
+                .unwrap(),
+        )
+    }
+}
+
+pub mod v2_amounts {
+    use super::*;
+    use crate::pair_contract::{MathError, Pair};
+    use primitive_types::U256;
+
+    const PAIR_TRADING_FEE_DENOM: u128 = 1000;
+
+    struct PairParams {
+        token_0: AccountId,
+        token_1: AccountId,
+        reserve_0: u128,
+        reserve_1: u128,
+        fee: u128,
+    }
+
+    pub fn get_amount_out(
+        session: &mut Session<MinimalRuntime>,
+        pair: AccountId,
+        token_in: AccountId,
+        token_out: AccountId,
+        amount_in: u128,
+    ) -> Result<u128, MathError> {
+        let PairParams {
+            token_0,
+            token_1,
+            reserve_0,
+            reserve_1,
+            fee,
+        } = get_pair_params(session, pair);
+
+        let (reserve_in, reserve_out) = if token_0 == token_in && token_1 == token_out {
+            (reserve_0, reserve_1)
+        } else {
+            (reserve_1, reserve_0)
+        };
+
+        // Adjusts for fees paid in the `token_in`.
+        let amount_in_with_fee = casted_mul(amount_in, PAIR_TRADING_FEE_DENOM - fee);
+
+        let numerator = amount_in_with_fee
+            .checked_mul(reserve_out.into())
+            .ok_or(MathError::MulOverflow(13))?;
+
+        let denominator = casted_mul(reserve_in, PAIR_TRADING_FEE_DENOM)
+            .checked_add(amount_in_with_fee)
+            .ok_or(MathError::AddOverflow(2))?;
+
+        let amount_out: u128 = numerator
+            .checked_div(denominator)
+            .ok_or(MathError::DivByZero(7))?
+            .try_into()
+            .map_err(|_| MathError::CastOverflow(4))?;
+
+        Ok(amount_out)
+    }
+
+    pub fn get_amount_in(
+        session: &mut Session<MinimalRuntime>,
+        pair: AccountId,
+        token_in: AccountId,
+        token_out: AccountId,
+        amount_out: u128,
+    ) -> Result<u128, MathError> {
+        let PairParams {
+            token_0,
+            token_1,
+            reserve_0,
+            reserve_1,
+            fee,
+        } = get_pair_params(session, pair);
+
+        let (reserve_in, reserve_out) = if token_0 == token_in && token_1 == token_out {
+            (reserve_0, reserve_1)
+        } else {
+            (reserve_1, reserve_0)
+        };
+
+        let numerator = casted_mul(reserve_in, amount_out)
+            .checked_mul(PAIR_TRADING_FEE_DENOM.into())
+            .ok_or(MathError::MulOverflow(14))?;
+
+        let denominator = casted_mul(
+            reserve_out
+                .checked_sub(amount_out)
+                .ok_or(MathError::SubUnderflow(15))?,
+            PAIR_TRADING_FEE_DENOM - fee,
+        );
+
+        let amount_in: u128 = numerator
+            .checked_div(denominator)
+            .ok_or(MathError::DivByZero(8))?
+            .checked_add(1.into())
+            .ok_or(MathError::AddOverflow(3))?
+            .try_into()
+            .map_err(|_| MathError::CastOverflow(5))?;
+
+        Ok(amount_in)
+    }
+
+    fn get_pair_params(session: &mut Session<MinimalRuntime>, pair: AccountId) -> PairParams {
+        let contract = pair_contract::Instance::from(pair);
+        let token_0 = handle_contract_result(session.query(contract.get_token_0()).unwrap());
+        let token_1 = handle_contract_result(session.query(contract.get_token_1()).unwrap());
+        let (reserve_0, reserve_1, _) =
+            handle_contract_result(session.query(contract.get_reserves()).unwrap());
+        let fee = handle_contract_result(session.query(contract.get_fee()).unwrap());
+
+        PairParams {
+            token_0,
+            token_1,
+            reserve_0,
+            reserve_1,
+            fee: fee as u128,
+        }
+    }
+
+    fn casted_mul(a: u128, b: u128) -> U256 {
+        U256::from(a) * U256::from(b)
     }
 }
 
@@ -1004,7 +1166,7 @@ pub fn set_timestamp(session: &mut Session<MinimalRuntime>, timestamp: u64) {
     session.sandbox().set_timestamp(timestamp);
 }
 
-pub fn handle_ink_error<R>(res: ContractResult<Result<R, InkLangError>>) -> R {
+pub fn handle_contract_result<R>(res: ContractResult<Result<R, InkLangError>>) -> R {
     match res.result {
         Err(ink_lang_err) => panic!("InkLangError: {:?}", ink_lang_err),
         Ok(r) => r,
