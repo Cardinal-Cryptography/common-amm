@@ -33,11 +33,8 @@ impl StablePool {
         // If the call is not successful return None indicating that the `pool_id`
         // is not a StablePool contract.
         let tokens = match contract_ref.call().tokens().try_invoke() {
-            Ok(tokens_result) => match tokens_result {
-                Ok(tokens_value) => tokens_value,
-                Err(_) => return None,
-            },
-            Err(_) => return None,
+            Ok(Ok(tokens)) => tokens,
+            _ => return None,
         };
         // set spending allowance of each token for the pool to `u128::MAX`
         // required for adding liquidity
