@@ -44,9 +44,9 @@ pub trait RouterV2 {
         token_0: AccountId,
         token_1: AccountId,
         amount_0_desired: u128,
-        amount_b_desired: u128,
+        amount_1_desired: u128,
         amount_0_min: u128,
-        amount_b_min: u128,
+        amount_1_min: u128,
         to: AccountId,
         deadline: u64,
     ) -> Result<(u128, u128, u128), RouterV2Error>;
@@ -65,7 +65,7 @@ pub trait RouterV2 {
         token_1: AccountId,
         liquidity: u128,
         amount_0_min: u128,
-        amount_b_min: u128,
+        amount_1_min: u128,
         to: AccountId,
         deadline: u64,
     ) -> Result<(u128, u128), RouterV2Error>;
