@@ -207,7 +207,7 @@ pub mod router_v2 {
             check_timestamp(deadline)?;
             let amounts = self.calculate_amounts_out(amount_in, &path, token_out)?;
             ensure!(
-                amounts[amounts.len() - 1] >= amount_out_min,
+                *amounts.last().ok_or(RouterV2Error::EmptyAmounts)? >= amount_out_min,
                 RouterV2Error::InsufficientOutputAmount
             );
             psp22_transfer_from(
@@ -261,7 +261,7 @@ pub mod router_v2 {
             ensure!(path[0].token_in == wnative, RouterV2Error::InvalidToken);
             let amounts = self.calculate_amounts_out(received_value, &path, token_out)?;
             ensure!(
-                amounts[amounts.len() - 1] >= amount_out_min,
+                *amounts.last().ok_or(RouterV2Error::EmptyAmounts)? >= amount_out_min,
                 RouterV2Error::InsufficientOutputAmount
             );
             wrap(wnative, received_value)?;
@@ -293,7 +293,7 @@ pub mod router_v2 {
                 amounts[0],
             )?;
             self.swap(&amounts, &path, wnative, self.env().account_id())?;
-            let native_out = amounts[amounts.len() - 1];
+            let native_out = amounts.last().ok_or(RouterV2Error::EmptyAmounts)?;
             withdraw(wnative, native_out)?;
             transfer_native(to, native_out)?;
             Ok(amounts)
@@ -311,7 +311,7 @@ pub mod router_v2 {
             check_timestamp(deadline)?;
             let wnative = self.wnative;
             let amounts = self.calculate_amounts_out(amount_in, &path, wnative)?;
-            let native_out = amounts[amounts.len() - 1];
+            let native_out = amounts.last().ok_or(RouterV2Error::EmptyAmounts)?;
             ensure!(
                 native_out >= amount_out_min,
                 RouterV2Error::InsufficientOutputAmount

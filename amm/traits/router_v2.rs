@@ -294,6 +294,7 @@ pub enum RouterV2Error {
     InvalidToken,
     TransferError,
 
+    EmptyAmounts,
     ExcessiveInputAmount,
     InsufficientTransferredAmount,
     InsufficientAmount,
