@@ -109,7 +109,7 @@ impl Pair {
         if amount_1_optimal <= amount_1_desired {
             ensure!(
                 amount_1_optimal >= amount_1_min,
-                RouterV2Error::InsufficientAmountB
+                RouterV2Error::InsufficientAmount1
             );
             Ok((amount_0_desired, amount_1_optimal))
         } else {
@@ -117,7 +117,7 @@ impl Pair {
             // amount_0_optimal <= amount_0_desired holds as amount_1_optimal > amount_1_desired
             ensure!(
                 amount_0_optimal >= amount_0_min,
-                RouterV2Error::InsufficientAmountA
+                RouterV2Error::InsufficientAmount0
             );
             Ok((amount_0_optimal, amount_1_desired))
         }
@@ -211,8 +211,8 @@ impl Pair {
             (amount_1, amount_0)
         };
 
-        ensure!(amount_0 >= amount_0_min, RouterV2Error::InsufficientAmountA);
-        ensure!(amount_1 >= amount_1_min, RouterV2Error::InsufficientAmountB);
+        ensure!(amount_0 >= amount_0_min, RouterV2Error::InsufficientAmount0);
+        ensure!(amount_1 >= amount_1_min, RouterV2Error::InsufficientAmount1);
 
         Ok((amount_0, amount_1))
     }

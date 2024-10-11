@@ -298,8 +298,8 @@ pub enum RouterV2Error {
     InsufficientTransferredAmount,
     InsufficientAmount,
     InsufficientOutputAmount,
-    InsufficientAmountA,
-    InsufficientAmountB,
+    InsufficientAmount0,
+    InsufficientAmount1,
     InsufficientLiquidity,
 }
 
