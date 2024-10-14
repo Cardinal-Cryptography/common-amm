@@ -7,6 +7,12 @@ use ink::{
 use psp22::PSP22Error;
 
 /// Specifies the pool for the trade and the input token of this trade (token to sell).
+///
+/// A sequence of trades, shortly called a `path`, in the contract is represented by a `Vec<Step>`.
+/// It should be noted that when using the `swap_*` methods of `RouterV2`, the `path` argument
+/// should never contain two steps which use the same pool, as it may cause the dry input / output
+/// amount calculation not matching the actual swap result. It is not ensured inside the `swap_*`
+/// methods, making the result of using a pool-repeating `path` undefined.
 #[derive(scale::Decode, scale::Encode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub struct Step {
