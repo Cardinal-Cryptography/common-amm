@@ -68,7 +68,9 @@ impl StablePool {
         check_timestamp(deadline)?;
         let native_received = transferred_value::<Env>();
         let (wnative_idx, native_surplus) = if native_received > 0 {
-            let wnative_idx = self.wnative_idx(wnative)?;
+            let wnative_idx = self
+                .wnative_idx(wnative)
+                .ok_or(RouterV2Error::InvalidToken)?;
             let wnative_amount = amounts[wnative_idx];
             ensure!(
                 native_received >= wnative_amount,
@@ -115,7 +117,7 @@ impl StablePool {
             max_share_amount,
         )?;
         let (lp_burned, fee_part) = match self.wnative_idx(wnative) {
-            Ok(wnative_idx) => {
+            Some(wnative_idx) => {
                 let res = self.contract_ref().remove_liquidity_by_amounts(
                     max_share_amount,
                     amounts.clone(),
@@ -124,7 +126,7 @@ impl StablePool {
                 self.transfer_tokens_back(&amounts, to, wnative_idx)?;
                 res
             }
-            Err(_) => {
+            None => {
                 self.contract_ref()
                     .remove_liquidity_by_amounts(max_share_amount, amounts, to)?
             }
@@ -150,7 +152,7 @@ impl StablePool {
         check_timestamp(deadline)?;
         psp22_transfer_from(self.id, caller::<Env>(), account_id::<Env>(), share_amount)?;
         match self.wnative_idx(wnative) {
-            Ok(wnative_idx) => {
+            Some(wnative_idx) => {
                 let amounts = self.contract_ref().remove_liquidity_by_shares(
                     share_amount,
                     min_amounts,
@@ -159,7 +161,7 @@ impl StablePool {
                 self.transfer_tokens_back(&amounts, to, wnative_idx)?;
                 Ok(amounts)
             }
-            Err(_) => {
+            None => {
                 Ok(self
                     .contract_ref()
                     .remove_liquidity_by_shares(share_amount, min_amounts, to)?)
@@ -203,11 +205,8 @@ impl StablePool {
             .map(|(amount_out, _)| amount_out)?)
     }
 
-    fn wnative_idx(&self, wnative: AccountId) -> Result<usize, RouterV2Error> {
-        self.tokens
-            .iter()
-            .position(|&token| wnative == token)
-            .ok_or(RouterV2Error::InvalidToken)
+    fn wnative_idx(&self, wnative: AccountId) -> Option<usize> {
+        self.tokens.iter().position(|&token| wnative == token)
     }
 
     fn transfer_tokens_back(
