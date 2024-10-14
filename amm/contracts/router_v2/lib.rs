@@ -234,7 +234,7 @@ pub mod router_v2 {
             let amounts = self.calculate_amounts_in(amount_out, &path, token_out)?;
             ensure!(
                 amounts[0] <= amount_in_max,
-                RouterV2Error::ExcessiveInputAmount
+                RouterV2Error::InsufficientReceivedAmount
             );
             psp22_transfer_from(
                 path[0].token_in,
@@ -284,7 +284,7 @@ pub mod router_v2 {
             let amounts = self.calculate_amounts_in(amount_out, &path, wnative)?;
             ensure!(
                 amounts[0] <= amount_in_max,
-                RouterV2Error::ExcessiveInputAmount
+                RouterV2Error::InsufficientReceivedAmount
             );
             psp22_transfer_from(
                 path[0].token_in,
@@ -345,7 +345,7 @@ pub mod router_v2 {
             let native_in: Balance = amounts[0];
             ensure!(
                 native_in <= received_native,
-                RouterV2Error::ExcessiveInputAmount
+                RouterV2Error::InsufficientReceivedAmount
             );
             wrap(wnative, native_in)?;
             psp22_transfer(wnative, path[0].pool_id, native_in)?;
