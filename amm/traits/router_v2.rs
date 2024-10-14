@@ -120,9 +120,9 @@ pub trait RouterV2 {
 
     /// Adds liquidity to the stable pool.
     ///
-    /// If `native` is true, it attemps to wrap the transferred native token
-    /// and use it instead of transferring the wrapped version.
-    /// Fails if `native` is true but the pool does not have wrapped native token.
+    /// If a non-zero native amount is transferred, it attempts to wrap the transferred
+    /// native token and use it instead of transferring the wrapped version. Fails if a non-zero
+    /// native amount is transferred but the pool does not have wrapped native token.
     #[ink(message, payable)]
     fn add_stable_pool_liquidity(
         &mut self,
@@ -131,14 +131,12 @@ pub trait RouterV2 {
         amounts: Vec<u128>,
         to: AccountId,
         deadline: u64,
-        native: bool,
     ) -> Result<(u128, u128), RouterV2Error>;
 
     /// Withdraws liquidity from the stable pool by the specified amounts.
     ///
-    /// If `native` is true, it attemps to unwrap the wrapped native token
-    /// and withdraw it to the `to` account.
-    /// Fails if `native` is true but the pool does not have wrapped native token.
+    /// If the native token is present in the pool, it attempts to unwrap the wrapped
+    /// native token and withdraw it to the `to` account.
     #[ink(message)]
     fn remove_stable_pool_liquidity(
         &mut self,
@@ -147,14 +145,12 @@ pub trait RouterV2 {
         amounts: Vec<u128>,
         to: AccountId,
         deadline: u64,
-        native: bool,
     ) -> Result<(u128, u128), RouterV2Error>;
 
     /// Withdraws liquidity from the stable pool in balanced propotions.
     ///
-    /// If `native` is true, it attemps to unwrap the wrapped native token
-    /// and withdraw it to the `to` account.
-    /// Fails if `native` is true but the pool does not have wrapped native token.
+    /// If the native token is present in the pool, it attempts to unwrap the wrapped
+    /// native token and withdraw it to the `to` account.
     #[ink(message)]
     fn remove_stable_pool_liquidity_by_share(
         &mut self,
@@ -163,7 +159,6 @@ pub trait RouterV2 {
         min_amounts: Vec<u128>,
         to: AccountId,
         deadline: u64,
-        native: bool,
     ) -> Result<Vec<u128>, RouterV2Error>;
 
     // ----------- SWAP METHODS ----------- //

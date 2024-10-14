@@ -55,30 +55,29 @@ impl StablePool {
 
     /// Adds liquidity to the pool.
     ///
-    /// If `wnative` is specified, it attempts to wrap the transferred native token
-    /// and use it instead of transferring the wrapped version.
+    /// If a non-zero native amount is transferred, it attempts to wrap the transferred
+    /// native token and use it instead of transferring the wrapped version.
     pub fn add_liquidity(
         &self,
         min_share_amount: u128,
         amounts: Vec<u128>,
         to: AccountId,
         deadline: u64,
-        wnative: Option<AccountId>,
+        wnative: AccountId,
     ) -> Result<(u128, u128), RouterV2Error> {
         check_timestamp(deadline)?;
         let native_received = transferred_value::<Env>();
-        let (wnative_idx, native_surplus) = match wnative {
-            Some(wnative) => {
-                let wnative_idx = self.wnative_idx(wnative)?;
-                let wnative_amount = amounts[wnative_idx];
-                ensure!(
-                    native_received >= wnative_amount,
-                    RouterV2Error::InsufficientTransferredAmount
-                );
-                wrap(wnative, wnative_amount)?;
-                (wnative_idx, native_received.saturating_sub(wnative_amount))
-            }
-            None => (self.tokens.len(), native_received),
+        let (wnative_idx, native_surplus) = if native_received > 0 {
+            let wnative_idx = self.wnative_idx(wnative)?;
+            let wnative_amount = amounts[wnative_idx];
+            ensure!(
+                native_received >= wnative_amount,
+                RouterV2Error::InsufficientTransferredAmount
+            );
+            wrap(wnative, wnative_amount)?;
+            (wnative_idx, native_received.saturating_sub(wnative_amount))
+        } else {
+            (self.tokens.len(), native_received)
         };
         if native_surplus > 0 {
             transfer_native(caller::<Env>(), native_surplus)?;
@@ -98,15 +97,15 @@ impl StablePool {
 
     /// Withdraws liquidity from the pool by the specified amounts.
     ///
-    /// If `wnative` is specified, it attemps to unwrap the wrapped native token
-    /// and withdraw it to the `to` account.
+    /// If the native token is present in the pool, it attempts to unwrap the wrapped
+    /// native token and withdraw it to the `to` account.
     pub fn remove_liquidity(
         &self,
         max_share_amount: u128,
         amounts: Vec<u128>,
         to: AccountId,
         deadline: u64,
-        wnative: Option<AccountId>,
+        wnative: AccountId,
     ) -> Result<(u128, u128), RouterV2Error> {
         check_timestamp(deadline)?;
         psp22_transfer_from(
@@ -115,9 +114,8 @@ impl StablePool {
             account_id::<Env>(),
             max_share_amount,
         )?;
-        let (lp_burned, fee_part) = match wnative {
-            Some(wnative) => {
-                let wnative_idx = self.wnative_idx(wnative)?;
+        let (lp_burned, fee_part) = match self.wnative_idx(wnative) {
+            Ok(wnative_idx) => {
                 let res = self.contract_ref().remove_liquidity_by_amounts(
                     max_share_amount,
                     amounts.clone(),
@@ -126,7 +124,7 @@ impl StablePool {
                 self.transfer_tokens_back(&amounts, to, wnative_idx)?;
                 res
             }
-            None => {
+            Err(_) => {
                 self.contract_ref()
                     .remove_liquidity_by_amounts(max_share_amount, amounts, to)?
             }
@@ -139,21 +137,20 @@ impl StablePool {
 
     /// Withdraws liquidity from the pool in balanced propotions.
     ///
-    /// If `wnative` is specified, it attemps to unwrap the wrapped native token
-    /// and withdraw it to the `to` account.
+    /// If the native token is present in the pool, it attempts to unwrap the wrapped
+    /// native token and withdraw it to the `to` account.
     pub fn remove_liquidity_by_share(
         &self,
         share_amount: u128,
         min_amounts: Vec<u128>,
         to: AccountId,
         deadline: u64,
-        wnative: Option<AccountId>,
+        wnative: AccountId,
     ) -> Result<Vec<u128>, RouterV2Error> {
         check_timestamp(deadline)?;
         psp22_transfer_from(self.id, caller::<Env>(), account_id::<Env>(), share_amount)?;
-        match wnative {
-            Some(wnative) => {
-                let wnative_idx = self.wnative_idx(wnative)?;
+        match self.wnative_idx(wnative) {
+            Ok(wnative_idx) => {
                 let amounts = self.contract_ref().remove_liquidity_by_shares(
                     share_amount,
                     min_amounts,
@@ -162,7 +159,7 @@ impl StablePool {
                 self.transfer_tokens_back(&amounts, to, wnative_idx)?;
                 Ok(amounts)
             }
-            None => {
+            Err(_) => {
                 Ok(self
                     .contract_ref()
                     .remove_liquidity_by_shares(share_amount, min_amounts, to)?)

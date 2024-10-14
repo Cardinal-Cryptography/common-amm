@@ -500,15 +500,13 @@ pub mod router_v2 {
             amounts: Vec<u128>,
             to: AccountId,
             deadline: u64,
-            native: bool,
         ) -> Result<(u128, u128), RouterV2Error> {
-            let wnative = if native { Some(self.wnative) } else { None };
             self.get_and_cache_stable_pool(pool)?.add_liquidity(
                 min_share_amount,
                 amounts,
                 to,
                 deadline,
-                wnative,
+                self.wnative,
             )
         }
 
@@ -520,15 +518,13 @@ pub mod router_v2 {
             amounts: Vec<u128>,
             to: AccountId,
             deadline: u64,
-            native: bool,
         ) -> Result<(u128, u128), RouterV2Error> {
-            let wnative = if native { Some(self.wnative) } else { None };
             self.get_and_cache_stable_pool(pool)?.remove_liquidity(
                 max_share_amount,
                 amounts,
                 to,
                 deadline,
-                wnative,
+                self.wnative,
             )
         }
 
@@ -540,15 +536,13 @@ pub mod router_v2 {
             min_amounts: Vec<u128>,
             to: AccountId,
             deadline: u64,
-            native: bool,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            let wnative = if native { Some(self.wnative) } else { None };
             self.get_and_cache_stable_pool(pool)?.remove_liquidity_by_share(
                 share_amount,
                 min_amounts,
                 to,
                 deadline,
-                wnative,
+                self.wnative,
             )
         }
     }
