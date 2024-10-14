@@ -302,7 +302,6 @@ pub enum RouterV2Error {
     InvalidRecipient,
     TransferError,
 
-    InsufficientReceivedAmount,
     InsufficientTransferredAmount,
     InsufficientAmount,
     InsufficientOutputAmount,

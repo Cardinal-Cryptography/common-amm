@@ -55,7 +55,7 @@ impl StablePool {
 
     /// Adds liquidity to the pool.
     ///
-    /// If `wnative` is specified, it attemps to wrap the transferred native token
+    /// If `wnative` is specified, it attempts to wrap the transferred native token
     /// and use it instead of transferring the wrapped version.
     pub fn add_liquidity(
         &self,
