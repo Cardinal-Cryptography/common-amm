@@ -1,9 +1,5 @@
 use crate::{Balance, FactoryError, MathError, PairError, StablePoolError};
-use ink::{
-    prelude::vec::Vec,
-    primitives::AccountId,
-    LangError,
-};
+use ink::{prelude::vec::Vec, primitives::AccountId, LangError};
 use psp22::PSP22Error;
 
 /// Specifies the pool for the trade and the input token of this trade (token to sell).

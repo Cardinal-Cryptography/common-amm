@@ -64,7 +64,10 @@ pub mod router_v2 {
         /// Returns StablePool for `pool_id`.
         /// Adds the StablePool to the cache.
         #[inline]
-        fn get_and_cache_stable_pool(&mut self, pool_id: AccountId) -> Result<StablePool, RouterV2Error> {
+        fn get_and_cache_stable_pool(
+            &mut self,
+            pool_id: AccountId,
+        ) -> Result<StablePool, RouterV2Error> {
             match self.get_and_cache_pool(pool_id)? {
                 Pool::StablePool(pool) => Ok(pool),
                 Pool::Pair(_) => Err(RouterV2Error::InvalidPoolAddress),
@@ -131,11 +134,9 @@ pub mod router_v2 {
             let n_pools = path.len();
             let mut amounts = vec![0; n_pools + 1];
             amounts[n_pools] = amount_out;
-            amounts[n_pools - 1] = self.get_and_cache_pool(path[n_pools - 1].pool_id)?.get_amount_in(
-                path[n_pools - 1].token_in,
-                token_out,
-                amount_out,
-            )?;
+            amounts[n_pools - 1] = self
+                .get_and_cache_pool(path[n_pools - 1].pool_id)?
+                .get_amount_in(path[n_pools - 1].token_in, token_out, amount_out)?;
             for i in (0..n_pools - 1).rev() {
                 amounts[i] = self.get_and_cache_pool(path[i].pool_id)?.get_amount_in(
                     path[i].token_in,
@@ -166,11 +167,9 @@ pub mod router_v2 {
                     amounts[i],
                 )?;
             }
-            amounts[n_pools] = self.get_and_cache_pool(path[n_pools - 1].pool_id)?.get_amount_out(
-                path[n_pools - 1].token_in,
-                token_out,
-                amounts[n_pools - 1],
-            )?;
+            amounts[n_pools] = self
+                .get_and_cache_pool(path[n_pools - 1].pool_id)?
+                .get_amount_out(path[n_pools - 1].token_in, token_out, amounts[n_pools - 1])?;
 
             Ok(amounts)
         }
@@ -205,7 +204,10 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
-            ensure!(to != token_out && to != self.env().account_id(), RouterV2Error::InvalidRecipient);
+            ensure!(
+                to != token_out && to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let amounts = self.calculate_amounts_out(amount_in, &path, token_out)?;
             ensure!(
@@ -233,7 +235,10 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
-            ensure!(to != token_out && to != self.env().account_id(), RouterV2Error::InvalidRecipient);
+            ensure!(
+                to != token_out && to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let amounts = self.calculate_amounts_in(amount_out, &path, token_out)?;
             ensure!(
@@ -260,7 +265,10 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
-            ensure!(to != token_out && to != self.env().account_id(), RouterV2Error::InvalidRecipient);
+            ensure!(
+                to != token_out && to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
@@ -286,7 +294,10 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
-            ensure!(to != self.env().account_id(), RouterV2Error::InvalidRecipient);
+            ensure!(
+                to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let amounts = self.calculate_amounts_in(amount_out, &path, wnative)?;
@@ -317,7 +328,10 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
-            ensure!(to != self.env().account_id(), RouterV2Error::InvalidRecipient);
+            ensure!(
+                to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let amounts = self.calculate_amounts_out(amount_in, &path, wnative)?;
@@ -348,7 +362,10 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
-            ensure!(to != token_out && to != self.env().account_id(), RouterV2Error::InvalidRecipient);
+            ensure!(
+                to != token_out && to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
@@ -537,13 +554,8 @@ pub mod router_v2 {
             to: AccountId,
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            self.get_and_cache_stable_pool(pool)?.remove_liquidity_by_share(
-                share_amount,
-                min_amounts,
-                to,
-                deadline,
-                self.wnative,
-            )
+            self.get_and_cache_stable_pool(pool)?
+                .remove_liquidity_by_share(share_amount, min_amounts, to, deadline, self.wnative)
         }
     }
 
