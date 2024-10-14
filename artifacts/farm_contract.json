@@ -1,6 +1,6 @@
 {
   "source": {
-    "hash": "0x61788dd14bc59441e3e0713b4415437c0d7a27daedc60f58d7931f28c5b40af7",
+    "hash": "0x2321d7732d8d6402e2ba8546b78ebd718c5a090c2943076dc627f3811cbaddd5",
     "language": "ink! 4.3.0",
     "compiler": "rustc 1.72.1",
     "build_info": {
@@ -1188,6 +1188,16 @@
                 ],
                 "index": 4,
                 "name": "SubUnderflow"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 2,
+                    "typeName": "u8"
+                  }
+                ],
+                "index": 5,
+                "name": "Precision"
               }
             ]
           }
