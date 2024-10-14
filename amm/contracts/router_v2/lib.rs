@@ -205,6 +205,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(to != token_out && to != self.env().account_id(), RouterV2Error::InvalidRecipient);
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let amounts = self.calculate_amounts_out(amount_in, &path, token_out)?;
             ensure!(
@@ -232,6 +233,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(to != token_out && to != self.env().account_id(), RouterV2Error::InvalidRecipient);
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let amounts = self.calculate_amounts_in(amount_out, &path, token_out)?;
             ensure!(
@@ -258,6 +260,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(to != token_out && to != self.env().account_id(), RouterV2Error::InvalidRecipient);
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
@@ -283,6 +286,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(to != self.env().account_id(), RouterV2Error::InvalidRecipient);
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let amounts = self.calculate_amounts_in(amount_out, &path, wnative)?;
@@ -313,6 +317,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(to != self.env().account_id(), RouterV2Error::InvalidRecipient);
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let amounts = self.calculate_amounts_out(amount_in, &path, wnative)?;
@@ -343,6 +348,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(to != token_out && to != self.env().account_id(), RouterV2Error::InvalidRecipient);
             ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
