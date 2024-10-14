@@ -289,6 +289,7 @@ pub enum RouterV2Error {
     MathError(MathError),
     StablePoolError(StablePoolError),
 
+    EmptyPath,
     Expired,
     InvalidPoolAddress,
     InvalidToken,

@@ -205,6 +205,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let amounts = self.calculate_amounts_out(amount_in, &path, token_out)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
@@ -231,6 +232,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let amounts = self.calculate_amounts_in(amount_out, &path, token_out)?;
             ensure!(
                 amounts[0] <= amount_in_max,
@@ -256,6 +258,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
             ensure!(path[0].token_in == wnative, RouterV2Error::InvalidToken);
@@ -280,6 +283,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let amounts = self.calculate_amounts_in(amount_out, &path, wnative)?;
             ensure!(
@@ -309,6 +313,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let amounts = self.calculate_amounts_out(amount_in, &path, wnative)?;
             let native_out = amounts[amounts.len() - 1];
@@ -338,6 +343,7 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
             ensure!(path[0].token_in == wnative, RouterV2Error::InvalidToken);
