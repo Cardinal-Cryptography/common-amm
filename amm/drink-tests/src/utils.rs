@@ -350,7 +350,6 @@ pub mod router_v2 {
         min_share_amount: u128,
         amounts: Vec<u128>,
         to: AccountId,
-        native: bool,
         native_amount: u128,
         caller: drink::AccountId32,
     ) -> Result<(u128, u128), RouterV2Error> {
@@ -367,7 +366,6 @@ pub mod router_v2 {
                         amounts,
                         to,
                         deadline,
-                        native,
                     )
                     .with_value(native_amount),
             )
@@ -383,7 +381,6 @@ pub mod router_v2 {
         max_share_amount: u128,
         amounts: Vec<u128>,
         to: AccountId,
-        native: bool,
         caller: drink::AccountId32,
     ) -> Result<(u128, u128), RouterV2Error> {
         let now = get_timestamp(session);
@@ -398,7 +395,6 @@ pub mod router_v2 {
                     amounts,
                     to,
                     deadline,
-                    native,
                 ),
             )
             .unwrap()
@@ -413,7 +409,6 @@ pub mod router_v2 {
         share_amount: u128,
         min_amounts: Vec<u128>,
         to: AccountId,
-        native: bool,
         caller: drink::AccountId32,
     ) -> Result<Vec<u128>, RouterV2Error> {
         let now = get_timestamp(session);
@@ -428,7 +423,6 @@ pub mod router_v2 {
                     min_amounts,
                     to,
                     deadline,
-                    native,
                 ),
             )
             .unwrap()

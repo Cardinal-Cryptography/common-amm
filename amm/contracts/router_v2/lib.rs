@@ -64,7 +64,10 @@ pub mod router_v2 {
         /// Returns StablePool for `pool_id`.
         /// Adds the StablePool to the cache.
         #[inline]
-        fn get_and_cache_stable_pool(&mut self, pool_id: AccountId) -> Result<StablePool, RouterV2Error> {
+        fn get_and_cache_stable_pool(
+            &mut self,
+            pool_id: AccountId,
+        ) -> Result<StablePool, RouterV2Error> {
             match self.get_and_cache_pool(pool_id)? {
                 Pool::StablePool(pool) => Ok(pool),
                 Pool::Pair(_) => Err(RouterV2Error::InvalidPoolAddress),
@@ -131,11 +134,9 @@ pub mod router_v2 {
             let n_pools = path.len();
             let mut amounts = vec![0; n_pools + 1];
             amounts[n_pools] = amount_out;
-            amounts[n_pools - 1] = self.get_and_cache_pool(path[n_pools - 1].pool_id)?.get_amount_in(
-                path[n_pools - 1].token_in,
-                token_out,
-                amount_out,
-            )?;
+            amounts[n_pools - 1] = self
+                .get_and_cache_pool(path[n_pools - 1].pool_id)?
+                .get_amount_in(path[n_pools - 1].token_in, token_out, amount_out)?;
             for i in (0..n_pools - 1).rev() {
                 amounts[i] = self.get_and_cache_pool(path[i].pool_id)?.get_amount_in(
                     path[i].token_in,
@@ -166,11 +167,9 @@ pub mod router_v2 {
                     amounts[i],
                 )?;
             }
-            amounts[n_pools] = self.get_and_cache_pool(path[n_pools - 1].pool_id)?.get_amount_out(
-                path[n_pools - 1].token_in,
-                token_out,
-                amounts[n_pools - 1],
-            )?;
+            amounts[n_pools] = self
+                .get_and_cache_pool(path[n_pools - 1].pool_id)?
+                .get_amount_out(path[n_pools - 1].token_in, token_out, amounts[n_pools - 1])?;
 
             Ok(amounts)
         }
@@ -205,6 +204,11 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(
+                to != token_out && to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let amounts = self.calculate_amounts_out(amount_in, &path, token_out)?;
             ensure!(
                 amounts[amounts.len() - 1] >= amount_out_min,
@@ -231,10 +235,15 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(
+                to != token_out && to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let amounts = self.calculate_amounts_in(amount_out, &path, token_out)?;
             ensure!(
                 amounts[0] <= amount_in_max,
-                RouterV2Error::ExcessiveInputAmount
+                RouterV2Error::InsufficientTransferredAmount
             );
             psp22_transfer_from(
                 path[0].token_in,
@@ -256,6 +265,11 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(
+                to != token_out && to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let received_value = self.env().transferred_value();
             let wnative = self.wnative;
             ensure!(path[0].token_in == wnative, RouterV2Error::InvalidToken);
@@ -280,11 +294,16 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(
+                to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let amounts = self.calculate_amounts_in(amount_out, &path, wnative)?;
             ensure!(
                 amounts[0] <= amount_in_max,
-                RouterV2Error::ExcessiveInputAmount
+                RouterV2Error::InsufficientTransferredAmount
             );
             psp22_transfer_from(
                 path[0].token_in,
@@ -309,6 +328,11 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(
+                to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let amounts = self.calculate_amounts_out(amount_in, &path, wnative)?;
             let native_out = amounts[amounts.len() - 1];
@@ -338,6 +362,11 @@ pub mod router_v2 {
             deadline: u64,
         ) -> Result<Vec<u128>, RouterV2Error> {
             check_timestamp(deadline)?;
+            ensure!(
+                to != token_out && to != self.env().account_id(),
+                RouterV2Error::InvalidRecipient
+            );
+            ensure!(!path.is_empty(), RouterV2Error::EmptyPath);
             let wnative = self.wnative;
             let received_native = self.env().transferred_value();
             ensure!(path[0].token_in == wnative, RouterV2Error::InvalidToken);
@@ -345,7 +374,7 @@ pub mod router_v2 {
             let native_in: Balance = amounts[0];
             ensure!(
                 native_in <= received_native,
-                RouterV2Error::ExcessiveInputAmount
+                RouterV2Error::InsufficientTransferredAmount
             );
             wrap(wnative, native_in)?;
             psp22_transfer(wnative, path[0].pool_id, native_in)?;
@@ -488,15 +517,13 @@ pub mod router_v2 {
             amounts: Vec<u128>,
             to: AccountId,
             deadline: u64,
-            native: bool,
         ) -> Result<(u128, u128), RouterV2Error> {
-            let wnative = if native { Some(self.wnative) } else { None };
             self.get_and_cache_stable_pool(pool)?.add_liquidity(
                 min_share_amount,
                 amounts,
                 to,
                 deadline,
-                wnative,
+                self.wnative,
             )
         }
 
@@ -508,15 +535,13 @@ pub mod router_v2 {
             amounts: Vec<u128>,
             to: AccountId,
             deadline: u64,
-            native: bool,
         ) -> Result<(u128, u128), RouterV2Error> {
-            let wnative = if native { Some(self.wnative) } else { None };
             self.get_and_cache_stable_pool(pool)?.remove_liquidity(
                 max_share_amount,
                 amounts,
                 to,
                 deadline,
-                wnative,
+                self.wnative,
             )
         }
 
@@ -528,16 +553,9 @@ pub mod router_v2 {
             min_amounts: Vec<u128>,
             to: AccountId,
             deadline: u64,
-            native: bool,
         ) -> Result<Vec<u128>, RouterV2Error> {
-            let wnative = if native { Some(self.wnative) } else { None };
-            self.get_and_cache_stable_pool(pool)?.remove_liquidity_by_share(
-                share_amount,
-                min_amounts,
-                to,
-                deadline,
-                wnative,
-            )
+            self.get_and_cache_stable_pool(pool)?
+                .remove_liquidity_by_share(share_amount, min_amounts, to, deadline, self.wnative)
         }
     }
 

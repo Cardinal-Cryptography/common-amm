@@ -3,7 +3,7 @@ use ink::{
     codegen::TraitCallBuilder,
     contract_ref,
     env::{block_timestamp, transfer, DefaultEnvironment as Env},
-    prelude::{string::String, vec::Vec},
+    prelude::vec::Vec,
     primitives::AccountId,
 };
 use psp22::{PSP22Error, PSP22};

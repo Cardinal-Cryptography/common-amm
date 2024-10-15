@@ -1,12 +1,14 @@
 use crate::{Balance, FactoryError, MathError, PairError, StablePoolError};
-use ink::{
-    prelude::vec::Vec,
-    primitives::AccountId,
-    LangError,
-};
+use ink::{prelude::vec::Vec, primitives::AccountId, LangError};
 use psp22::PSP22Error;
 
 /// Specifies the pool for the trade and the input token of this trade (token to sell).
+///
+/// A sequence of trades, shortly called a `path`, in the contract is represented by a `Vec<Step>`.
+/// It should be noted that when using the `swap_*` methods of `RouterV2`, the `path` argument
+/// should never contain two steps which use the same pool, as it may cause the dry input / output
+/// amount calculation not matching the actual swap result. It is not ensured inside the `swap_*`
+/// methods, making the result of using a pool-repeating `path` undefined.
 #[derive(scale::Decode, scale::Encode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub struct Step {
@@ -44,9 +46,9 @@ pub trait RouterV2 {
         token_0: AccountId,
         token_1: AccountId,
         amount_0_desired: u128,
-        amount_b_desired: u128,
+        amount_1_desired: u128,
         amount_0_min: u128,
-        amount_b_min: u128,
+        amount_1_min: u128,
         to: AccountId,
         deadline: u64,
     ) -> Result<(u128, u128, u128), RouterV2Error>;
@@ -65,7 +67,7 @@ pub trait RouterV2 {
         token_1: AccountId,
         liquidity: u128,
         amount_0_min: u128,
-        amount_b_min: u128,
+        amount_1_min: u128,
         to: AccountId,
         deadline: u64,
     ) -> Result<(u128, u128), RouterV2Error>;
@@ -114,9 +116,9 @@ pub trait RouterV2 {
 
     /// Adds liquidity to the stable pool.
     ///
-    /// If `native` is true, it attemps to wrap the transferred native token
-    /// and use it instead of transferring the wrapped version.
-    /// Fails if `native` is true but the pool does not have wrapped native token.
+    /// If a non-zero native amount is transferred, it attempts to wrap the transferred
+    /// native token and use it instead of transferring the wrapped version. Fails if a non-zero
+    /// native amount is transferred but the pool does not have wrapped native token.
     #[ink(message, payable)]
     fn add_stable_pool_liquidity(
         &mut self,
@@ -125,14 +127,12 @@ pub trait RouterV2 {
         amounts: Vec<u128>,
         to: AccountId,
         deadline: u64,
-        native: bool,
     ) -> Result<(u128, u128), RouterV2Error>;
 
     /// Withdraws liquidity from the stable pool by the specified amounts.
     ///
-    /// If `native` is true, it attemps to unwrap the wrapped native token
-    /// and withdraw it to the `to` account.
-    /// Fails if `native` is true but the pool does not have wrapped native token.
+    /// If the native token is present in the pool, it attempts to unwrap the wrapped
+    /// native token and withdraw it to the `to` account.
     #[ink(message)]
     fn remove_stable_pool_liquidity(
         &mut self,
@@ -141,14 +141,12 @@ pub trait RouterV2 {
         amounts: Vec<u128>,
         to: AccountId,
         deadline: u64,
-        native: bool,
     ) -> Result<(u128, u128), RouterV2Error>;
 
     /// Withdraws liquidity from the stable pool in balanced propotions.
     ///
-    /// If `native` is true, it attemps to unwrap the wrapped native token
-    /// and withdraw it to the `to` account.
-    /// Fails if `native` is true but the pool does not have wrapped native token.
+    /// If the native token is present in the pool, it attempts to unwrap the wrapped
+    /// native token and withdraw it to the `to` account.
     #[ink(message)]
     fn remove_stable_pool_liquidity_by_share(
         &mut self,
@@ -157,7 +155,6 @@ pub trait RouterV2 {
         min_amounts: Vec<u128>,
         to: AccountId,
         deadline: u64,
-        native: bool,
     ) -> Result<Vec<u128>, RouterV2Error>;
 
     // ----------- SWAP METHODS ----------- //
@@ -289,17 +286,18 @@ pub enum RouterV2Error {
     MathError(MathError),
     StablePoolError(StablePoolError),
 
+    EmptyPath,
     Expired,
     InvalidPoolAddress,
     InvalidToken,
+    InvalidRecipient,
     TransferError,
 
-    ExcessiveInputAmount,
     InsufficientTransferredAmount,
     InsufficientAmount,
     InsufficientOutputAmount,
-    InsufficientAmountA,
-    InsufficientAmountB,
+    InsufficientAmount0,
+    InsufficientAmount1,
     InsufficientLiquidity,
 }
 

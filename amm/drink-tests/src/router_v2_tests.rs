@@ -41,7 +41,7 @@ fn setup_router(
 fn test_cache_stable_pool(mut session: Session) {
     upload_all(&mut session);
 
-    // Fix timestamp. Otherwise underlying UNIX clock is used.
+    // Fix timestamp. Otherwise, underlying UNIX clock is used.
     let now = get_timestamp(&mut session);
     set_timestamp(&mut session, now);
 
@@ -158,7 +158,6 @@ fn test_cache_stable_pool_with_add_liquidity(mut session: Session) {
         1,
         initial_reserves.clone(),
         bob(),
-        false,
         0,
         BOB,
     )
@@ -1012,7 +1011,6 @@ fn test_stable_pool_liqudity(mut session: Session) {
         1,
         initial_reserves.clone(),
         bob(),
-        false,
         0,
         BOB,
     )
@@ -1036,7 +1034,6 @@ fn test_stable_pool_liqudity(mut session: Session) {
         max_share,
         to_withdraw,
         bob(),
-        false,
         BOB,
     )
     .expect("Should successfully add liquidity");
@@ -1053,7 +1050,6 @@ fn test_stable_pool_liqudity(mut session: Session) {
         share_amount,
         min_amounts,
         bob(),
-        false,
         BOB,
     )
     .expect("Should successfully add liquidity");
@@ -1120,7 +1116,6 @@ fn test_stable_pool_liqudity_native(mut session: Session) {
         1,
         initial_reserves.clone(),
         bob(),
-        true,
         initial_reserves[0],
         BOB,
     )
@@ -1150,7 +1145,6 @@ fn test_stable_pool_liqudity_native(mut session: Session) {
         max_share,
         to_withdraw,
         bob(),
-        true,
         BOB,
     )
     .expect("Should successfully add liquidity");
@@ -1167,7 +1161,6 @@ fn test_stable_pool_liqudity_native(mut session: Session) {
         share_amount,
         min_amounts,
         bob(),
-        true,
         BOB,
     )
     .expect("Should successfully add liquidity");

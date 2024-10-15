@@ -32,11 +32,8 @@ impl Pair {
         // If the call is not successful return None indicating that the `pair_id`
         // is not a Pair contract
         let fee = match contract_ref.call().get_fee().try_invoke() {
-            Ok(fee_result) => match fee_result {
-                Ok(fee_value) => fee_value,
-                Err(_) => return None,
-            },
-            Err(_) => return None,
+            Ok(Ok(fee)) => fee,
+            _ => return None,
         };
         let token_0 = contract_ref.get_token_0();
         let token_1 = contract_ref.get_token_1();
@@ -112,7 +109,7 @@ impl Pair {
         if amount_1_optimal <= amount_1_desired {
             ensure!(
                 amount_1_optimal >= amount_1_min,
-                RouterV2Error::InsufficientAmountB
+                RouterV2Error::InsufficientAmount1
             );
             Ok((amount_0_desired, amount_1_optimal))
         } else {
@@ -120,7 +117,7 @@ impl Pair {
             // amount_0_optimal <= amount_0_desired holds as amount_1_optimal > amount_1_desired
             ensure!(
                 amount_0_optimal >= amount_0_min,
-                RouterV2Error::InsufficientAmountA
+                RouterV2Error::InsufficientAmount0
             );
             Ok((amount_0_optimal, amount_1_desired))
         }
@@ -214,8 +211,8 @@ impl Pair {
             (amount_1, amount_0)
         };
 
-        ensure!(amount_0 >= amount_0_min, RouterV2Error::InsufficientAmountA);
-        ensure!(amount_1 >= amount_1_min, RouterV2Error::InsufficientAmountB);
+        ensure!(amount_0 >= amount_0_min, RouterV2Error::InsufficientAmount0);
+        ensure!(amount_1 >= amount_1_min, RouterV2Error::InsufficientAmount1);
 
         Ok((amount_0, amount_1))
     }
