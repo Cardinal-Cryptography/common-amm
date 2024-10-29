@@ -10,6 +10,8 @@ use traits::{Balance, MathError, Pair as PairTrait, RouterV2Error};
 
 const PAIR_TRADING_FEE_DENOM: u128 = 1000;
 
+const DEFAUT_PAIR_FEE: u8 = 3;
+
 #[derive(scale::Decode, scale::Encode)]
 #[cfg_attr(
     feature = "std",
@@ -28,15 +30,23 @@ impl Pair {
     /// Returns `None` if `pair_id` is not a Pair contract.
     pub fn try_new(pair_id: AccountId) -> Option<Self> {
         let contract_ref: contract_ref!(PairTrait, Env) = pair_id.into();
-        // Assume that the `pair_id` is a Pair contract and try to get the fee value.
+
+        // Assume that the `pair_id` is a Pair contract and try to get the token_0 address.
         // If the call is not successful return None indicating that the `pair_id`
-        // is not a Pair contract
-        let fee = match contract_ref.call().get_fee().try_invoke() {
-            Ok(Ok(fee)) => fee,
+        // is not a Pair contract.
+        let token_0 = match contract_ref.call().get_token_0().try_invoke() {
+            Ok(Ok(account)) => account,
             _ => return None,
         };
-        let token_0 = contract_ref.get_token_0();
         let token_1 = contract_ref.get_token_1();
+
+        // The `Pair` contracts that do not implement `get_fee()`
+        // have fee equal to the default value (3, i.e. 0.3%).
+        let fee = match contract_ref.call().get_fee().try_invoke() {
+            Ok(Ok(fee)) => fee,
+            _ => DEFAUT_PAIR_FEE,
+        };
+
         Some(Pair {
             id: pair_id,
             token_0,
