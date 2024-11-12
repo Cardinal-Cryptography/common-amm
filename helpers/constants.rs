@@ -1,6 +1,7 @@
 /// Address for which the private key is unknown.
 /// This is used for sending MINIMUM_LIQUIDITY when minting tokens in Pair contract.
 /// Result of sha512 hashing the ZERO_ADDERSS_MSG to curve (curve25519).
+/// ss58-encoded format: 5DPJrKsxGYWzZ6gU8VdmFMYLjsnRmUy3zsoufJNM6wnsSCKR
 pub const BURN_ADDRESS: [u8; 32] = [
     58, 108, 115, 140, 64, 55, 232, 71, 183, 215, 14, 149, 138, 148, 201, 178, 212, 197, 99, 60,
     250, 175, 203, 88, 227, 37, 36, 127, 63, 212, 16, 72,
