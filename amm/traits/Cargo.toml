@@ -8,10 +8,10 @@ edition = "2021"
 ink = { version = "=4.3.0", default-features = false }
 ink_metadata = { version = "=4.3.0", features = ["derive"], optional = true }
 
-scale = { package = "parity-scale-codec", version = "3", default-features = false, features = [
+scale = { package = "parity-scale-codec", version = "=3.6.9", default-features = false, features = [
     "derive",
 ] }
-scale-info = { version = "2.9", default-features = false, features = [
+scale-info = { version = "=2.10.0", default-features = false, features = [
     "derive",
 ], optional = true }
 
