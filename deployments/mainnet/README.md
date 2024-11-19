@@ -2,6 +2,7 @@
 
 The contracts are deployed under the following addresses on MainNet:
 * Router `5DRnWewtFkLtuKT6pD7QVto4fXSEjoGvX6pccjVpdCpaz2EV`
+* RouterV2 `5EytiMsxFWDYRykDkzuPyqHY9aWte6ZWfzX8MDxqewSu2V31`
 * Factory `5CtpsMdf454G5YxDjLGkRUH6kefKuNhbaoGdhXJChtqN7dA3`
 * wAZERO `5CtuFVgEUz13SFPVY6s2cZrnLDEkxQXc19aXrNARwEBeCXgg`
 * Pools
